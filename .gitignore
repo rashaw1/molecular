@@ -1,0 +1,34 @@
+#exclude object files
+*.o
+*.obj
+*.lo
+*.slo
+
+#compiled headers
+*.gch
+*.pch
+
+#compiled dynamic libraries
+*.so
+*.dylib
+*.dll
+
+#fortran module files
+*.mod
+
+#compiled static libraries
+*.lib
+*.a
+*.lai
+*.la
+
+#executables
+*.out
+*.app
+*.exe
+
+#temp files
+*~
+
+#mac osx thing
+.DS_Store
