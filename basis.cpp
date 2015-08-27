@@ -228,8 +228,64 @@ void PBF::normalise()
   norm = sqrt(norm);
 }
   
+// Overloaded operators
+Basis& Basis::operator=(const Basis& other)
+{
+  // If basis functions already exist, deallocate memory
+  if(charges.size() > 0){
+    delete[] bfs;
+  }
 
+  // Assign attributes
+  name = other.name;
+  charges = other.charges;
+  shells = other.shells;
+  lnums = other.lnums;
+  
+  // Copy across bfs
+  int nbfs = charges.size();
+  if (nbfs > 0){
+    bfs = new BF[nbfs];
+    for (int i = 0; i < nbfs; i++){
+      bfs[i] = other.bfs[i];
+    }
+  }
+  return *this;
+}
 
+BF& BF::operator=(const BF& other)
+{
+  // If PBFs already exist, deallocate memory
+  if(coeffs.size() > 0){
+    delete[] pbfs;
+  }
+  
+  // Assign attributes
+  coeffs = other.coeffs;
+  norm = other.norm;
+  lx = other.lx; ly = other.ly; lz = other.lz;
+
+  // Copy across PBFs
+  int npbfs = coeffs.size();
+  if (npbfs > 0){
+    pbfs = new PBF[npbfs];
+    for (int i = 0; i < npbfs; i++){
+      pbfs[i] = other.pbfs[i];
+    }
+  }
+  
+  return *this;
+}
+
+PBF& PBF::operator=(const PBF& other)
+{
+  // Assign attributes
+  exponent = other.exponent;
+  norm = other.norm;
+  lx = other.lx; ly = other.ly; lz = other.lz;
+  return *this;
+}
+  
 
   
 

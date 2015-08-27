@@ -65,6 +65,8 @@ public:
   // Routines
   void rotate(const Matrix& U); 
   void translate(double dx, double dy, double dz);
+  // Overloaded operators
+  Atom& operator=(const Atom& other);
 };  
   
 #endif

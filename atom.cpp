@@ -99,3 +99,34 @@ void Atom::translate(double dx, double dy, double dz)
 {
   x += dx; y += dy; z += dz;
 }
+
+// Overloaded operators
+
+// Overload the assignment operator, =
+Atom& Atom::operator=(const Atom& other)
+{
+  // Check to see if this atom already has bfs
+  // deallocate memory if it does
+  if (nbfs > 0){
+    delete[] bfs;
+  }
+  
+  // Assign attributes
+  charge = other.charge;
+  nbfs = other.nbfs;
+  nshells = other.nshells;
+  x = other.x; y = other.y; z = other.z;
+  mass = other.mass;
+  shells = other.shells;
+  lnums = other.lnums;
+ 
+  // Copy over basis functions
+  if (nbfs > 0) {
+    bfs = new BF[nbfs];
+    for (int i = 0; i < nbfs; i++){
+      bfs[i] = other.bfs[i];
+    }
+  }
+  return *this;
+}
+

@@ -88,6 +88,8 @@ public:
   int getShellSize(int q) const;
   Vector& getShells(int q) const;
   Vector& getLnums(int q) const;
+  // Overloaded operators
+  Basis& operator=(const Basis& other);
 };
   
 class BF
@@ -114,7 +116,8 @@ public:
   int getLx() const { return lx; }
   int getLy() const { return ly; }
   int getLz() const { return lz; }
-  // Routines
+  // Overloaded operators
+  BF& operator=(const BF& other);
 };
 
 class PBF
@@ -136,6 +139,8 @@ public:
   int getLz() const { return lz; }
   // Routines
   void normalise();
+  // Overloaded operators
+  PBF& operator=(const PBF& other);
 };
 
 #endif
