@@ -225,7 +225,9 @@ Vector Molecule::getInertia(bool shift)
 // dist2 gives the square of this distance
 double Molecule::dist2(int i, int j) const
 {
-  return inner(atoms[i].getCoords(), atoms[j].getCoords());
+  Vector dvec(3);
+  dvec = atoms[j].getCoords() - atoms[i].getCoords(); 
+  return inner(dvec, dvec);
 }
 
 double Molecule::dist2(int i, int j) const
