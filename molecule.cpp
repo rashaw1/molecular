@@ -40,9 +40,12 @@ void Molecule::init()
     for (int i = 0; i < natoms; i++) {
       atoms[i] = log.getAtom();
       atoms[i].setBasis(bfset);
-      nel += atoms[i].getNel();
+      nel += atoms[i].getCharge();
     }
-
+    
+    // Account for overall charge
+    nel -= charge;
+    
     // Calculate the nuclear energy
     calcEnuc();
 
