@@ -35,9 +35,11 @@
  *                    norm - the normalisation constant of the function
  *                    lx, ly, lz - the angular momentum quantum number 
  *                                 components in the cartesian directions
+ *                    id - a unique identifier for integral indexing
  *              accessors: all of the above have get routines
  *                          in addition, getCoeff(i) will return just the ith
  *                          coefficient
+ *                          setID(id) will set the id
  *              routines:
  *                       none
  *                  
@@ -98,7 +100,7 @@ private:
   PBF* pbfs;
   Vector coeffs;
   double norm;
-  int lx, ly, lz;
+  int lx, ly, lz, id;
 public:
   // Constructors and destructor
   // Need to specify a vector of contraction coefficients, c, the angular
@@ -116,6 +118,8 @@ public:
   int getLx() const { return lx; }
   int getLy() const { return ly; }
   int getLz() const { return lz; }
+  int getID() const { return id; }
+  void setID(int i);
   // Overloaded operators
   BF& operator=(const BF& other);
 };
