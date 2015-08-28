@@ -1,12 +1,16 @@
 /* 
- *    PURPOSE: To implement mathutil.hpp, a library of maths functions needed by 
- *             various other programs.
+ *    PURPOSE: To implement mathutil.hpp, a library of maths functions needed
+ *             by various other programs.
  *
  *    DATE         AUTHOR          CHANGES
- *    ==========================================================================
+ *    =======================================================================
  *    27/08/15     Robert Shaw     Original Code
- *
+ *    28/08/15     Robert Shaw     Implemented Boys function.
  */
+
+#include <cmath>
+#include "vector.hpp"
+#include "logger.hpp"
 
 // Factorial and double factorial functions
 long int fact(int i)
@@ -26,3 +30,48 @@ long int fact2(int i)
   }
   return rval;
 }
+
+// Calculate the boys function F_m(x) for a range of values of m from mmax
+// to mmin. This uses downward recursion, using the analytical relation of
+// Mamedov, J. Math. Chem., 36, 3, 2004: "On the evaluation of Boys functions
+// usign downward recursion relation". It is a very simple, efficient, and
+// arbitrarily accurate (to within machine precision) method.
+Vector boys(double x, int mmax, int mmin, double PRECISION)
+{
+  // Initialise return array
+  Vector rvec(mmax - mmin + 1); // +1 as need to include both mmax and mmin
+
+  if(x < PRECISION) { // x ~ 0, so no need for recursion
+
+    // x = 0 implies F_m(x) = 1/(2m+1) 
+    for (int i = mmin; i <mmax + 1; i++){
+      rvec[i-mmin] = 1.0/(2.0*(double)(i) + 1.0);
+    }
+    
+  } else {
+
+    // Declare starting value
+    double f0 = sqrt(M_PI)/(2.0*sqrt(x));
+  
+    // Find the starting m for recursion from relation in Mamedov
+    double dmmax = (double) mmax;
+    double logval = log((fabs(dmmax - x) < PRECISION ? dmmax : dmmax/x));
+    int mt = ceil( (PRECISION/fabs(logval)) ) + mmax;
+
+    // Come down the chain starting at mt, with F(mt) = f0
+    // using standard boys downwards recursion relation:
+    // F_m = 1/(2m+1)*(2xF_(m+1) + exp(-x))
+    for (int i = mt; i > mmax; i--){
+      f0 = ( 1.0/(2*(double)(i)) ) * ( 2*x*f0 + exp(-1.0*x) );
+    }
+    
+    // Now carry on doing the same thing, but storing the results
+    // in the return vector
+    for (int i = mmax; i > mmin - 1; i--){
+      f0 = ( 1.0/(2*(double)(i))) * ( 2*x*f0 + exp(-1.0*x) );
+      rvec[i-mmin] = f0;
+    }
+  }
+  return rvec;
+}
+  
