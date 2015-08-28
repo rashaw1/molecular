@@ -31,6 +31,6 @@ long int fact2(int i);
 // Boys function calculator for the evaluation of molecular integrals over
 // gaussian type basis functions. Returns a vector of F_m(x) for m in the range
 // mmax to mmin (it uses downwards recursion).
-Vector boys(double x, int mmax, int mmin = 0);
+Vector boys(double x, int mmax, int mmin = 0, int DIGITS=12);
 
 #endif
