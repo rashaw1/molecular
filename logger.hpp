@@ -12,10 +12,10 @@
  *                    errstream - an ostream for logging all error messages - could be a file,
  *                                the console, any ostream
  *                    errs - an array of Error messages that have been thrown
- *              data: nerr - the number of errors accumulated
- *                    clock - a boost::timer for keeping track of time elapsed, and the time
+ *              data: nerr, natoms - the number of errors accumulated, and the num. of atoms
+ *                    clock - a boost::timer::cpu_timer for keeping track of time elapsed, and the time
  *                            that the log was instantiated at
- *              input storage: geometry, charge, multiplicity, atoms, basisset
+ *              input storage: charge, multiplicity, atoms, basisset
  *              user defined constants: 
  *                    PRECISION - the numerical precision to be used throughout the program
  *                    MAXITER - the maximum number of iterations that will be performed
@@ -31,7 +31,7 @@
  *                    INPUT:
  *                         getBasis(), charge(), multiplicity(), getAtom(charge), precision(),
  *                         maxiter() - all return the data/constant/object to which they refer
- *                         natoms() - returns the number of atoms, i.e. atoms.size()
+ *                         natoms() - returns the number of atoms
  *                    OUTPUT:
  *                         print() - overloaded function that will just print a general message
  *                                   or object in a generic way
@@ -82,10 +82,9 @@ private:
   ostream& errstream;
   Error* errs;
   Atom* atoms;
-  int nerr, charge, multiplicity;
-  boost::timer clock;
+  int nerr, charge, multiplicity, natoms;
+  boost::timer::cpu_timer clock;
   Basis basisset;
-  std::string* geometry;
   // User defined constants
   double PRECISION;
   int MAXITER;
@@ -107,7 +106,7 @@ public:
   Atom& getAtom() const;
   double precision() const { return PRECISION; }
   int maxiter() const { return MAXITER; }
-  int natoms() const { return atoms.size(); }
+  int natoms() const { return natoms; }
   // Overloaded print functions
   void print(const std::string& msg) const; // Print a string message
   void print(const Vector& v) const; // Print out a formatted vector
