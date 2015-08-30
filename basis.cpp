@@ -8,6 +8,7 @@
  */
 
 // Includes
+#include "basis.hpp"
 #include "ioutil.hpp"
 #include <cmath>
 #include "mathutil.hpp"
@@ -16,6 +17,7 @@
 
 Basis::Basis(std::string n, Vector& atoms)
 {
+  BasisReader input(n); // Make a basis reading object
   name = n;
 
   int natoms = atoms.size(); // Get how many different atoms there are
@@ -23,7 +25,7 @@ Basis::Basis(std::string n, Vector& atoms)
   int nbfs = 0;
   Vector qnbfs(natoms); // Store the nbfs for each atom
   for (int i = 0; i < natoms; i++){
-    qnbfs[i] = readNbfs(name, atoms(i));
+    qnbfs[i] = input.readNbfs(atoms(i));
     nbfs += qnbfs(i);
   }
   
@@ -39,7 +41,7 @@ Basis::Basis(std::string n, Vector& atoms)
   int k = 0; // Index counter for bfs array
   for (int i = 0; i < natoms; i++){
     for (int j = 0; j < qnbfs(i); j++){
-      bfs[k] = readBF(atoms(i), j);
+      bfs[k] = input.readBF(atoms(i), j);
       bfs[k].setID(k); // Index the basis functions
       charges[k] = atoms(i);
       k++;
@@ -47,8 +49,8 @@ Basis::Basis(std::string n, Vector& atoms)
   }
 
   // Read in the shell data
-  shells = readShells(name, charges);
-  lnums = readLnums(name, charges);
+  shells = input.readShells(charges);
+  lnums = input.readLnums(charges);
 }
 
 Basis::~Basis()
@@ -212,6 +214,16 @@ Vector& Basis::getLnums(int q) const
     l[i] = lnums[position+i];
   }
   return l;
+}
+
+Vector BF::getExps() const
+{
+  // Construct a vector of exps
+  Vector exps(coeffs.size());
+  for (int i = 0; i < coeffs.size(); i++){
+    exps[i] = pbfs[i].getExponent();
+  }
+  return exps;
 }
 
 void PBF::setID(int i)

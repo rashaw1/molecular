@@ -12,6 +12,7 @@
  *                nel: the total number of electrons in the molecule
  *                multiplicity: the spin multiplicity of the molecule
  *                enuc: the nuclear energy of the molecule
+ *                natoms: the number of atoms in atoms
  *           accessors: - all data has a get... accessor, e.g. getNel
  *           routines:
  *                rotate(Matrix U): rotate the coordinate system, according
@@ -62,7 +63,7 @@ private:
   Basis bfset;
   Logger& log;
   Atom* atoms;
-  int charge, nel, multiplicity;
+  int charge, nel, multiplicity, natoms;
   double enuc;
 public:
   // Constructors and destructor
@@ -71,6 +72,7 @@ public:
   Molecule(const Molecule& other); // Copy constructor
   ~Molecule(); // Deletes the atom array
   // Accessors
+  int getNAtoms() const { return natoms; }
   int getCharge() const { return charge; }
   int getNel() const { return nel; }
   int getMultiplicity() const { return multiplicity; }

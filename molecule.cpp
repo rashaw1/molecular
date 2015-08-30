@@ -28,7 +28,7 @@ void Molecule::init()
   bfset = log.getBasis();
   
   // Now declare the array of atoms
-  int natoms = log.natoms();
+  natoms = log.natoms();
   if (natoms != 0){
 
     atoms = new Atom[natoms];
@@ -38,7 +38,7 @@ void Molecule::init()
     // their basis functions. At the same time,
     // calculate the number of electrons
     for (int i = 0; i < natoms; i++) {
-      atoms[i] = log.getAtom();
+      atoms[i] = log.getAtom(i);
       atoms[i].setBasis(bfset);
       nel += atoms[i].getCharge();
     }

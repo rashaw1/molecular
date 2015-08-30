@@ -6,12 +6,13 @@
  *   DATE          AUTHOR           CHANGES
  *   =========================================================================================
  *   29/08/15      Robert Shaw      Original code.
- *
+ *   30/08/15      Robert Shaw      Implemented the many, many print functions
  */
 
 // Includes
 #include <iostream>
 #include <fstream>
+#include "logger.hpp"
 #include "basis.hpp"
 #include "matrix.hpp"
 #include "vector.hpp"
@@ -30,8 +31,8 @@ const double Logger::TOANG = 1.889726124565;
 // Constructor
 Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(out), errstream(e)
 {
-  // Start the timer!
-  
+  // Timer is started on initialisation of logger.
+  last_time = 0;
 
   // Initialise error array - fixed maximum of 20 errors, because any more than that and the 
   // whole idea is pointless really! Dynamic memory seems an unecessary overhead for just storing
@@ -104,8 +105,8 @@ Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(ou
     qs[0] = tempqs(0);
     int k = 1;
     for (int i = 1; i < natoms; i++){
-      if (tempqs(i) != tempqs(i-1)){
-	qs[k] = tempqs[k];
+      if (tempqs(i) != qs(k-1)){
+	qs[k] = tempqs[i];
 	k++;
       }
     }
@@ -130,3 +131,429 @@ Logger::~Logger()
   }
   delete[] errs;
 }
+
+// Overloaded print functions
+
+// Print out a basic string message
+void Logger::print(const std::string& msg) const
+{
+  ofstream << msg << "\n";
+}
+
+// Print out a vector to a given precision, either horizontally or vertically
+void Logger::print(const Vector& v, int digits, bool vertical) const
+{
+  std::string ender = "";
+  if(vertical){
+    ender = "\n";
+  }
+  for (int i = 0; i < v.size(); i++){
+    ofstream << std::scientific << std::setw(digits+8) << v[i] << ender;
+  }
+  ofstream << "\n";
+}
+
+// Print out a matrix, row by row, to a given precision
+void Logger::print(const Matrix& m, int digits) const
+{
+  // Print out row by row
+  Vector temp(i.ncols());
+  for (int i = 0; i < m.nrows(); i++){
+    temp = m.rowAsVector(i);
+    print (temp, digits, false);
+  }
+}
+
+// Print out the basis set specification in the format:
+// (example is C atom in 3-21G basis set)
+// BASIS: 6-31G
+// Total no. of cgbfs: 9
+// Total no. of primitives: 9
+// ===============
+//  Specification
+// ===============
+// Atom      Shell     #CGBFs    #Prims
+// ......................................
+// C         s          3         6
+//           p          6         3
+// (if full = true, then continue with this)
+// ===============
+// Basis Functions
+// ===============
+// Atom      Shell     BF    Coeff        Exponent
+// .................................................
+// C         s         1     0.0617669    172.2560
+//                           0.358794     25.91090
+//                           0.700713     5.533350
+// etc...
+void Logger::print(const Basis& b, bool full){
+  // Collect the data needed for printing
+  int nbfs = b.getNBFs(); // Store number of cgbfs and prims
+  int nprims = 0;
+
+  Vector qs = b.getCharges();
+  // Sort the qs and get rid of duplicates
+  qs.sort();
+  Vector qtemp(qs.size());
+  qtemp[0] = qs(0);
+  int k = 1;
+  for (int i = 1; i < qs.size(); i++){
+    if (qs(i) != qtemp[k-1]){
+      qtemp[k] = qs(i);
+      k++;
+    }
+  }
+  qs.resizeCopy(k);
+
+  // Now sum over all basis functions to get the number of prims
+  Vector c(3); c[0] = 0.0; c[1] = 0.0; c[2] = 0.0;
+  BF bftemp(c, 0, 0, 0, c);
+  for (int i = 0; i < k; i++){
+    for (int j = 0; j < b.getSize(qs[i]); j++){
+      bftemp = b.getBF(qs[i], j);
+      nprims += bftemp.getNPrims();
+    }
+  }
+  
+  // Start printing
+  title("Basis Set");
+  outfile << "BASIS: " << b.getName() << "\n";
+  outfile << "Total no. of cgbfs: " << nbfs << "\n";
+  outfile << "Total no. of prims: " << nprims << "\n";
+  title("Specification");
+  outfile << std::setw(8) << "Atom";
+  outfile << std::setw(8) << "Shell";
+  outfile << std::setw(8) << "#CGBFs";
+  outfile << std::setw(8) << "#Prims\n";
+  outfile << std::string(35, ".") << "\n";
+  
+  // loop over the atom types
+  int nc = 0; int np = 0;
+  Vector subshells; Vector sublnums; 
+  for (int i = 0; i < k; i++){
+    outfile << std::setw(8) << getAtomName(qs(i));
+    subshells = b.getShells(qs[i]);
+    sublnums = b.getLnums(qs[i]);
+    outfile << std::setw(8) << getShellName(sublnums[0]);
+    outfile << std::setw(8) << subshells[0];
+    for (int j = 0; j < subshells[0]; j++){
+      np += b.getBF(qs[i], j).getNPrims();
+    }
+    nc += subshells[0];
+    outfile << std::setw(8) << np << "\n";
+    for (int j = 1; j < subshells.size(); j++){
+      outfile << std::setw(8) << "";
+      outfile << std::setw(8) << getShellName(sublnums[j]);
+      outfile << std::setw(8) << subshells[j];
+      np = 0;
+      for (int l = 0; l < subshells[j]; l++){
+	np += b.getBF(qs[i], nc + l).getNPrims();
+      }
+      nc += subshells[j];
+      outfile << std::setw(8) << np << "\n";
+    }
+  }
+
+  // Now print out basis functions if required
+  if (full) {
+    title("Basis Functions");
+    outfile << std::setw(8) << "Atom";
+    outfile << std::setw(8) << "Shell";
+    outfile << std::setw(5) << "BF";
+    outfile << std::setw(12) << "Coeff";
+    outfile << std::setw(12) << "Exponent\n";
+    outfile << std::string(48, ".") << "\n";
+    // Loop over all the basis functions
+    Vector subshell; Vector sublnums; 
+    Vector coeffs; Vector exps;
+    std::string filler = "";
+    for (int i = 0; i < k; i++){
+      subshell = b.getShells(qs(i));
+      sublnums = b.getLnums(qs(i));
+
+      // Loop over shells
+      for (int r = 0; r < b.getShellSize(qs(i)); r++){ 
+	// Loop over bfs
+	for (int s = 0; s < subshell[r]; s++){
+	  bftemp = b.getBF(qs(i), s);
+	  coeffs = bftemp.getCoeff();
+	  exps = bftemp.getExps();
+
+	  // Loop over coeffs/exps
+	  for (int t = 0; t < coeffs.size(); t++){
+	    filler = (r == 0 ? getAtomName(qs[i]) : "");
+	    outfile << std::setw(8) << filler;
+	    filler = (s == 0 ? getShellName(sublnums[r]) : "");
+	    outfile << std::setw(8) << filler;
+	    filler = (t == 0 ? std::to_string(s+1) : "");
+	    ouftile << std::setw(5) << filler;
+
+	    outfile << std::setw(12) << std::setprecision(8) << coeffs(t);
+	    outfile << std::setw(12) << std::setprecision(8) << exps(t) << "\n";
+	  }
+	}
+      }
+    }
+  }
+}      
+
+// Print out the details of an atom, taking the form:
+// Atom Type   Atomic Number    Atomic Mass(amu)  x    y    z
+void Logger::print(const Atom& a) const
+{
+  int q = a.getCharge();
+  Vector c(3);
+  c = a.getCoords();
+  outfile << std::setw(6) << getAtomName(q);
+  outfile << std::setw(6) << q;
+  outfile << std::setw(6) << a.getMass();
+  outfile << "(" << std::setw(6) << c(0);
+  outfile << ", " << std::setw(6) << c(1);
+  outfile << ", " << std::setw(6) << c(2) << ")\n";
+}
+
+// Print out details of Molecule, taking the form:
+// ========
+// MOLECULE
+// ========
+// No. of e- = nel,  charge = q,  singlet/doublet/triplet etc.
+// (if inertia = true then also prints the section:
+// ............................
+// Principal Moments of Inertia
+// ............................
+// Ia = ...,  Ib = ...,  Ic = ...
+// Rotational type: ...
+// ....................
+// Rotational Constants
+// ....................
+// (the coordinate system is also transformed to inertial coords)
+// =====
+// ATOMS
+// =====
+// Atom     z     Mass (a.m.u)     Coordinates
+// ...............................................................
+// C        6     12.014           (0.0, 3.53, -1.24)
+// etc...
+void Logger::print(const Molecule& mol, bool inertia)
+{
+  title("Molecule");
+  // Print out basic details
+  outfile << "# electrons = " << mol.getNel() << ",  ";
+  outfile << "charge = " << mol.getCharge() << ",  ";
+ 
+  std::string temp;
+  // Get the state type
+  switch (mol.getMultiplicity()) {
+  case 1: { temp = "Singlet"; break; }
+  case 2: { temp = "Doublet"; break; }
+  case 3: { temp = "Triplet"; break; }
+  case 4: { temp = "Quartet"; break; }
+  case 5: { temp = "Quintet"; break; }
+  default: { temp = "Spintacular"; break; } // Are hextets even a thing?!
+  }
+  outfile << temp << "\n";
+  
+  // Print inertial details if needed, and rotate
+  // into the inertial coordinate system
+  if (inertia) {
+    // Get it
+    temp = mol.rType();
+    Vector rconsts(3);
+    rconsts = mol.rConsts(0); // cm-1
+    Vector inert(3);
+    inert = mol.getInertia(true);
+    
+    // Print it out
+    outfile << std::string(30, ".") << "\n";
+    outfile << "Principal Moments of Inertia\n";
+    outfile << std::String(30, ".") << "\n";
+    outfile << "Ia = " << std::setw(12) << inert(0);
+    outfile << ",  Ib = " << std::setw(12) << inert(1);
+    outfile << ",  Ic = " << std::setw(12) << inert(2) << "\n";
+    outfile << "Rotational type: " << temp << "\n";
+    outfile << std::string(23, ".") << "\n";
+    outfile << "Rotational Constants\n";
+    outfile << std::String(23, ".") << "\n";
+    outfile << "A = " << std::setw(12) << rconsts(0);
+    outfile << ",  B = " << std::setw(12) << rconsts(1);
+    outfile << ",  C = " << std::setw(12) << rconsts(2) << "\n";
+    
+  }
+  
+  // Finally, print out all the atoms
+  title("Atoms");
+  outfile << std::setw(6) << "Atom" << std::setw(6) << "z";
+  outfile << std::setw(6) << "Mass" << std::setw(26) << "Coordinates" << "\n";
+  outfile << std::string(45, ".") << "\n";
+  for (int i = 0; i < mol.getNAtoms(); i++){
+    print(mol.getAtom(i));
+  }
+}
+
+// Print out a contracted gaussian basis function, in the form:
+// #Prims = ..., s/px/py/pz/dxy/... type orbital
+// Coefficients: ......
+// Exponents: ......
+void Logger::print(const BF& bf) const
+{
+  // Get information
+  Vector coef;
+  coef = bf.getCoeffs();
+  Vector exp;
+  exp = bf.getExps();
+  int lx = bf.getLx(); int ly = bf.getLy(); int lz = bf.getLz();
+  
+  // Work out the orbital type
+  std::string temp;
+  switch(lx + ly + lz){
+  case 0: { temp = "s"; break; }
+  case 1: { 
+    if (lx == 1){
+      temp = "px";
+    } else if (ly == 1){
+      temp = "py";
+    } else {
+      temp = "pz";
+    }
+    break;
+  }
+  case 2: { 
+    if (lx == 1 && ly == 1){
+      temp = "dxy";
+    } else if (lx == 1 && lz == 1){
+      temp = "dxz";
+    } else if (ly == 1 && lz == 1){
+      temp = "dyz";
+    } else if (lz == 2) {
+      temp = "dz2";
+    } else {
+      temp = "d(x2 - y2)";
+    }
+    break
+  }
+  case 3: { temp = "f"; break; } 
+  case 4: { temp = "g"; break; }
+  case 5: { temp = "h"; break; }
+  case 6: { temp = "Very angular"; break; }
+  }
+
+  // Print it out
+  outfile << "#Primitives = " << coef.size();
+  outfile << ",  " << temp << " type basis function\n";
+  outfile << std::setw(15) << "Coefficients: ";
+  for (int i = 0; i < coef.size(); i++){
+    outfile << std::setw(12) << std::setprecision(9) << coef(i);
+    if ((i % 4) == 0){ // Print 4 per line
+      outfile << "\n" << std::setw(15) << "";
+    }
+  }
+  outfile << std::setw(15) <<  "\nExponents: ";
+  for (int i = 0; i < exp.size(); i++){
+    outfile << std::setw(12) << std::setprecision(9) << exp(i);
+    if ( (i%4) == 0) {
+      outfile << "\n" << std::setw(15) << "";
+    }
+  }
+}
+
+// Print out a primitive gaussian basis function in the form:
+// Lx = ..., Ly = ..., Lz = ...
+// norm = ..., exponent = ...
+void Logger::print(const PBF& pbf) const
+{
+  outfile << "Lx = " << pbf.getLx();
+  outfile << ",  Ly = " << pbf.getLy();
+  outfile << ",  Lz = " << pbf.getLz() << "\n";
+  outfile << "Norm = " << pbf.getNorm();
+  outfile << ",  Exponent = " << pbf.getExponent() << "\n";
+}
+ 
+
+// Specialised printing routines
+
+// Print a title like so:
+// =====
+// TITLE
+// =====
+void Logger::title(const std::string& msg) const 
+{
+  std::string temp = msg;
+  // Make upper case
+  std::transform(temp.begin(), temp.end(), temp.begin(), ::toupper);
+  
+  // Print
+  outfile << std::string(temp.length(), "=") << "\n";
+  outfile << temp << "\n";
+  outfile << std::string(temp.length(), "=") << "\n";
+}
+
+// Print a result like so:
+// **********************
+// result goes here
+// **********************
+void Logger::result(const std::string& msg) const
+{
+  outfile << std::string(msg.length(), "*") << "\n";
+  outfile << msg << "\n";
+  outfile << std::string(msg.length(), "*") << "\n";
+}
+
+// Log an error
+void Logger::error(Error e)
+{
+  nerr++;
+  errs[nerr%20] = e;
+  errstream << "ERROR: " << e.getCode() << "\n";
+  errstream << "Message: " << e.getMsg() << "\n";
+  errTime();
+}
+
+// Timing functions
+
+// Print time elapsed since last call
+void Logger::localTime()
+{
+  boost::timer::nanosecond_type temp = timer.elapsed().wall;
+  outfile << "Time taken: " <<  ((double)(last - temp))/(1e9) 
+	  << " seconds\n";
+  last_time = temp;
+}
+ 
+// Print total time taken
+void Logger::globalTime()
+{
+  outfile << "Total time: " << ((double)(timer.elapsed().wall))/(1e9) 
+	  << " seconds\n";
+}
+
+// Print time at which error occured
+void Logger::errTime()
+{
+  errstream << "Error after " << ((double)(timer.elapsed().wall))/(1e9) 
+	    << " seconds\n";
+}
+
+// Return the localTime/globalTime, instead of printing
+double Logger::getLocalTime() 
+{
+  boost::timer::nanosecond_type temp = timer.elapsed().wall;
+  boost::timer::nanosecond_type rval = temp - last_time;
+  last_time = temp;
+  return ((double)(rval))/(1e9);
+}
+
+double Logger::getGlobalTime()
+{
+  return ((double)(timer.elapsed().wall))/(1e9);
+}
+
+// Finalise the output
+// Currently just prints the time and the number of errors
+// that occurred
+void Logger::finalise()
+{
+  outfile << std::string(30, "-") << "\n";
+  globalTime(); // Print time elapsed
+  outfile << "Number of errors: " << nerr << "\n";
+}
+  

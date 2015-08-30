@@ -9,6 +9,7 @@
  */
 
 // Includes
+#include "atom.hpp"
 #include "matrix.hpp"
 #include "basis.hpp"
 

@@ -9,6 +9,7 @@
  */
 
 #include <cmath>
+#include "mathutil.hpp"
 #include "vector.hpp"
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/special_functions/erf.hpp>

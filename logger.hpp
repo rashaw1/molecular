@@ -13,8 +13,9 @@
  *                                the console, any ostream
  *                    errs - an array of Error messages that have been thrown
  *              data: nerr, natoms - the number of errors accumulated, and the num. of atoms
- *                    clock - a boost::timer::cpu_timer for keeping track of time elapsed, and the time
+ *                    timer - a boost::timer::cpu_timer for keeping track of time elapsed, and the time
  *                            that the log was instantiated at
+ *                    last_time - the last time that timer.elapsed was called
  *              input storage: charge, multiplicity, atoms, basisset
  *              user defined constants: 
  *                    PRECISION - the numerical precision to be used throughout the program
@@ -35,19 +36,25 @@
  *                    OUTPUT:
  *                         print() - overloaded function that will just print a general message
  *                                   or object in a generic way
+ *                         title() - will print a message as a title
  *                         result() - will print a message specifically formatted to stand out
  *                                    as a result
  *                         error() - will log an Error passed to it, in errs, and print it to
  *                                   the errstream.
- *                         getTime() - will call the timer functions, and return how much time
- *                                     passed since the last call.
+ *                         localTime() - will print the time elapsed since last call to outfile,
+ *                                       and set last_time to current time
+ *                         globalTime() - will print the total time elapsed since beginning to
+ *                                       outfile, without changing last_time.
+ *                         getLocalTime(), getGlobalTime() - get values in secs rather than print.
+ *                         errTime() - will print the total time elapsed to the errstream,
+ *                                     without changing last_time.
  *                         finalise() - will close the output streams, flushing the buffers, and
  *                                      adding the customary final parts of the output.
  *
  *        DATE            AUTHOR              CHANGES    
  *        ===========================================================================
  *        27/08/15        Robert Shaw         Original code.
- *
+ *        28/08/15        Robert Shaw         Changed how timing works.
  */
 
 #ifndef LOGGERHEADERDEF
@@ -60,7 +67,7 @@
 #endif
 
 // Includes
-#include <boost/timer.hpp>
+#include <boost/timer/timer.hpp>
 #include <string>
 
 // Declare forward dependencies
@@ -83,7 +90,8 @@ private:
   Error* errs;
   Atom* atoms;
   int nerr, charge, multiplicity, natoms;
-  boost::timer::cpu_timer clock;
+  boost::timer::cpu_timer timer;
+  boost::timer::nanosecond_type last_time;
   Basis basisset;
   // User defined constants
   double PRECISION;
@@ -100,26 +108,33 @@ public:
   Logger(ifstream& in, ofstream& out, ostream& e);
   ~Logger(); // Delete the various arrays
   // Accessors
-  Basis getBasis() const;
+  Basis& getBasis() const { return basisset; }
   int charge() const { return charge; }
   int multiplicity() const { return multiplicity; }
-  Atom& getAtom() const;
+  Atom& getAtom(int i) const { return atoms[i]; }
   double precision() const { return PRECISION; }
   int maxiter() const { return MAXITER; }
   int natoms() const { return natoms; }
   // Overloaded print functions
   void print(const std::string& msg) const; // Print a string message
-  void print(const Vector& v) const; // Print out a formatted vector
-  void print(const Matrix& m) const; // Matrix
-  void print(const Basis& b) const; // Basis set - spec., no. of bfs, etc.
+  // Print out a vector with precision digits, either horizontally or vertically
+  void print(const Vector& v, int digits = 6, bool vertical = false) const; 
+  void print(const Matrix& m, int digits = 6) const; // Matrix with precision digits
+  void print(const Basis& b, bool full = false) const; // Basis set - spec., no. of bfs, etc.
   void print(const Atom& a) const; // Atom - i.e coords, etc.
-  void print(const Molecule& mol) const; // Molecule - geometry, charge, multiplicity, etc.
+  // Print out the details of the molecule, including inertial data if wanted.
+  void print(const Molecule& mol, bool inertia = false) const; 
   void print(const BF& bf) const; // Basis function - coeffs and each pbf
   void print(const PBF& pbf) const; // Primitive gaussian - exponent, norm, ang. momenta
   // Specific logging formats
+  void title(const std::string& msg) const;
   void result(const std::string& msg) const;
-  void error(const Error& e);
-  double getTime(); 
+  void error(Error& e);
+  void localTime();
+  void globalTime();
+  void errTime();
+  double getLocalTime();
+  double getGlobalTime();
   void finalise();
 };
  

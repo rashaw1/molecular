@@ -20,6 +20,9 @@
  *                                      array of an atom of atomic number q
  *                    findShellPosition(q) - find the first position in the 
  *                                           shells array
+ *                    getNBFs() - returns the total number of basis functions
+ *                    getName() - returns the name
+ *                    getCharges() - returns the vector of charges
  *                    getBF(charge, i) - return the ith BF corresponding to
  *                                       an atom of atomic number charge   
  *                    getSize(charge) - return how many basis functions an atom
@@ -39,6 +42,9 @@
  *              accessors: all of the above have get routines
  *                          in addition, getCoeff(i) will return just the ith
  *                          coefficient
+ *                          getExps() will return a vector of the exponents
+ *                          getNPrims() will return the size of coeffs, i.e
+ *                          the number of primitives
  *                          setID(id) will set the id
  *              routines:
  *                       none
@@ -80,9 +86,13 @@ public:
   // Note - no copy constructor, as it doesn't really seem necessary
   // Need to specify the name of the basis, n, and a list of the 
   // distinct atoms that are needed (as a vector of atomic numbers)
+  Basis() : name("Undefined") { } // Default constructor
   Basis(std::string n, Vector& atoms);
   ~Basis(); // Destructor
   // Accessors
+  int getNBFs() const { return charges.size(); }
+  std::string getName() const { return name; }
+  Vector getCharges const { return charges; }
   int findPosition(int q) const;
   int findShellPosition(int q) const;
   BF& getBF(int q, int i) const;
@@ -111,7 +121,9 @@ public:
   ~BF(); // Delete the pbfs
   // Accessors
   PBF& getPBF(int i) const { return pbfs[i]; }
+  int getNPrims() const { return coeffs.size(); }
   Vector& getCoeffs() const { return coeffs; }
+  Vector getExps() const; 
   double getCoeff(int i) const { return coeffs[i]; }
   double getNorm() const { return norm; }
   int getLnum() const { return lx+ly+lz; }
@@ -122,6 +134,7 @@ public:
   void setID(int i);
   // Overloaded operators
   BF& operator=(const BF& other);
+  
 };
 
 class PBF
