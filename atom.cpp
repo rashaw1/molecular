@@ -11,7 +11,6 @@
 // Includes
 #include "atom.hpp"
 #include "matrix.hpp"
-#include "basis.hpp"
 
 //Constructors
 Atom::Atom(const Vector& coords, int q, double m)
@@ -65,7 +64,7 @@ Vector Atom::getCoords() const
 }
 
 // Set the basis functions
-void Atom::setBasis(const Basis& bs)
+void Atom::setBasis(Basis& bs)
 {
   // Look up how many contracted basis functions an atom of this type has
   // in the given basis set, and how many shells

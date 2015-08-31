@@ -1,8 +1,7 @@
 /*
  *
- *     PURPOSE: To define the classes Basis, BF, and PBF, representing a
- *              basis set, a contracted gaussian basis function, and a
- *              primitive gaussian basis function, respectively.
+ *     PURPOSE: To define the class Basis representing a
+ *              basis set.
  *
  *     class Basis:
  *              owns: bfs - a set of BFs
@@ -31,32 +30,7 @@
  *                    getShells(charge) - return a vector of the correct subset
  *                                        of shells
  *                    getLnums(charge) - return vector of subset of lnums
- *                  
- *     class BF: 
- *              owns: pbfs - a set of primitive basis functions
- *              data: coeffs - a list of contraction coefficients
- *                    norm - the normalisation constant of the function
- *                    lx, ly, lz - the angular momentum quantum number 
- *                                 components in the cartesian directions
- *                    id - a unique identifier for integral indexing
- *              accessors: all of the above have get routines
- *                          in addition, getCoeff(i) will return just the ith
- *                          coefficient
- *                          getExps() will return a vector of the exponents
- *                          getNPrims() will return the size of coeffs, i.e
- *                          the number of primitives
- *                          setID(id) will set the id
- *              routines:
- *                       none
- *                  
- *     class PBF:
- *              data: exponent - the gaussian exponent of the basis function
- *                    norm - the normalisation constant
- *                    lx, ly, lz - the angular momentum quantum numbers in the 
- *                                 cartesian directions
- *              accessors: all have get routines
- *              routines:
- *                    normalise - calculate the normalisation constant
+ *                 
  *
  *     DATE        AUTHOR            CHANGES
  *     ====================================================================
@@ -70,6 +44,9 @@
 // Includes
 #include "vector.hpp"
 #include <string>
+
+// Forward declarations
+class BF;
 
 // Begin class definitions
 
@@ -92,72 +69,16 @@ public:
   // Accessors
   int getNBFs() const { return charges.size(); }
   std::string getName() const { return name; }
-  Vector getCharges const { return charges; }
+  Vector getCharges() const { return charges; }
   int findPosition(int q) const;
   int findShellPosition(int q) const;
-  BF& getBF(int q, int i) const;
+  BF& getBF(int q, int i);
   int getSize(int q) const;
   int getShellSize(int q) const;
-  Vector& getShells(int q) const;
-  Vector& getLnums(int q) const;
+  Vector getShells(int q) const;
+  Vector getLnums(int q) const;
   // Overloaded operators
   Basis& operator=(const Basis& other);
-};
-  
-class BF
-{
-private:
-  PBF* pbfs;
-  Vector coeffs;
-  double norm;
-  int lx, ly, lz, id;
-public:
-  // Constructors and destructor
-  // Need to specify a vector of contraction coefficients, c, the angular
-  // momentum quantum numbers, lx = l1, ly = l2, lz = l3,
-  // and a vector of primitive exponents, exps
-  BF(Vector& c, int l1, int l2, int l3, Vector& exps);
-  BF(const BF& other); // Copy constructor
-  ~BF(); // Delete the pbfs
-  // Accessors
-  PBF& getPBF(int i) const { return pbfs[i]; }
-  int getNPrims() const { return coeffs.size(); }
-  Vector& getCoeffs() const { return coeffs; }
-  Vector getExps() const; 
-  double getCoeff(int i) const { return coeffs[i]; }
-  double getNorm() const { return norm; }
-  int getLnum() const { return lx+ly+lz; }
-  int getLx() const { return lx; }
-  int getLy() const { return ly; }
-  int getLz() const { return lz; }
-  int getID() const { return id; }
-  void setID(int i);
-  // Overloaded operators
-  BF& operator=(const BF& other);
-  
-};
-
-class PBF
-{
-private:
-  double exponent, norm;
-  int lx, ly, lz;
-public:
-  // Constructors
-  // Need to specify an exponent, e, and the angular momentum quantum numbers
-  PBF(double e, int l1, int l2, int l3);
-  PBF(const PBF& other); // Copy constructor
-  // Accessors
-  double getExponent() const { return exponent; }
-  double getNorm() const { return norm; }
-  int getLnum() const { return lx+ly+lz; }
-  int getLx() const { return lx; }
-  int getLy() const { return ly; }
-  int getLz() const { return lz; }
-  // Routines
-  void normalise();
-  // Overloaded operators
-  PBF& operator=(const PBF& other);
 };
 
 #endif

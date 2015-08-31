@@ -60,7 +60,7 @@ Vector boys(double x, int mmax, int mmin, double PRECISION)
   } else {
     // For F_0, use erf
     if (mmin == 0){
-      rvec[0] = std::sqrt(boost::math::pi()/(4.0*x))*boost::math::erf(std::sqrt(x));
+      rvec[0] = std::sqrt(boost::math::constants::pi<double>()/(4.0*x))*boost::math::erf(std::sqrt(x));
     }
 
     // Calculate F_mmax value

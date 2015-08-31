@@ -69,15 +69,17 @@
 // Includes
 #include <boost/timer/timer.hpp>
 #include <string>
+#include <fstream>
+#include <iostream>
+#include "basis.hpp"
+#include "atom.hpp"
 
 // Declare forward dependencies
-class std::ostream;
-class std::ofstream;
-class std::ifstream;
-class Basis;
+class Molecule;
+class BF;
+class PBF;
 class Matrix;
 class Vector;
-class Atom;
 class Error;
 
 // Begin class declaration
@@ -105,26 +107,26 @@ public:
   static const double TOBOHR;
   static const double TOANG;
   // Constructor/destructor
-  Logger(ifstream& in, ofstream& out, ostream& e);
+  Logger(std::ifstream& in, std::ofstream& out, std::ostream& e);
   ~Logger(); // Delete the various arrays
   // Accessors
-  Basis& getBasis() const { return basisset; }
-  int charge() const { return charge; }
-  int multiplicity() const { return multiplicity; }
-  Atom& getAtom(int i) const { return atoms[i]; }
+  Basis& getBasis() { return basisset; }
+  int getCharge() const { return charge; }
+  int getMultiplicity() const { return multiplicity; }
+  Atom& getAtom(int i) { return atoms[i]; }
   double precision() const { return PRECISION; }
   int maxiter() const { return MAXITER; }
-  int natoms() const { return natoms; }
+  int getNatoms() const { return natoms; }
   // Overloaded print functions
   void print(const std::string& msg) const; // Print a string message
   // Print out a vector with precision digits, either horizontally or vertically
   void print(const Vector& v, int digits = 6, bool vertical = false) const; 
   void print(const Matrix& m, int digits = 6) const; // Matrix with precision digits
-  void print(const Basis& b, bool full = false) const; // Basis set - spec., no. of bfs, etc.
+  void print(Basis& b, bool full = false) const; // Basis set - spec., no. of bfs, etc.
   void print(const Atom& a) const; // Atom - i.e coords, etc.
   // Print out the details of the molecule, including inertial data if wanted.
-  void print(const Molecule& mol, bool inertia = false) const; 
-  void print(const BF& bf) const; // Basis function - coeffs and each pbf
+  void print(Molecule& mol, bool inertia = false) const; 
+  void print(BF& bf) const; // Basis function - coeffs and each pbf
   void print(const PBF& pbf) const; // Primitive gaussian - exponent, norm, ang. momenta
   // Specific logging formats
   void title(const std::string& msg) const;

@@ -48,10 +48,11 @@
 
 // Includes
 #include "basis.hpp"
+#include "atom.hpp"
 #include <string>
+#include "bf.hpp"
 
 // Declare forward dependcies
-class Atom;
 class Logger;
 class Matrix;
 class Vector;
@@ -77,8 +78,8 @@ public:
   int getNel() const { return nel; }
   int getMultiplicity() const { return multiplicity; }
   double getEnuc() const { return enuc; }
-  Atom& getAtom(int i) const { return atoms[i]; } // Return atom i
-  BF& getBF(int i) const { return bfset.getBF(i); } // Return basis func. i
+  Atom& getAtom(int i) { return atoms[i]; } // Return atom i
+  BF& getBF(int q, int i) { return bfset.getBF(q, i); } // Return basis func. i of atom q
   // Routines
   void rotate(const Matrix& U);
   void translate(double x, double y, double z);
@@ -92,8 +93,8 @@ public:
   double bondAngle(int i, int j, int k) const;
   double oopAngle(int i, int j, int k, int l) const;
   double torsionAngle(int i, int j, int k, int l) const;
-  std::string rType() const;
-  Vector rConsts(int units) const;
+  std::string rType();
+  Vector rConsts(int units);
 };
 
 #endif

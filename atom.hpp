@@ -34,10 +34,11 @@
 
 // Includes
 #include "vector.hpp"
+#include "bf.hpp"
+#include "basis.hpp"
 
 // Declare forward dependencies
 class Matrix;
-class BF;
 
 // Begin class definition
 class Atom
@@ -49,6 +50,7 @@ private:
   double x, y, z, mass;
 public:
   // Constructors
+  Atom() : charge(-1) { } // Default
   Atom(const Vector& coords, int q, double m); // q = charge, m = mass
   Atom(const Atom& other); // Copy constructor
   ~Atom(); // Destructor - gets rid of array bfs
@@ -58,10 +60,10 @@ public:
   int getNbfs() const { return nbfs; }
   int getNshells() const { return nshells; }
   Vector getCoords() const;
-  Vector& getShells const { return shells; }
-  Vector& getLnums const { return lnums; }
-  BF& getBF(int i) const { return bfs[i]; } // Return bf i - no bounds check
-  void setBasis(const Basis& bs); // Set the basis functions using basis set bs
+  Vector getShells() const { return shells; }
+  Vector getLnums() const { return lnums; }
+  BF& getBF(int i) { return bfs[i]; } // Return bf i - no bounds check
+  void setBasis(Basis& bs); // Set the basis functions using basis set bs
   // Routines
   void rotate(const Matrix& U); 
   void translate(double dx, double dy, double dz);

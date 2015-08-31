@@ -10,15 +10,17 @@
  */
 
 // Includes
-#include <iostream>
-#include <fstream>
+#include <algorithm>
+#include <iomanip>
 #include "logger.hpp"
-#include "basis.hpp"
+#include "molecule.hpp"
+#include "bf.hpp"
+#include "pbf.hpp"
 #include "matrix.hpp"
 #include "vector.hpp"
-#include "atom.hpp"
 #include "error.hpp"
 #include "ioutil.hpp"
+#include "filereader.hpp"
 
 // Define static constants
 const double Logger::RTOCM = 16.857630400054006;
@@ -29,7 +31,7 @@ const double Logger::TOBOHR = 0.52917721092;
 const double Logger::TOANG = 1.889726124565;
 
 // Constructor
-Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(out), errstream(e)
+Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(in), outfile(out), errstream(e)
 {
   // Timer is started on initialisation of logger.
   last_time = 0;
@@ -68,7 +70,7 @@ Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(ou
     }
 
     std::string delimiter = ","; // Define the separation delimiter
-    int position, q; Vector coords(3); double m;
+    std::size_t position; int q; Vector coords(3); double m;
     Vector qs(natoms); // Hold the qs of all the atoms, for finding unique qs laterv
     for (int i = 0; i < natoms; i++){
       temp = input.getGeomLine(i); // Get a line from the geometry
@@ -80,7 +82,7 @@ Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(ou
 
       // Get the atom type and mass
       q = getAtomCharge(token);
-      m = getAtomMass(token);
+      m = getAtomMass(q);
       qs[i] = q;
 
       // Move on to next token
@@ -127,8 +129,9 @@ Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(ou
     Basis b(bname, qs);
     basisset = b;
 
-  } else { // Our first error :( 
-    error(Error("NOATOMS", "Nothing to see here."));
+  } else { // Our first error :(
+      Error e("NOATOMS", "Nothing to see here.");
+    error(e);
   }
 }
 
@@ -146,7 +149,7 @@ Logger::~Logger()
 // Print out a basic string message
 void Logger::print(const std::string& msg) const
 {
-  ofstream << msg << "\n";
+  outfile << msg << "\n";
 }
 
 // Print out a vector to a given precision, either horizontally or vertically
@@ -157,16 +160,16 @@ void Logger::print(const Vector& v, int digits, bool vertical) const
     ender = "\n";
   }
   for (int i = 0; i < v.size(); i++){
-    ofstream << std::scientific << std::setw(digits+8) << v[i] << ender;
+    outfile << std::scientific << std::setw(digits+8) << v[i] << ender;
   }
-  ofstream << "\n";
+  outfile << "\n";
 }
 
 // Print out a matrix, row by row, to a given precision
 void Logger::print(const Matrix& m, int digits) const
 {
   // Print out row by row
-  Vector temp(i.ncols());
+  Vector temp(m.ncols());
   for (int i = 0; i < m.nrows(); i++){
     temp = m.rowAsVector(i);
     print (temp, digits, false);
@@ -195,7 +198,8 @@ void Logger::print(const Matrix& m, int digits) const
 //                           0.358794     25.91090
 //                           0.700713     5.533350
 // etc...
-void Logger::print(const Basis& b, bool full){
+void Logger::print(Basis& b, bool full) const
+{
   // Collect the data needed for printing
   int nbfs = b.getNBFs(); // Store number of cgbfs and prims
   int nprims = 0;
@@ -234,7 +238,7 @@ void Logger::print(const Basis& b, bool full){
   outfile << std::setw(8) << "Shell";
   outfile << std::setw(8) << "#CGBFs";
   outfile << std::setw(8) << "#Prims\n";
-  outfile << std::string(35, ".") << "\n";
+  outfile << std::string(35, '.') << "\n";
   
   // loop over the atom types
   int nc = 0; int np = 0;
@@ -271,7 +275,7 @@ void Logger::print(const Basis& b, bool full){
     outfile << std::setw(5) << "BF";
     outfile << std::setw(12) << "Coeff";
     outfile << std::setw(12) << "Exponent\n";
-    outfile << std::string(48, ".") << "\n";
+    outfile << std::string(48, '.') << "\n";
     // Loop over all the basis functions
     Vector subshell; Vector sublnums; 
     Vector coeffs; Vector exps;
@@ -285,7 +289,7 @@ void Logger::print(const Basis& b, bool full){
 	// Loop over bfs
 	for (int s = 0; s < subshell[r]; s++){
 	  bftemp = b.getBF(qs(i), s);
-	  coeffs = bftemp.getCoeff();
+	  coeffs = bftemp.getCoeffs();
 	  exps = bftemp.getExps();
 
 	  // Loop over coeffs/exps
@@ -295,7 +299,7 @@ void Logger::print(const Basis& b, bool full){
 	    filler = (s == 0 ? getShellName(sublnums[r]) : "");
 	    outfile << std::setw(8) << filler;
 	    filler = (t == 0 ? std::to_string(s+1) : "");
-	    ouftile << std::setw(5) << filler;
+	    outfile << std::setw(5) << filler;
 
 	    outfile << std::setw(12) << std::setprecision(8) << coeffs(t);
 	    outfile << std::setw(12) << std::setprecision(8) << exps(t) << "\n";
@@ -343,7 +347,7 @@ void Logger::print(const Atom& a) const
 // ...............................................................
 // C        6     12.014           (0.0, 3.53, -1.24)
 // etc...
-void Logger::print(const Molecule& mol, bool inertia)
+void Logger::print(Molecule& mol, bool inertia) const
 {
   title("Molecule");
   // Print out basic details
@@ -373,16 +377,16 @@ void Logger::print(const Molecule& mol, bool inertia)
     inert = mol.getInertia(true);
     
     // Print it out
-    outfile << std::string(30, ".") << "\n";
+    outfile << std::string(30, '.') << "\n";
     outfile << "Principal Moments of Inertia\n";
-    outfile << std::String(30, ".") << "\n";
+    outfile << std::string(30, '.') << "\n";
     outfile << "Ia = " << std::setw(12) << inert(0);
     outfile << ",  Ib = " << std::setw(12) << inert(1);
     outfile << ",  Ic = " << std::setw(12) << inert(2) << "\n";
     outfile << "Rotational type: " << temp << "\n";
-    outfile << std::string(23, ".") << "\n";
+    outfile << std::string(23, '.') << "\n";
     outfile << "Rotational Constants\n";
-    outfile << std::String(23, ".") << "\n";
+    outfile << std::string(23, '.') << "\n";
     outfile << "A = " << std::setw(12) << rconsts(0);
     outfile << ",  B = " << std::setw(12) << rconsts(1);
     outfile << ",  C = " << std::setw(12) << rconsts(2) << "\n";
@@ -393,7 +397,7 @@ void Logger::print(const Molecule& mol, bool inertia)
   title("Atoms");
   outfile << std::setw(6) << "Atom" << std::setw(6) << "z";
   outfile << std::setw(6) << "Mass" << std::setw(26) << "Coordinates" << "\n";
-  outfile << std::string(45, ".") << "\n";
+  outfile << std::string(45, '.') << "\n";
   for (int i = 0; i < mol.getNAtoms(); i++){
     print(mol.getAtom(i));
   }
@@ -403,7 +407,7 @@ void Logger::print(const Molecule& mol, bool inertia)
 // #Prims = ..., s/px/py/pz/dxy/... type orbital
 // Coefficients: ......
 // Exponents: ......
-void Logger::print(const BF& bf) const
+void Logger::print(BF& bf) const
 {
   // Get information
   Vector coef;
@@ -438,7 +442,7 @@ void Logger::print(const BF& bf) const
     } else {
       temp = "d(x2 - y2)";
     }
-    break
+      break;
   }
   case 3: { temp = "f"; break; } 
   case 4: { temp = "g"; break; }
@@ -491,9 +495,9 @@ void Logger::title(const std::string& msg) const
   std::transform(temp.begin(), temp.end(), temp.begin(), ::toupper);
   
   // Print
-  outfile << std::string(temp.length(), "=") << "\n";
+  outfile << std::string(temp.length(), '=') << "\n";
   outfile << temp << "\n";
-  outfile << std::string(temp.length(), "=") << "\n";
+  outfile << std::string(temp.length(), '=') << "\n";
 }
 
 // Print a result like so:
@@ -502,13 +506,13 @@ void Logger::title(const std::string& msg) const
 // **********************
 void Logger::result(const std::string& msg) const
 {
-  outfile << std::string(msg.length(), "*") << "\n";
+  outfile << std::string(msg.length(), '*') << "\n";
   outfile << msg << "\n";
-  outfile << std::string(msg.length(), "*") << "\n";
+  outfile << std::string(msg.length(), '*') << "\n";
 }
 
 // Log an error
-void Logger::error(Error e)
+void Logger::error(Error& e)
 {
   nerr++;
   errs[nerr%20] = e;
@@ -523,7 +527,7 @@ void Logger::error(Error e)
 void Logger::localTime()
 {
   boost::timer::nanosecond_type temp = timer.elapsed().wall;
-  outfile << "Time taken: " <<  ((double)(last - temp))/(1e9) 
+  outfile << "Time taken: " <<  ((double)(last_time - temp))/(1e9)
 	  << " seconds\n";
   last_time = temp;
 }
@@ -561,7 +565,7 @@ double Logger::getGlobalTime()
 // that occurred
 void Logger::finalise()
 {
-  outfile << std::string(30, "-") << "\n";
+  outfile << std::string(30, '-') << "\n";
   globalTime(); // Print time elapsed
   outfile << "Number of errors: " << nerr << "\n";
 }

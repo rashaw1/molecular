@@ -1,5 +1,5 @@
 /*
- *    PURPOSE: To implement basis.hpp, defining classes Basis, BF, and PBF
+ *    PURPOSE: To implement basis.hpp, defining class Basis, representing a basis set.
  *   
  *    DATE            AUTHOR              CHANGES
  *    =====================================================================
@@ -9,12 +9,11 @@
 
 // Includes
 #include "basis.hpp"
+#include "bf.hpp"
+#include "basisreader.hpp"
 #include "ioutil.hpp"
-#include <cmath>
-#include "mathutil.hpp"
 
 // Constructors and destructors
-
 Basis::Basis(std::string n, Vector& atoms)
 {
   BasisReader input(n); // Make a basis reading object
@@ -49,8 +48,8 @@ Basis::Basis(std::string n, Vector& atoms)
   }
 
   // Read in the shell data
-  shells = input.readShells(charges);
-  lnums = input.readLnums(charges);
+  //shells = input.readShells(charges);
+  //lnums = input.readLnums(charges);
 }
 
 Basis::~Basis()
@@ -60,67 +59,7 @@ Basis::~Basis()
   }
 }
 
-BF::BF(Vector& c, int l1, int l2, int l3, Vector& exps)
-{
-  coeffs = c;
-  lx = l1; ly = l2; lz = l3;
-  
-  // Construct the set of pbfs
-  int npbfs = exps.size();
-  if (npbfs > 0){
-    pbfs = new PBF[npbfs];
-    for (int i = 0; i < npbfs; i++){
-      PBF temp(exps(i), l1, l2, l3);
-      pbfs[i] = temp;
-    }
-  } else {
-    pbfs = NULL;
-  }
-  normalise();
-}
-
-// Copy constructor
-BF::BF(const BF& other)
-{
-  coeffs = other.coeffs;
-  norm = other.norm;
-  lx = other.lx; ly = other.ly; lz = other.lz;
-  
-  int npbfs = coeffs.size();
-  if(npbfs > 0){
-    pbfs = new PBF[npbfs];
-    for (int i = 0; i < npbfs; i++){
-      pbfs[i] = other.pbfs[i];
-    }
-  } else {
-    pbfs = NULL;
-  }
-}
-
-// Destructor
-BF::~BF()
-{
-  if (coeffs.size() > 0){
-    delete[] pbfs;
-  }
-}
-
-PBF::PBF(double e, int l1, int l2, int l3) : exponent(e), lx(l1), ly(l2), lz(l3)
-{
-  normalise();
-}
-
-// Copy constructor
-PBF::PBF(const PBF& other)
-{
-  exponent = other.exponent;
-  lx = other.lx; ly = other.ly; lz = other.lz;
-  norm = other.norm;
-}
-
-
 // Accessors
-
 // Find the first position in bfs at which atom of atomic number q occurs
 int Basis::findPosition(int q) const
 {
@@ -153,7 +92,7 @@ int Basis::findShellPosition(int q) const
 
 // Return the ith basis function corresponding to an atom
 // with atomic number q
-BF& Basis::getBF(int q, int i) const
+BF& Basis::getBF(int q, int i)
 {
   int position = findPosition(q);
   // No bounds checking
@@ -191,7 +130,7 @@ int Basis::getShellSize(int q) const
 }
 
 // Return the subset of shells corresponding to q
-Vector& Basis::getShells(int q) const
+Vector Basis::getShells(int q) const
 {
   int position = findShellPosition(q);
   int size = getShellSize(q);
@@ -204,7 +143,7 @@ Vector& Basis::getShells(int q) const
 }
 
 // Find th subset of lnums corresponding to atom with atomic number q
-Vector& Basis::getLnums(int q) const
+Vector Basis::getLnums(int q) const
 {
   int position = findShellPosition(q);
   int size = getShellSize(q);
@@ -214,36 +153,6 @@ Vector& Basis::getLnums(int q) const
     l[i] = lnums[position+i];
   }
   return l;
-}
-
-Vector BF::getExps() const
-{
-  // Construct a vector of exps
-  Vector exps(coeffs.size());
-  for (int i = 0; i < coeffs.size(); i++){
-    exps[i] = pbfs[i].getExponent();
-  }
-  return exps;
-}
-
-void PBF::setID(int i)
-{
-  id = i;
-}
-
-// Routines
-
-// Calculate the normalisation constant for a primitive cartesian gaussian
-void PBF::normalise()
-{
-  // The formula can be found in Taketa, Huzinaga, and O-ohata, Journal of
-  // the Physical Society of Japan, Vol. 21, No. 11, Nov 1966:
-  // Gaussian-Expansion Methods for Molecular Integrals
-  norm = pow(2, 2*(lx+ly+lz) + 1.5)*pow(exponent, lx+ly+lz+1.5);
-  // Calculate double factorials
-  norm = norm / ( (double) (fact2(2*lx-1) * fact2(2*ly-1) * fact2(2*lz-1)) );
-  norm = norm / pow(M_PI, 1.5);
-  norm = sqrt(norm);
 }
   
 // Overloaded operators
@@ -271,39 +180,6 @@ Basis& Basis::operator=(const Basis& other)
   return *this;
 }
 
-BF& BF::operator=(const BF& other)
-{
-  // If PBFs already exist, deallocate memory
-  if(coeffs.size() > 0){
-    delete[] pbfs;
-  }
-  
-  // Assign attributes
-  coeffs = other.coeffs;
-  norm = other.norm;
-  lx = other.lx; ly = other.ly; lz = other.lz;
-
-  // Copy across PBFs
-  int npbfs = coeffs.size();
-  if (npbfs > 0){
-    pbfs = new PBF[npbfs];
-    for (int i = 0; i < npbfs; i++){
-      pbfs[i] = other.pbfs[i];
-    }
-  }
-  
-  return *this;
-}
-
-PBF& PBF::operator=(const PBF& other)
-{
-  // Assign attributes
-  exponent = other.exponent;
-  norm = other.norm;
-  lx = other.lx; ly = other.ly; lz = other.lz;
-  return *this;
-}
-  
 
   
 
