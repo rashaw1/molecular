@@ -71,9 +71,9 @@
 #include <string>
 
 // Declare forward dependencies
-class ostream;
-class ofstream;
-class ifstream;
+class std::ostream;
+class std::ofstream;
+class std::ifstream;
 class Basis;
 class Matrix;
 class Vector;
@@ -84,9 +84,9 @@ class Error;
 class Logger
 {
 private:
-  ifstream& infile;
-  ofstream& outfile;
-  ostream& errstream;
+  std::ifstream& infile;
+  std::ofstream& outfile;
+  std::ostream& errstream;
   Error* errs;
   Atom* atoms;
   int nerr, charge, multiplicity, natoms;

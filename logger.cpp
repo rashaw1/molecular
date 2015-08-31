@@ -41,8 +41,11 @@ Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(ou
   nerr = 0; // No errors as of yet (hopefully)!
   
   FileReader input(infile); // Declare a file reader object
-  input.readParameters(); 
-
+  try {
+    input.readParameters(); 
+  } catch (Error e) {
+    error(e);
+  }
   // Do a whole heap of input file reading
   // The single variables are pretty easy
   charge = input.getCharge();
@@ -57,7 +60,13 @@ Logger::Logger(ifstream& in, ofstream& out, ostream& e) : infile(in), outfile(ou
  
     // Now loop to get all the atoms 
     std::string temp, token;
+
+    try {
     input.readGeometry();
+    } catch (Error e) {
+      error(e);
+    }
+
     std::string delimiter = ","; // Define the separation delimiter
     int position, q; Vector coords(3); double m;
     Vector qs(natoms); // Hold the qs of all the atoms, for finding unique qs laterv

@@ -32,3 +32,6 @@
 
 #mac osx thing
 .DS_Store
+
+#test files
+test.*

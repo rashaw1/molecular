@@ -9,7 +9,8 @@
  *                    data: parameters (charge, multiplicity, basis, precision,
  *                          maxiter, natoms), geometry string
  *                          file positions: geomstart, geomend
- *                    routines: get for all parameters, getGeomLine
+ *                    routines: get for all parameters, getGeomLine(i) return ith line
+ *                              of geometry.
  *                            readParameters - reads in all parameters
  *                            readGeometry - reads in the geometry
  *
@@ -49,14 +50,16 @@ class BF;
 class FileReader
 {
 private:
-  ifstream& input;
+  std::ifstream& input;
   int charge, multiplicity, maxiter, natoms;
   int geomstart, geomend;
   double precision;
   std::string basis;
   std::string* geometry;
+  int findToken(std::string t); // Find the command being issued
 public:
-  FileReader(ifstream& in) : input(in) {} // Constructor
+  FileReader(std::ifstream& in) : input(in), natoms(0) {} // Constructor
+  ~FileReader(); // Destructor
   void readParameters();
   void readGeometry();
   int getCharge() const { return charge; }
@@ -65,18 +68,20 @@ public:
   int getNAtoms() const { return natoms; }
   int getBasis() const { return basis;}
   int getPrecision() const { return precision; }
-  std::string getGeomLine() const;
+  std::string& getGeomLine(int i) { return geometry[i]; }
 };
 
 class BasisReader
 {
 private:
-  ifstream input;
   std::string name;
+  std::ifstream input;
+  void openFile(int q);
+  void closeFile();
 public:
   BasisReader(std::string n) : name(n) {} // Constructor
   int readNbfs(int q);
-  BF& readBF(int q, int i);
+  BF readBF(int q, int i);
   Vector readShells(const Vector& qs);
   Vector readLnums(const Vector& qs);
 };
