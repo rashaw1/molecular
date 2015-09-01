@@ -12,7 +12,8 @@
  #include "ioutil.hpp"
  #include "error.hpp"
  #include <algorithm>
- 
+#include <iostream> 
+
  // Class FileReader implementation
 
 // Destructor
@@ -40,7 +41,6 @@ int FileReader::findToken(std::string t)
   else if (t == "precision") { rval = 4; }
   else if (t == "basis") { rval = 5; }
   else if (t == "geom") { rval = 6; }
-  else if (t == "geomend") { rval = 7; }
   
   return rval;
 }
@@ -62,28 +62,31 @@ void FileReader::readParameters()
   while (std::getline(input, line)) {
     // Erase any comments
     pos = line.find('!');
-    line.erase(pos, line.length());
-    
+    if (pos != std::string::npos){
+      line.erase(pos, line.length());
+    }
+
     // Tokenise
     pos = line.find(',');
     if(pos != std::string::npos){
       token = line.substr(0, pos);
+
       // Match token to command
       switch(findToken(token)){
       case 1: { // Charge
-	charge = std::stoi(line.substr(pos, line.length()));
+	charge = std::stoi(line.substr(pos+1, line.length()));
 	break;
       }
       case 2: { // Multiplicity
-	multiplicity = std::stoi(line.substr(pos, line.length()));
+	multiplicity = std::stoi(line.substr(pos+1, line.length()));
 	break;
       }
       case 3: { // MaxIter
-	maxiter = std::stoi(line.substr(pos, line.length()));
+	maxiter = std::stoi(line.substr(pos+1, line.length()));
 	break;
       }
       case 4: { // Precision
-	precision = std::stod(line.substr(pos, line.length()));
+	precision = std::stod(line.substr(pos+1, line.length()));
 	break;
       }
       case 5: { // Basis
@@ -95,10 +98,11 @@ void FileReader::readParameters()
       }
       case 6: { // GeomStart
 	geomstart = linecount + 1;
-	break;
-      }
-      case 7: { // GeomEnd
-	geomend = linecount;
+	geomend = geomstart-1;
+	while(line != "geomend"){
+	  std::getline(input, line);
+	  geomend++;
+	}
 	break;
       }
       default: { // Unkown command issued

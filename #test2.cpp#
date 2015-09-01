@@ -15,9 +15,7 @@ int main (int argc, char* argv[])
   Molecule mol(log, 1);
   std::cout << "molecule made\n";
 
-  log.print(mol, true);
-  log.print("\n\n");
-  log.print(log.getBasis(), true);
+  
   input.close();
   std::cout << "input closed\n";
   output.close();

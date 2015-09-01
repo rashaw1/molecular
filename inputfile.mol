@@ -1,0 +1,11 @@
+basis, test
+charge, 0
+multiplicity, 1
+maxiter, 100
+precision, 1e-13
+geom,
+N, 0.257, -0.363, 0.000
+H, 0.257, 0.727, 0.000
+H, 0.771, -0.727, 0.890
+H, 0.771, -0.727, -0.890
+geomend

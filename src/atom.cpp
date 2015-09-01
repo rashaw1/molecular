@@ -11,6 +11,7 @@
 // Includes
 #include "atom.hpp"
 #include "matrix.hpp"
+#include <iostream>
 
 //Constructors
 Atom::Atom(const Vector& coords, int q, double m)
@@ -107,10 +108,7 @@ Atom& Atom::operator=(const Atom& other)
 {
   // Check to see if this atom already has bfs
   // deallocate memory if it does
-  if (nbfs > 0){
-    delete[] bfs;
-  }
-  
+
   // Assign attributes
   charge = other.charge;
   nbfs = other.nbfs;

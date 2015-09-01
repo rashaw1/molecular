@@ -1,5 +1,5 @@
 # Project name
-PROJECT = test2
+PROJECT = test2.out
 # Compiler
 CXX = c++
 
@@ -57,10 +57,10 @@ makefile-debug:
 
 .PHONY: clean
 clean:
-	rm -f $(PROJECT) $(OBJECTS)
+	rm -f $(OBJECTS)
 
 .PHONY: depclean
 depclean:
-	rm -f $(DEPENDENCIES)
+	rm -f $(PROJECT) $(DEPENDENCIES)
 
 clean-all: clean depclean

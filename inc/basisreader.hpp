@@ -45,6 +45,8 @@ public:
   BF readBF(int q, int i);
   Vector readShells(int q);
   Vector readLnums(int q);
+  Vector readShells(Vector& qs);
+  Vector readLnums(Vector& qs);
 };
 
 #endif

@@ -69,7 +69,7 @@ BF BasisReader::readBF(int q, int i)
     std::string aname = getAtomName(q);
     aname += " "; aname += delim;
     std::size_t position;
-    int bfcount = 0;
+    int bfcount = -1;
     std::string line, shell;
     std::getline(input, line);
     
@@ -395,5 +395,40 @@ Vector BasisReader::readLnums(int q)
   // Close the file
   closeFile();
   
+  return lnums;
+}
+
+// Now do these for a complete set of qs
+Vector BasisReader::readShells(Vector& qs)
+{
+  Vector shells;
+  Vector temp;
+  shells = readShells(qs(0));
+  for (int i = 1; i < qs.size(); i++){
+    int s = shells.size();
+    temp = readShells(qs(i));
+    int t = temp.size();
+    shells.resizeCopy(s+t);
+    for (int j = 0; j < t; j++) {
+      shells[j+s] = temp[j];
+    }
+  }
+  return shells;
+}
+
+Vector BasisReader::readLnums(Vector& qs)
+{
+  Vector lnums;
+  Vector temp;
+  lnums = readLnums(qs(0));
+  for (int i = 1; i < qs.size(); i++){
+    int l = lnums.size();
+    temp = readLnums(qs(i));
+    int t = temp.size();
+    lnums.resizeCopy(l+t);
+    for (int j = 0; j < t; j++){
+      lnums[j+l] = temp[j];
+    }
+  }
   return lnums;
 }

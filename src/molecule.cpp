@@ -8,6 +8,7 @@
  *
  */
 
+#include <iostream>
 #include "logger.hpp"
 #include "molecule.hpp"
 #include "matrix.hpp"
@@ -25,11 +26,11 @@ void Molecule::init()
 
   // Get the basis set     
   bfset = log.getBasis();
-  
+
   // Now declare the array of atoms
   natoms = log.getNatoms();
   if (natoms != 0){
-
+    
     atoms = new Atom[natoms];
     nel = 0; // Initialise to no electrons
 
@@ -41,7 +42,7 @@ void Molecule::init()
       atoms[i].setBasis(bfset);
       nel += atoms[i].getCharge();
     }
-    
+
     // Account for overall charge
     nel -= charge;
     
@@ -198,7 +199,7 @@ Vector Molecule::getInertia(bool shift)
   inertia(1, 0) = inertia(0, 1); 
   inertia(2, 0) = inertia(0, 2); 
   inertia(2, 1) = inertia(1, 2);
-  
+    
   // Now we diagonalise, only need eigenvalues
   bool success;
   if(shift){
@@ -219,7 +220,8 @@ Vector Molecule::getInertia(bool shift)
     Error e("INERTIA", "Inertia matrix failed to diagonalise.");
     log.error(e);
   }
-  
+
+  v.sort();
   return v;
 }
 
@@ -315,18 +317,19 @@ std::string Molecule::rType()
     // Calculate the principal moments of inertia
     Vector I(3);
     I = getInertia();
-    
+
     // All moments are >= 0, so no need to use fabs
     // Linear if Ic = Ib > Ia = 0
     // Prolate symm. if Ic = Ib > Ia /= 0
     // Oblate symm. if Ic > Ib = Ia /= 0
     // Spherical if Ic = Ib = Ia /= 0
-    double CUTOFF = log.precision();
+    double CUTOFF = 0.01;
+
     if ( (I(2)-I(1)) < CUTOFF && I(0) < CUTOFF ){
       rstring = "linear";
-    }   else if ( (I(2) - I(1)) < CUTOFF && I(0) >= CUTOFF){
+    }   else if ( (I(2) - I(1)) < CUTOFF && (I(1)-I(0)) > CUTOFF &&  I(0) >= CUTOFF){
       rstring = "prolate";
-    } else if ( (I(1) - I(0)) < CUTOFF && I(0) >= CUTOFF){
+    } else if ( (I(1) - I(0)) < CUTOFF && (I(2) - I(1)) > CUTOFF &&  I(0) >= CUTOFF){
       rstring = "oblate";
     } else if ( (I(1) - I(0)) < CUTOFF && (I(2) - I(1)) < CUTOFF){
       rstring = "spherical";

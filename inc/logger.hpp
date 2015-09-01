@@ -113,7 +113,7 @@ public:
   Basis& getBasis() { return basisset; }
   int getCharge() const { return charge; }
   int getMultiplicity() const { return multiplicity; }
-  Atom& getAtom(int i) { return atoms[i]; }
+  Atom getAtom(int i) const { return atoms[i]; }
   double precision() const { return PRECISION; }
   int maxiter() const { return MAXITER; }
   int getNatoms() const { return natoms; }

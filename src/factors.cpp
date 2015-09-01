@@ -305,8 +305,13 @@ Matrix cholesky(const Matrix& A)
 bool hessenberg(const Matrix& x, Matrix& y, Matrix& v)
 {
   bool rval = true;
-  if (x.isSquare()){ // Must be square to proceed
-    int dim = x.nrows();
+  int dim = x.nrows();
+  if (x.isTriangular()){ // No need to reduce it
+    y = x;
+    v.assign(dim, dim, 0.0);
+    for (int i = 0; i < dim; i++) { v(i, i) = 1.0; }
+  }
+  else if (x.isSquare()){ // Must be square to proceed    
     // Make sure v, y are the right size
     y = x; // Initialise to input matrix
     v.assign(dim, dim, 0.0); // Make all zeroes 

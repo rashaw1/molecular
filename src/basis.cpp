@@ -12,13 +12,13 @@
 #include "bf.hpp"
 #include "basisreader.hpp"
 #include "ioutil.hpp"
+#include <iostream>
 
 // Constructors and destructors
 Basis::Basis(std::string n, Vector& atoms)
 {
   BasisReader input(n); // Make a basis reading object
   name = n;
-
   int natoms = atoms.size(); // Get how many different atoms there are
   // Now determine how many basis functions are needed
   int nbfs = 0;
@@ -48,8 +48,8 @@ Basis::Basis(std::string n, Vector& atoms)
   }
 
   // Read in the shell data
-  //shells = input.readShells(charges);
-  //lnums = input.readLnums(charges);
+  shells = input.readShells(atoms);
+  lnums = input.readLnums(atoms);
 }
 
 Basis::~Basis()
@@ -70,7 +70,7 @@ int Basis::findPosition(int q) const
     found = (charges(position) == q ? true : false);
     position++;
   }
-  return position;
+  return position-1;
 }
 
 // Same as above but for shells instead of bfs
@@ -92,6 +92,11 @@ int Basis::findShellPosition(int q) const
 
 // Return the ith basis function corresponding to an atom
 // with atomic number q
+BF& Basis::getBF(int i)
+{
+  return bfs[i];
+}
+
 BF& Basis::getBF(int q, int i)
 {
   int position = findPosition(q);
@@ -118,13 +123,16 @@ int Basis::getShellSize(int q) const
 {
   int nbfs = getSize(q);
   int i = findShellPosition(q);
-  
+
   // Starting 
   int sum = 0;
   int size = 0;
   while(sum < nbfs && i < shells.size()){
       sum += shells(i);
       i++; size++;
+  }
+  if (i < shells.size()){
+    size--;
   }
   return size;
 }
@@ -135,6 +143,7 @@ Vector Basis::getShells(int q) const
   int position = findShellPosition(q);
   int size = getShellSize(q);
   Vector s(size);
+
   // Fill in the values
   for (int i = 0; i < size; i++){
     s[i] = shells[position+i];

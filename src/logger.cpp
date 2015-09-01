@@ -139,7 +139,7 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
 Logger::~Logger()
 {
   if (natoms > 0){
-    delete[] atoms;
+     delete[] atoms;
   }
   delete[] errs;
 }
@@ -216,6 +216,7 @@ void Logger::print(Basis& b, bool full) const
       k++;
     }
   }
+  qs = qtemp;
   qs.resizeCopy(k);
 
   // Now sum over all basis functions to get the number of prims
@@ -242,6 +243,7 @@ void Logger::print(Basis& b, bool full) const
   
   // loop over the atom types
   int nc = 0; int np = 0;
+  outfile << std::setprecision(2);
   Vector subshells; Vector sublnums; 
   for (int i = 0; i < k; i++){
     outfile << std::setw(8) << getAtomName(qs(i));
@@ -266,16 +268,16 @@ void Logger::print(Basis& b, bool full) const
       outfile << std::setw(8) << np << "\n";
     }
   }
-
+  outfile << std::setprecision(8);
   // Now print out basis functions if required
   if (full) {
     title("Basis Functions");
     outfile << std::setw(8) << "Atom";
     outfile << std::setw(8) << "Shell";
     outfile << std::setw(5) << "BF";
-    outfile << std::setw(12) << "Coeff";
-    outfile << std::setw(12) << "Exponent\n";
-    outfile << std::string(48, '.') << "\n";
+    outfile << std::setw(18) << "Coeff";
+    outfile << std::setw(18) << "Exponent\n";
+    outfile << std::string(58, '.') << "\n";
     // Loop over all the basis functions
     Vector subshell; Vector sublnums; 
     Vector coeffs; Vector exps;
@@ -285,44 +287,47 @@ void Logger::print(Basis& b, bool full) const
       sublnums = b.getLnums(qs(i));
 
       // Loop over shells
-      for (int r = 0; r < b.getShellSize(qs(i)); r++){ 
+      int sum = 0;
+      for (int r = 0; r < subshell.size(); r++){ 
 	// Loop over bfs
 	for (int s = 0; s < subshell[r]; s++){
-	  bftemp = b.getBF(qs(i), s);
+	  bftemp = b.getBF(qs(i), s+sum);
 	  coeffs = bftemp.getCoeffs();
 	  exps = bftemp.getExps();
 
 	  // Loop over coeffs/exps
 	  for (int t = 0; t < coeffs.size(); t++){
-	    filler = (r == 0 ? getAtomName(qs[i]) : "");
+	    filler = ((r == 0 && s==0 && t==0) ? getAtomName(qs[i]) : "");
 	    outfile << std::setw(8) << filler;
-	    filler = (s == 0 ? getShellName(sublnums[r]) : "");
+	    filler = ((s == 0 && t == 0) ? getShellName(sublnums[r]) : "");
 	    outfile << std::setw(8) << filler;
 	    filler = (t == 0 ? std::to_string(s+1) : "");
 	    outfile << std::setw(5) << filler;
-
-	    outfile << std::setw(12) << std::setprecision(8) << coeffs(t);
-	    outfile << std::setw(12) << std::setprecision(8) << exps(t) << "\n";
+	    outfile << std::setw(18) << std::setprecision(8) << coeffs(t);
+	    outfile << std::setw(18) << std::setprecision(8) << exps(t) << "\n";
 	  }
 	}
+	sum += subshell[r];
       }
     }
   }
 }      
 
 // Print out the details of an atom, taking the form:
-// Atom Type   Atomic Number    Atomic Mass(amu)  x    y    z
+// Atom Type   Atomic Number    Atomic Mass(amu)  #CGBFS   x    y    z
 void Logger::print(const Atom& a) const
 {
   int q = a.getCharge();
   Vector c(3);
   c = a.getCoords();
-  outfile << std::setw(6) << getAtomName(q);
-  outfile << std::setw(6) << q;
-  outfile << std::setw(6) << a.getMass();
-  outfile << "(" << std::setw(6) << c(0);
-  outfile << ", " << std::setw(6) << c(1);
-  outfile << ", " << std::setw(6) << c(2) << ")\n";
+  outfile << std::fixed << std::setprecision(6);
+  outfile << std::setw(10) << getAtomName(q);
+  outfile << std::setw(10) << q;
+  outfile << std::setw(10) << a.getMass();
+  outfile << std::setw(10) << a.getNbfs();
+  outfile << std::setw(4) << "(" << std::setw(8) << c(0);
+  outfile << ", " << std::setw(8) << c(1);
+  outfile << ", " << std::setw(8) << c(2) << ")\n";
 }
 
 // Print out details of Molecule, taking the form:
@@ -375,7 +380,6 @@ void Logger::print(Molecule& mol, bool inertia) const
     rconsts = mol.rConsts(0); // cm-1
     Vector inert(3);
     inert = mol.getInertia(true);
-    
     // Print it out
     outfile << std::string(30, '.') << "\n";
     outfile << "Principal Moments of Inertia\n";
@@ -384,9 +388,9 @@ void Logger::print(Molecule& mol, bool inertia) const
     outfile << ",  Ib = " << std::setw(12) << inert(1);
     outfile << ",  Ic = " << std::setw(12) << inert(2) << "\n";
     outfile << "Rotational type: " << temp << "\n";
-    outfile << std::string(23, '.') << "\n";
-    outfile << "Rotational Constants\n";
-    outfile << std::string(23, '.') << "\n";
+    outfile << std::string(29, '.') << "\n";
+    outfile << "Rotational Constants / cm-1\n";
+    outfile << std::string(29, '.') << "\n";
     outfile << "A = " << std::setw(12) << rconsts(0);
     outfile << ",  B = " << std::setw(12) << rconsts(1);
     outfile << ",  C = " << std::setw(12) << rconsts(2) << "\n";
@@ -395,9 +399,10 @@ void Logger::print(Molecule& mol, bool inertia) const
   
   // Finally, print out all the atoms
   title("Atoms");
-  outfile << std::setw(6) << "Atom" << std::setw(6) << "z";
-  outfile << std::setw(6) << "Mass" << std::setw(26) << "Coordinates" << "\n";
-  outfile << std::string(45, '.') << "\n";
+  outfile << std::setw(10) << "Atom" << std::setw(10) << "z";
+  outfile << std::setw(10) << "Mass" << std::setw(10) << "#CGBFs"; 
+  outfile << std::setw(30) << "Coordinates" << "\n";
+  outfile << std::string(70, '.') << "\n";
   for (int i = 0; i < mol.getNAtoms(); i++){
     print(mol.getAtom(i));
   }

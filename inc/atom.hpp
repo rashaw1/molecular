@@ -50,7 +50,7 @@ private:
   double x, y, z, mass;
 public:
   // Constructors
-  Atom() : charge(-1) { } // Default
+  Atom() : charge(-1), nbfs(0) { } // Default
   Atom(const Vector& coords, int q, double m); // q = charge, m = mass
   Atom(const Atom& other); // Copy constructor
   ~Atom(); // Destructor - gets rid of array bfs

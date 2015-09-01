@@ -72,6 +72,7 @@ public:
   Vector getCharges() const { return charges; }
   int findPosition(int q) const;
   int findShellPosition(int q) const;
+  BF& getBF(int i);
   BF& getBF(int q, int i);
   int getSize(int q) const;
   int getShellSize(int q) const;
