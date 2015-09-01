@@ -11,6 +11,7 @@
 #include "pbf.hpp"
 #include <cmath>
 #include "mathutil.hpp"
+#include <iostream>
 
 PBF::PBF(double e, int l1, int l2, int l3) : exponent(e), lx(l1), ly(l2), lz(l3)
 {
@@ -33,7 +34,8 @@ void PBF::normalise()
   // The formula can be found in Taketa, Huzinaga, and O-ohata, Journal of
   // the Physical Society of Japan, Vol. 21, No. 11, Nov 1966:
   // Gaussian-Expansion Methods for Molecular Integrals
-  norm = std::pow(2, 2*(lx+ly+lz) + 1.5)*std::pow(exponent, lx+ly+lz+1.5);
+  norm = std::pow(2, 2*(lx+ly+lz) + 1.5);
+  norm = norm*std::pow(exponent, lx+ly+lz+1.5);
   // Calculate double factorials
   norm = norm / ( (double) (fact2(2*lx-1) * fact2(2*ly-1) * fact2(2*lz-1)) );
   norm = norm / std::pow(M_PI, 1.5);

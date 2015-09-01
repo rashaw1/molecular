@@ -222,11 +222,9 @@ void Logger::print(Basis& b, bool full) const
   // Now sum over all basis functions to get the number of prims
   Vector c(3); c[0] = 0.0; c[1] = 0.0; c[2] = 0.0;
   BF bftemp(c, 0, 0, 0, c);
-  for (int i = 0; i < k; i++){
-    for (int j = 0; j < b.getSize(qs[i]); j++){
-      bftemp = b.getBF(qs[i], j);
-      nprims += bftemp.getNPrims();
-    }
+  for (int i = 0; i < nbfs; i++){
+    bftemp = b.getBF(i);
+    nprims += bftemp.getNPrims();
   }
   
   // Start printing
@@ -242,10 +240,10 @@ void Logger::print(Basis& b, bool full) const
   outfile << std::string(35, '.') << "\n";
   
   // loop over the atom types
-  int nc = 0; int np = 0;
   outfile << std::setprecision(2);
   Vector subshells; Vector sublnums; 
   for (int i = 0; i < k; i++){
+    int nc = 0; int np = 0;
     outfile << std::setw(8) << getAtomName(qs(i));
     subshells = b.getShells(qs[i]);
     sublnums = b.getLnums(qs[i]);
@@ -262,7 +260,7 @@ void Logger::print(Basis& b, bool full) const
       outfile << std::setw(8) << subshells[j];
       np = 0;
       for (int l = 0; l < subshells[j]; l++){
-	np += b.getBF(qs[i], nc + l).getNPrims();
+	np += b.getBF(qs[i], nc + l).getNPrims();	
       }
       nc += subshells[j];
       outfile << std::setw(8) << np << "\n";
@@ -461,14 +459,15 @@ void Logger::print(BF& bf) const
   outfile << std::setw(15) << "Coefficients: ";
   for (int i = 0; i < coef.size(); i++){
     outfile << std::setw(12) << std::setprecision(9) << coef(i);
-    if ((i % 4) == 0){ // Print 4 per line
+    if ((i % 4) == 0 && i != 0){ // Print 4 per line
       outfile << "\n" << std::setw(15) << "";
     }
   }
-  outfile << std::setw(15) <<  "\nExponents: ";
+  outfile << "\n";
+  outfile << std::setw(15) <<  "Exponents: ";
   for (int i = 0; i < exp.size(); i++){
     outfile << std::setw(12) << std::setprecision(9) << exp(i);
-    if ( (i%4) == 0) {
+    if ( (i%4) == 0 && i!=0) {
       outfile << "\n" << std::setw(15) << "";
     }
   }
@@ -490,9 +489,12 @@ void Logger::print(const PBF& pbf) const
 // Specialised printing routines
 
 // Print a title like so:
+//
+// 
 // =====
 // TITLE
 // =====
+//
 void Logger::title(const std::string& msg) const 
 {
   std::string temp = msg;
@@ -500,20 +502,25 @@ void Logger::title(const std::string& msg) const
   std::transform(temp.begin(), temp.end(), temp.begin(), ::toupper);
   
   // Print
+  outfile << "\n\n";
   outfile << std::string(temp.length(), '=') << "\n";
   outfile << temp << "\n";
   outfile << std::string(temp.length(), '=') << "\n";
+  outfile << "\n";
 }
 
 // Print a result like so:
+//
 // **********************
 // result goes here
 // **********************
+// 
 void Logger::result(const std::string& msg) const
 {
+  outfile << "\n";
   outfile << std::string(msg.length(), '*') << "\n";
   outfile << msg << "\n";
-  outfile << std::string(msg.length(), '*') << "\n";
+  outfile << std::string(msg.length(), '*') << "\n\n";
 }
 
 // Log an error
