@@ -3,6 +3,7 @@
 #include "logger.hpp"
 #include "molecule.hpp"
 #include "error.hpp"
+#include "integrals.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -22,12 +23,19 @@ int main (int argc, char* argv[])
   //log.print(mol.getBF(7, 6).getPBF(0));
   log.result("This is a result.");
   log.finalise();
+  output.close();
+  IntegralEngine integral(mol);
+  Vector ests;
+  ests = integral.getEstimates();
+  ests = ests*(1.0/(1024*1024));
+  ests.print();
+  std::cout << "\n";
+  
   } catch (Error e) {
     log.error(e);
   }
   input.close();
   std::cout << "input closed\n";
-  output.close();
   std::cout << "output closed\n";
   return 0;
 }

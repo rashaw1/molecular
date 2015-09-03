@@ -6,6 +6,7 @@
  *    =======================================================================
  *    27/08/15     Robert Shaw     Original Code
  *    28/08/15     Robert Shaw     Implemented Boys function.
+ *    02/09/15     Robert Shaw     Implemented binom function.
  */
 
 #include <cmath>
@@ -16,18 +17,18 @@
 #include <boost/math/constants/constants.hpp>
 
 // Factorial and double factorial functions
-long int fact(int i)
+unsigned long int fact(int i)
 {
-  long int rval = (i<1 ? 1 : i);
+  unsigned long int rval = (i<1 ? 1 : i);
   for(int j = i-1; j > 0; j--){
     rval *= j;
   }
   return rval;
 }
 
-long int fact2(int i)
+unsigned long int fact2(int i)
 {
-  long int rval = (i<1 ? 1 : i);
+  unsigned long int rval = (i<1 ? 1 : i);
   for (int j = i-2; j > 0; j-=2){
     rval = rval*j;
   }
@@ -74,4 +75,29 @@ Vector boys(double x, int mmax, int mmin, double PRECISION)
   }
   return rvec;
 }
-  
+
+// Calculate the binomial coefficient (n m)T
+// given by the formula:
+// n! / [(n-m)!*m!]
+unsigned long int binom(int n, int m)
+{  
+  unsigned long int rval;
+  if (m >= n || m <= 0 || n <= 0){
+    rval = 1;
+  } else {
+    unsigned long int numerator = n;
+    // Set m to be the lesser of m, n-m
+    m = (m < n-m ? m : n-m);
+    if ( m == 1 ) {
+      rval = n;
+    } else {
+      unsigned long int denominator = m;
+      for (int i = m-1; i > 0; i--){
+	numerator *= (n-i);
+	denominator *= i;
+      }
+      rval =  numerator/denominator;
+    }
+  }
+  return rval;
+}

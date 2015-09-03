@@ -113,7 +113,9 @@ int Basis::getSize(int q) const
   bool found = false;
   while(!found && (size+position) < charges.size()){
     found = (charges(position+size) != q ? true : false);
-    size++;
+    if (!found){
+      size++;
+    }
   }
   return size;
 }
@@ -131,9 +133,9 @@ int Basis::getShellSize(int q) const
       sum += shells(i);
       i++; size++;
   }
-  if (i < shells.size()){
-    size--;
-  }
+  //if (i < shells.size()){
+  //  size--;
+  //}
   return size;
 }
 

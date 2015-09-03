@@ -160,7 +160,7 @@ void Logger::print(const Vector& v, int digits, bool vertical) const
     ender = "\n";
   }
   for (int i = 0; i < v.size(); i++){
-    outfile << std::scientific << std::setw(digits+8) << v[i] << ender;
+    outfile << std::fixed << std::setprecision(digits) << std::setw(digits+5) << v[i] << ender;
   }
   outfile << "\n";
 }
@@ -222,11 +222,12 @@ void Logger::print(Basis& b, bool full) const
   // Now sum over all basis functions to get the number of prims
   Vector c(3); c[0] = 0.0; c[1] = 0.0; c[2] = 0.0;
   BF bftemp(c, 0, 0, 0, c);
+
   for (int i = 0; i < nbfs; i++){
     bftemp = b.getBF(i);
     nprims += bftemp.getNPrims();
   }
-  
+
   // Start printing
   title("Basis Set");
   outfile << "BASIS: " << b.getName() << "\n";
@@ -246,12 +247,15 @@ void Logger::print(Basis& b, bool full) const
     int nc = 0; int np = 0;
     outfile << std::setw(8) << getAtomName(qs(i));
     subshells = b.getShells(qs[i]);
+
     sublnums = b.getLnums(qs[i]);
     outfile << std::setw(8) << getShellName(sublnums[0]);
     outfile << std::setw(8) << subshells[0];
+
     for (int j = 0; j < subshells[0]; j++){
       np += b.getBF(qs[i], j).getNPrims();
     }
+
     nc += subshells[0];
     outfile << std::setw(8) << np << "\n";
     for (int j = 1; j < subshells.size(); j++){
@@ -265,6 +269,7 @@ void Logger::print(Basis& b, bool full) const
       nc += subshells[j];
       outfile << std::setw(8) << np << "\n";
     }
+
   }
   outfile << std::setprecision(8);
   // Now print out basis functions if required
