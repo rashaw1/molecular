@@ -225,25 +225,20 @@ double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
 }
 
 // Form the overlap integral matrix sints using the Obara-Saika recurrence relations
-// Algorithm: for each pair of atoms A, B
-// - shell r on A:
-//   - shell s on B:
-//     - cgbf a in r:
-//       -cgbf b in s:
-//         -primitive u in a:
-//           -primitive v in b:
-//              getVals
-//              calculate S00_i = sqrt(PI/p)*Ki in each direction i = x, y, z
-//              use S01 and S10, then S11, S21, S12, S22, ... until at correct level
-//                with the recurrence relations
-//              Suv = product of xyz components
-//           end
+// Algorithm:
+//  - generate list of basis functions
+//  - for each cgbf m
+//      - for each cgbf n>=m
+//         - loop over prims (u) on m
+//            -loop over prims (v) on n
+//                form Si0x,y,z
+//                calculate Sij in each cartesian direction
+//                Suv = Sij,x*Sij,y*Sij,z 
+//            end
 //         end
-//         form vector of primitive integrals, contract
-//       end
-//     end
-//   end
-// end
+//         contract Suv into Smn
+//      end
+//  end 
 void IntegralEngine::formOverlap()
 {
   // Get the number of basis functions
@@ -255,152 +250,128 @@ void IntegralEngine::formOverlap()
   sints.resize(N, N); // Resize the matrix
   std::cout << "sints is a " << N << " x " << N << " matrix\n";
   
-  // Loop over atoms
-  Atom ma; Atom na;
-  for (int m = 0; m < natoms; m++){
-    ma = molecule.getAtom(m);
-    // Get the shells and coords for m
-    Vector mshells; Vector mcoords;
-    mshells = ma.getShells();
-    mcoords = ma.getCoords();
+  // Form a list of basis functions, and the atoms they're on
+  Vector atoms(N); Vector bfs(N);
+  int k = 0;
+  for (int i = 0; i < natoms; i++){
+    int nbfs = molecule.getAtom(i).getNbfs();
+    for (int j = 0; j < nbfs; j++){
+      atoms[k] = i;
+      bfs[k] = j;
+      k++;
+    }
+  }
 
-    for (int n = m; n < natoms; n++){
-      na = molecule.getAtom(n);
-      // Get the shells and coords for n
-      Vector nshells; Vector ncoords;
-      nshells = na.getShells();
-      ncoords = na.getCoords();
+  // Loop over cgbfs
+  BF mbf; BF nbf; Vector mcoords; Vector ncoords;
+  for (int m = 0; m < N; m++){
+    // Retrieve basis function and coordinates
+    mbf = molecule.getAtom(atoms(m)).getBF(bfs(m));
+    mcoords = molecule.getAtom(atoms(m)).getCoords();
+    
+    // Retrieve angular momentum components
+    int mlx = mbf.getLx();
+    int mly = mbf.getLy();
+    int mlz = mbf.getLz();
 
-      // Loop over shells
-      int mtotal = 0; // Keep track of how many basis functions have been done
-      for (int r = 0; r < mshells.size(); r++){
-	BF mbf; BF nbf;
-	for (int a = 0; a < mshells(r); a++){
+    // Get contraction coefficients and no. of prims
+    Vector mcoeffs;
+    mcoeffs = mbf.getCoeffs();
+    int mN = mbf.getNPrims();
 
-	  mbf = ma.getBF(a+mtotal);
-	  // get angular momentum components                                                                                                                                          
-	  int alx = mbf.getLx();
-	  int aly = mbf.getLy();
-	  int alz = mbf.getLz();
+    // Loop over cgbfs greater or equal to m
+    for (int n = m; n < N; n++){
+      nbf = molecule.getAtom(atoms(n)).getBF(bfs(n));
+      ncoords = molecule.getAtom(atoms(n)).getCoords();
 
-	  // Get size of primitive shell                                                                                                                                              
-	  int aN = mbf.getNPrims();
+      // Angular momenta
+      int nlx = nbf.getLx();
+      int nly = nbf.getLy();
+      int nlz = nbf.getLz();
 
-	  // Get contraction coefficients                                                                                                                                             
-	  Vector acoeffs;
-	  acoeffs = mbf.getCoeffs();
-	  // Loop over cgbfs
-	  int ntotal = 0;
-	  for (int s = 0; s < nshells.size(); s++){
-	    std::cout << nshells(s) << "\n";
-	    for (int b = 0; b < nshells(s); b++){	      
+      // Contraction coefficients and no. prims
+      Vector ncoeffs;
+      ncoeffs = nbf.getCoeffs();
+      int nN = nbf.getNPrims();
 
-	      nbf = na.getBF(b+ntotal);
-	      // Get the components of the angular momenta
-	      int blx = nbf.getLx();
-	      int bly = nbf.getLy();
-	      int blz = nbf.getLz();
+      // Store primitive integrals
+      Vector prims(mN*nN);
 
-	      // Get contraction coefficients
-	      Vector bcoeffs; 
-	      bcoeffs = nbf.getCoeffs();
-
-	      // Get sizes of primitive shells
-     	      int bN = nbf.getNPrims();
-
-	      // Initialise vector to store primitive overlap integrals temporarily
-	      Vector prims(aN*bN);
-
-	      // Loop over primitives
-	      for (int u = 0; u < aN; u++){
-		double uexp = mbf.getPBF(u).getExponent();
-		double unorm = mbf.getPBF(u).getNorm();
-		
-		for (int v = 0; v < bN; v++){
-		  double vexp = nbf.getPBF(v).getExponent();
-		  double vnorm = nbf.getPBF(v).getNorm();
-		  // getVals
-		  Vector vals;
-		  vals = getVals(uexp, vexp, mcoords, ncoords);
-		  
-		  // Calculate the S00
-		  double premult = std::sqrt(M_PI/vals(0)); // sqrt(PI/p) 
-		  Vector Si0x(alx+blx+1);
-		  Vector Si0y(aly+bly+1);
-		  Vector Si0z(alz+blz+1);
-		  Si0x[0] = premult*vals(8); // vals(8-10) are the K values
-		  Si0y[0] = premult*vals(9);
-		  Si0z[0] = premult*vals(10);
-		  
-		  // Use the Obara-Saika recursion formula:
-		  // S(i+1)j = XPA*Sij + (1/2p)*(i*S(i-1)j + j*Si(j-1))
-		  // to calculate Si0. We need to loop up to i = alx+blx, 
-		  // aly+bly, alz+blz, to then use horizontal relation
-		  // entirely in terms of Si0 members
-		  
-		  // First calculate XPA, YPA, ZPA, 1/2p
-		  double XPA = vals(2) - mcoords(0);
-		  double YPA = vals(3) - mcoords(1);
-		  double ZPA = vals(4) - mcoords(2);
-		  double one2p = 1.0/(2.0*vals(0)); // 1/2p
-
-		  // Then loop
-		  double Snext, Scurr, Slast;
-		  Slast = 0.0;
-		  Scurr = Si0x(0);
-		  for (int i = 1; i < alx+2; i++){
-		    Snext = XPA*Scurr + one2p*(i-1)*Slast;
-		    Si0x[i] = Snext;
-		    Slast = Scurr; Scurr = Snext;
-		  }
-     		  Slast = 0.0; Scurr = Si0y(0);
-		  for (int i = 1; i < aly+2; i++){
-		    Snext = YPA*Scurr + one2p*(i-1)*Slast;
-		    Si0y[i] = Snext;
-		    Slast = Scurr; Scurr = Snext;
-		  }
-		  Slast = 0.0; Scurr = Si0z(0);
-		  for (int i = 1; i < alz+2; i++){
-		    Snext = ZPA*Scurr + one2p*(i-1)*Slast;
-		    Si0z[i] = Snext;
-		    Slast = Scurr; Scurr = Snext;
-		  }
-
-		  // Next, use the horizontal recurrence relation
-		  // Si(j+1) = Si+1,j + XAB*Sij
-		  // until blx, bly, blz are reached
-		  // This version uses explicitly calculated formulae for Sij in terms
-		  // of Si0, and currently only goes up to i = j = 3 (i.e. f-type)
-		  // It could easily be extended if there were a need to do so.
-		  double Sx, Sy, Sz; // Store the final values of each cartesian component
-		  Sx = getS(alx, blx, Si0x, vals(5)); // vals(5-7) are XAB, YAB, ZAB, respectively
-		  Sy = getS(aly, bly, Si0y, vals(6));
-		  Sz = getS(alz, blz, Si0z, vals(7));
-		  
-		  // Set the primitive matrix element
-		  prims[u*bN+v] = unorm*vnorm*Sx*Sy*Sz;
-		} // End primitive loop on b
-	      } // End primitive loop on a
-
-	      // Contract
-	      sints(mtotal+a, ntotal+b) = makeContracted(acoeffs, bcoeffs, prims);
-	      
-	    } // End cgbf loop on b
-
-	    ntotal += nshells(s);
-
-	  } // End shell loop on b
-
-	} // End cgbf loop on a
-
-	mtotal += mshells(r);
-
-      } // End shell loop on a      
-    } // End atom loop b
-  } // End atom loop a
-  
-  sints.print();
-
+      // Loop over primitives
+      for (int u = 0; u < mN; u++){
+	double uexp = mbf.getPBF(u).getExponent();
+	double unorm = mbf.getPBF(u).getNorm();
+	
+	for (int v = 0; v < nN; v++){
+	  double vexp = nbf.getPBF(v).getExponent();
+	  double vnorm = nbf.getPBF(v).getNorm();
+	  // getVals
+	  Vector vals;
+	  vals = getVals(uexp, vexp, mcoords, ncoords);
+	  
+	  // Calculate the S00
+	  double premult = std::sqrt(M_PI/vals(0)); // sqrt(PI/p) 
+	  Vector Si0x(mlx+nlx+1);
+	  Vector Si0y(mly+nly+1);
+	  Vector Si0z(mlz+nlz+1);
+	  Si0x[0] = premult*vals(8); // vals(8-10) are the K values
+	  Si0y[0] = premult*vals(9);
+	  Si0z[0] = premult*vals(10);
+	  
+	  // Use the Obara-Saika recursion formula:
+	  // S(i+1)j = XPA*Sij + (1/2p)*(i*S(i-1)j + j*Si(j-1))
+	  // to calculate Si0. We need to loop up to i = alx+blx, 
+	  // aly+bly, alz+blz, to then use horizontal relation
+	  // entirely in terms of Si0 members
+	  
+	  // First calculate XPA, YPA, ZPA, 1/2p
+	  double XPA = vals(2) - mcoords(0);
+	  double YPA = vals(3) - mcoords(1);
+	  double ZPA = vals(4) - mcoords(2);
+	  double one2p = 1.0/(2.0*vals(0)); // 1/2p
+	  
+	  // Then loop
+	  double Snext, Scurr, Slast;
+	  Slast = 0.0;
+	  Scurr = Si0x(0);
+	  for (int i = 1; i < mlx+nlx+1; i++){
+	    Snext = XPA*Scurr + one2p*(i-1)*Slast;
+	    Si0x[i] = Snext;
+	    Slast = Scurr; Scurr = Snext;
+	  }
+	  Slast = 0.0; Scurr = Si0y(0);
+	  for (int i = 1; i < mly+nly+1; i++){
+	    Snext = YPA*Scurr + one2p*(i-1)*Slast;
+	    Si0y[i] = Snext;
+	    Slast = Scurr; Scurr = Snext;
+	  }
+	  Slast = 0.0; Scurr = Si0z(0);
+	  for (int i = 1; i < mlz+nlz+1; i++){
+	    Snext = ZPA*Scurr + one2p*(i-1)*Slast;
+	    Si0z[i] = Snext;
+	    Slast = Scurr; Scurr = Snext;
+	  }
+	  
+	  // Next, use the horizontal recurrence relation
+	  // Si(j+1) = Si+1,j + XAB*Sij
+	  // until blx, bly, blz are reached
+	  // This version uses explicitly calculated formulae for Sij in terms
+	  // of Si0, and currently only goes up to i = j = 3 (i.e. f-type)
+	  // It could easily be extended if there were a need to do so.
+	  double Sx, Sy, Sz; // Store the final values of each cartesian component
+	  Sx = getS(mlx, nlx, Si0x, vals(5)); // vals(5-7) are XAB, YAB, ZAB, respectively
+	  Sy = getS(mly, nly, Si0y, vals(6));
+	  Sz = getS(mlz, nlz, Si0z, vals(7));
+	  
+	  // Set the primitive matrix element
+	  prims[u*nN+v] = unorm*vnorm*Sx*Sy*Sz;
+	} // End prims loop on n
+      } // End prims loop on m
+      // Contract
+      sints(m, n) = makeContracted(mcoeffs, ncoeffs, prims);
+      sints(n, m) = sints(m, n);
+    } // End of cgbf loop n
+  } // End of cgbf loop m
 }
 
 // Utility routine to calculate the Sij component from Si0
