@@ -296,6 +296,7 @@ void IntegralEngine::formOverlapKinetic()
       } // End prims loop on m
 
       // Contract
+      //if(m==35 && n==41){ overlapPrims.print(); }
       sints(m, n) = makeContracted(mcoeffs, ncoeffs, overlapPrims);
       sints(n, m) = sints(m, n);
       tints(m, n) = makeContracted(mcoeffs, ncoeffs, kineticPrims);
@@ -330,7 +331,7 @@ Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v,
   Sijx(0, 0) = premult*vals(8); // vals(8-10) are the K values
   Sijy(0, 0) = premult*vals(9);
   Sijz(0, 0) = premult*vals(10);
-  
+
   // Loop to form Si0 in each cartesian direction
 
   // Use the Obara-Saika recursion formula:
@@ -372,33 +373,39 @@ Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v,
   double ZPB = vals(4) - vcoords(2);
 
   // Get the Si1 before looping, if needed
-  int utemp = (ulx > 0 ? ulx-1 : 0); // In case ulx = 0, avoid out of bounds
-  if (vlx > 0){
-    Sijx(ulx, 1) = XPB*Sijx(ulx,0) + one2p*ulx*Sijx(utemp, 0); 
+  if(vlx>0){
+    for (int k = 0; k < ulx+1; k++){
+      int ktemp = (k > 0 ? k-1 : 0); // Avoid out of bounds errors
+      Sijx(k, 1) = XPB*Sijx(k,0) + one2p*k*Sijx(ktemp, 0); 
     
-    // Then loop
-    for (int j = 2; j < vlx+1; j++)
-      Sijx(ulx, j) = XPB*Sijx(ulx, j-1) + one2p*(ulx*Sijx(utemp, j-1) +
-						 (j-1)*Sijx(ulx, j-2));
+      // Then loop
+      for (int j = 2; j < vlx+1; j++)
+	Sijx(k, j) = XPB*Sijx(k, j-1) + one2p*(k*Sijx(ktemp, j-1) +
+					       (j-1)*Sijx(k, j-2));
+    }
   }
   // Repeat for y, z
-  utemp = (uly > 0 ? uly-1 : 0);
-  if (vly > 0){
-    Sijy(uly, 1) = YPB*Sijy(uly,0) + one2p*uly*Sijy(utemp, 0);
+  if(vly>0){
+    for (int k = 0; k < uly+1; k++){
+      int ktemp= (k > 0 ? k-1 : 0); // Avoid out of bounds errors                                                                                                                                               
+      Sijy(k, 1) = YPB*Sijy(k,0) + one2p*k*Sijy(ktemp, 0);
 
-    // Then loop
-    for (int j = 2; j < vly+1; j++)
-      Sijy(uly, j) = YPB*Sijy(uly, j-1)+ one2p*(uly*Sijy(utemp, j-1) +
-						(j-1)*Sijy(uly, j-2));
+      // Then loop                                                                                                                                                                  
+      for (int j = 2; j < vly+1; j++)
+        Sijy(k, j) = YPB*Sijy(k, j-1) + one2p*(k*Sijy(ktemp, j-1) +
+                                               (j-1)*Sijy(k, j-2));
+    }
   }
-  utemp = (ulz > 0 ? ulz-1 : 0);
-  if (vlz > 0){
-    Sijz(ulz, 1) = ZPB*Sijz(ulz,0) + one2p*ulz*Sijz(utemp, 0);
+  if(vlz>0){
+    for (int k = 0; k < ulz+1; k++){
+      int ktemp= (k > 0 ? k-1 : 0); // Avoid out of bounds errors                                                                                                                                               
+      Sijz(k, 1) = ZPB*Sijz(k,0) + one2p*k*Sijz(ktemp, 0);
 
-    // Then loop
-    for (int j = 2; j < vlx+1; j++)
-      Sijz(ulz, j) = ZPB*Sijz(ulz, j-1)+ one2p*(ulz*Sijz(utemp, j-1) +
-						(j-1)*Sijz(ulx, j-2));
+      // Then loop                                                                                                                                                                             
+      for (int j = 2; j < vlz+1; j++)
+        Sijz(k, j) = ZPB*Sijz(k, j-1) + one2p*(k*Sijz(ktemp, j-1) +
+                                               (j-1)*Sijz(k, j-2));
+    }
   }
 
   // Get final overlap integral
@@ -415,7 +422,7 @@ Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v,
   // A couple of repeatedly used multipliers
   double vp = vexp/vals(0); // vexp/p
   double up = uexp/vals(0); // uexp/p
-  
+
   // Form the Ti0 values
   if (ulx > 0) {
     // Get T10 first
@@ -450,35 +457,42 @@ Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v,
   }
   
   // Now increment j
-  utemp = (ulx > 0 ? ulx-1 : 0);
+
   if (vlx > 0){
-    Tijx(ulx, 1) = XPB*Tijx(ulx, 0)+ one2p*ulx*Tijx(utemp, 0)
-      + up*2*vexp*Sijx(ulx, 1);
-    
-    for (int j = 2; j < vlx+1; j++){
-      Tijx(ulx, j) = XPB*Tijx(ulx, j-1) + one2p*(ulx*Tijx(utemp, j-1) + (j-1)*Tijx(ulx, j-2))
-	+ up*(2*vexp*Sijx(ulx, j) - (j-1)*Sijx(ulx, j-2));
+    for (int k = 0; k < ulx+1; k++){
+      int ktemp = (k > 0 ? k-1 : 0);
+      Tijx(k, 1) = XPB*Tijx(k,0) + one2p*k*Tijx(ktemp, 0)
+	+ up*2*vexp*Sijx(k, 1);
+      
+      for (int j = 2; j < vlx+1; j++){
+	Tijx(k, j) = XPB*Tijx(k, j-1) + one2p*(k*Tijx(ktemp, j-1) + (j-1)*Tijx(k, j-2))
+	  + up*(2*vexp*Sijx(k, j) - (j-1)*Sijx(k, j-2));
+      }
     }
   }
   // Repeat for y and z
-  utemp= (uly > 0 ? uly-1 : 0);
   if (vly > 0){
-    Tijy(uly, 1) = YPB*Tijy(uly, 0)+ one2p*uly*Tijy(utemp, 0)
-      + up*2*vexp*Sijy(uly, 1);
-
-    for(int j = 2; j <vly+1; j++){
-      Tijy(uly,j) = YPB*Tijy(uly, j-1)+ one2p*(uly*Tijy(utemp, j-1) +(j-1)*Tijy(uly,j-2))
-	+ up*(2*vexp*Sijy(uly, j) - (j-1)*Sijy(uly, j-2));
+    for(int k = 0; k <uly+1; k++){
+      int ktemp = (k > 0 ? k-1 : 0);
+      Tijy(k, 1) = YPB*Tijy(k,0) + one2p*k*Tijy(ktemp, 0)
+	+ up*2*vexp*Sijy(k, 1);
+      
+      for (int j = 2; j< vly+1; j++){
+	Tijy(k,j) = YPB*Tijy(k, j-1) +one2p*(k*Tijy(ktemp, j-1) + (j-1)*Tijy(k, j-2))
+          + up*(2*vexp*Sijy(k, j) - (j-1)*Sijy(k, j-2));
+      } 
     }
   }
-  utemp= (ulz > 0 ? ulz-1 : 0);
   if (vlz > 0){
-    Tijz(ulz, 1) = ZPB*Tijz(ulz, 0)+ one2p*ulz*Tijz(utemp, 0)
-      + up*2*vexp*Sijz(ulz, 1);
-
-    for(int j = 2; j <vlz+1; j++){
-      Tijz(ulz,j) = ZPB*Tijz(ulz, j-1)+ one2p*(ulz*Tijz(utemp, j-1) +(j-1)*Tijz(ulz,j-2))
-	+ up*(2*vexp*Sijz(ulz, j) - (j-1)*Sijz(ulz, j-2));
+    for(int k = 0; k <ulz+1; k++){
+      int ktemp = (k > 0 ? k-1 : 0);
+      Tijz(k, 1) = ZPB*Tijz(k,0) + one2p*k*Tijz(ktemp, 0)
+	+ up*2*vexp*Sijz(k, 1);
+      
+      for (int j = 2; j< vlz+1; j++){
+	Tijz(k,j) = ZPB*Tijz(k, j-1) +one2p*(k*Tijz(ktemp, j-1) + (j-1)*Tijz(k, j-2))
+          + up*(2*vexp*Sijz(k, j) - (j-1)*Sijz(k, j-2));
+      } 
     }
   }
 
@@ -500,7 +514,7 @@ void IntegralEngine::formNucAttract()
 // about the point c, to a given set of powers in the
 // cartesian coordinates of c.
 // Uses Obara-Saika recurrence relations. 
-double IntegralEngine::multipole(const BF& a, const BF& b, const Vector& acoords,
+double IntegralEngine::multipole(BF& a, BF& b, const Vector& acoords,
 				 const Vector& bcoords, const Vector& ccoords,
 				 const Vector& powers) const
 {
@@ -534,9 +548,11 @@ double IntegralEngine::multipole(const BF& a, const BF& b, const Vector& acoords
 }
 
 // Calculate the above multipole integral between two primitives
-double multipole(const PBF& u, const PBF& v, const Vector& ucoords,
+double IntegralEngine::multipole(PBF& u,  PBF& v, const Vector& ucoords,
 		 const Vector& vcoords, const Vector& ccoords, 
 		 const Vector& powers) const
 {
   // To be written
+  double integral;
+  return integral;
 }

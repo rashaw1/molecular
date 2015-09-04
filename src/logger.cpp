@@ -221,7 +221,7 @@ void Logger::print(Basis& b, bool full) const
 
   // Now sum over all basis functions to get the number of prims
   Vector c(3); c[0] = 0.0; c[1] = 0.0; c[2] = 0.0;
-  BF bftemp(c, 0, 0, 0, c);
+  BF bftemp(c, 0, 0, 0, c, c);
 
   for (int i = 0; i < nbfs; i++){
     bftemp = b.getBF(i);

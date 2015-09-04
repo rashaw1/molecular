@@ -5,7 +5,7 @@
  *   DATE           AUTHOR           CHANGES
  *   ==================================================================
  *   30/08/15       Robert Shaw      Original code.
- *
+ *   04/09/15       Robert Shaw      Now indexes primitives.
  */
  
  #include "basisreader.hpp"
@@ -61,7 +61,7 @@ BF BasisReader::readBF(int q, int i)
 
   std::string delim = ",";
   int l1 = 0, l2 = 0, l3 = 0; // Angular momenta
-  Vector c; Vector e; // Coeffs and exps
+  Vector c; Vector e; Vector ids; // Coeffs, exps, and prim ids
 
   // Check it's open
   if (input.is_open()){
@@ -132,14 +132,16 @@ BF BasisReader::readBF(int q, int i)
 	  line.erase(0, position+delim.length());
 	  position = line.find(delim);
 	  temp2 = line.substr(0, position);
-      std::size_t p = temp2.find('.');
+	  std::size_t p = temp2.find('.');
 	  int start = std::stoi(temp2.substr(0, p));
 	  int end = std::stoi(temp2.substr(p+1, temp2.length()));
 	  
-	  // Now resize e and copy in
+	  // Now resize e and ids, and copy in
 	  e.resize(end - start + 1);
+	  ids.resize(end - start + 1);
 	  for (int j = 0; j < end - start + 1; j++){
 	    e[j] = tempexps(start+j-1); // Take account of zero-indexing
+	    ids[j] = start+j-1;
 	  }
 	  
 	  // Get the coeffs
@@ -286,7 +288,7 @@ BF BasisReader::readBF(int q, int i)
     throw(Error("READBF", "Unable to open basis file."));
   }
   closeFile();
-  BF b(c, l1, l2, l3, e);
+  BF b(c, l1, l2, l3, e, ids);
   return b;
 }
 

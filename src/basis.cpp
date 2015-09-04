@@ -41,7 +41,6 @@ Basis::Basis(std::string n, Vector& atoms)
   for (int i = 0; i < natoms; i++){
     for (int j = 0; j < qnbfs(i); j++){
       bfs[k] = input.readBF(atoms(i), j);
-      bfs[k].setID(k); // Index the basis functions
       charges[k] = atoms(i);
       k++;
     }

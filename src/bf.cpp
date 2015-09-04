@@ -10,9 +10,10 @@
 
 #include "bf.hpp"
 
-BF::BF(Vector& c, int l1, int l2, int l3, Vector& exps)
+BF::BF(Vector& c, int l1, int l2, int l3, Vector& exps, Vector& indices)
 {
   coeffs = c;
+  ids = indices;
   lx = l1; ly = l2; lz = l3;
   
   // Construct the set of pbfs
@@ -32,6 +33,7 @@ BF::BF(Vector& c, int l1, int l2, int l3, Vector& exps)
 BF::BF(const BF& other)
 {
   coeffs = other.coeffs;
+  ids = other.ids;
   norm = other.norm;
   lx = other.lx; ly = other.ly; lz = other.lz;
   
@@ -65,11 +67,6 @@ Vector BF::getExps() const
   return exps;
 }
 
-void BF::setID(int i)
-{
-  id = i;
-}
-
 BF& BF::operator=(const BF& other)
 {
   // If PBFs already exist, deallocate memory
@@ -79,6 +76,7 @@ BF& BF::operator=(const BF& other)
   
   // Assign attributes
   coeffs = other.coeffs;
+  ids = other.ids;
   norm = other.norm;
   lx = other.lx; ly = other.ly; lz = other.lz;
 

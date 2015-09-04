@@ -88,10 +88,10 @@ public:
 		       int l4, int m4, Matrix& ints) const;
   void formOverlapKinetic();
   void formNucAttract();
-  double multipole(const BF& a, const BF& b, const Vector& acoords,
+  double multipole(BF& a,  BF& b, const Vector& acoords,
 		   const Vector& bcoords, const Vector& ccoords, 
 		   const Vector& powers) const;
-  double multipole(const PBF& u, const PBF& v, const Vector& ucoords,
+  double multipole(PBF& u, PBF& v, const Vector& ucoords,
 		   const Vector& vcoords, const Vector& ccoords,
 		   const Vector& powers) const;
 };

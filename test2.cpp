@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include "logger.hpp"
 #include "molecule.hpp"
 #include "error.hpp"
@@ -24,8 +25,16 @@ int main (int argc, char* argv[])
   log.result("This is a result.");
   std::cout << "All fine\n";
   IntegralEngine integral(mol);
-  std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";
+  std::cout << integral.getOverlap(41, 35) << "  " << integral.getKinetic(41, 35) << "\n";
   log.print("\n");
+  log.print(mol.getAtom(2).getBF(35));
+  log.print("\n");
+  log.print(mol.getAtom(2).getBF(29));
+  log.print("\n");
+  for(int i = 0; i < 4; i++){
+    log.print("\n");
+    log.print(mol.getAtom(2).getBF(29).getPBF(i));
+  }
   Vector ests;
   ests = (1.0/(1024.0*1024.0))*integral.getEstimates();
   log.print(ests);
