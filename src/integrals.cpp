@@ -8,7 +8,7 @@
  *   ======================================================================
  *   02/09/15     Robert Shaw      Original code.
  *   03/09/15     Robert Shaw      Merged overlap and kinetic integrals.
- *   04/09/15     Robert Shaw      Multipole integrals added.
+ *   04/09/15     Robert Shaw      Now supports general contracted.
  */
 
 #include "error.hpp"
@@ -232,80 +232,124 @@ double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
 void IntegralEngine::formOverlapKinetic()
 {
   // Get the number of basis functions
+  // and the number of shells
   int natoms = molecule.getNAtoms();
   int N = 0; // No. of cgbfs
+  int NS = 0;
   for (int i = 0; i < natoms; i++){
     N += molecule.getAtom(i).getNbfs();
+    NS += molecule.getAtom(i).getNshells();
   }
   sints.resize(N, N); // Resize the matrix
   tints.resize(N, N);
   
-  // Form a list of basis functions, and the atoms they're on
-  Vector atoms(N); Vector bfs(N);
+  // Form a list of basis functions, the atoms they're on,
+  // and the shells they belong to
+  Vector atoms(N); Vector bfs(N); Vector shells(N);
   int k = 0;
+  Vector temp;
   for (int i = 0; i < natoms; i++){
     int nbfs = molecule.getAtom(i).getNbfs();
+    temp = molecule.getAtom(i).getShells();
+
     for (int j = 0; j < nbfs; j++){
       atoms[k] = i;
       bfs[k] = j;
+      int sum = 0; int shell = 0;
+      while(sum < j+1){
+	sum += temp(shell);
+	if(sum < j+1){
+	  shell++;
+	}
+      }
+      shells[k] = shell;
       k++;
     }
   }
 
-  // Loop over cgbfs
-  BF mbf; BF nbf; Vector mcoords; Vector ncoords;
-  PBF mpbf; PBF npbf;
-  for (int m = 0; m < N; m++){
-    // Retrieve basis function and coordinates
-    mbf = molecule.getAtom(atoms(m)).getBF(bfs(m));
-    mcoords = molecule.getAtom(atoms(m)).getCoords();
-    
-    // Get contraction coefficients and no. of prims
-    Vector mcoeffs;
-    mcoeffs = mbf.getCoeffs();
-    int mN = mbf.getNPrims();
+  int m = 0; // Keep track of basis function count
+  int n = 0;
+  // Object placeholders
+  Vector mcoords; Vector ncoords; Vector mshells; Vector nshells;
+  PBF mpbf; PBF npbf; Atom ma; Atom na;
 
-    // Loop over cgbfs greater or equal to m
-    for (int n = m; n < N; n++){
-      nbf = molecule.getAtom(atoms(n)).getBF(bfs(n));
-      ncoords = molecule.getAtom(atoms(n)).getCoords();
+  // Loop over shells
+  for (int r = 0; r < NS; r++){ // Shells on first atom
+    // Get the first atom coords and number of prims in this shell
+    ma = molecule.getAtom(atoms(m));
+    mcoords = ma.getCoords();
+    mshells = ma.getShells();
+    int mP = ma.getNShellPrims(shells(m));
 
-      // Contraction coefficients and no. prims
-      Vector ncoeffs;
-      ncoeffs = nbf.getCoeffs();
-      int nN = nbf.getNPrims();
+    n = m;
+    for (int s = r; s < NS; s++){ // Shells on second atom
+      // Get same for second atom
+      na = molecule.getAtom(atoms(n));
+      ncoords = na.getCoords();
+      nshells = na.getShells();
+      int nP = na.getNShellPrims(shells(n));
 
-      // Store primitive integrals
-      Vector overlapPrims(mN*nN);
-      Vector kineticPrims(mN*nN);
+      // Store the primitive integrals
+      Matrix overlapPrims(mP, nP);
+      Matrix kineticPrims(mP, nP);
+
       // Loop over primitives
-      for (int u = 0; u < mN; u++){
-	mpbf = mbf.getPBF(u);
+      for (int u = 0; u < mP; u++){
+	mpbf = ma.getShellPrim(shells(m), u);
 
-	for (int v = 0; v < nN; v++){
-	  npbf = nbf.getPBF(v);
-
-	  // Calculate primitive overlap and kinetic integrals
-	  Vector temp;
+	for (int v = 0; v < nP; v++){
+	  npbf = na.getShellPrim(shells(n), v);
+	  
+	  // Calculate the overlap and kinetic integrals
 	  temp = overlapKinetic(mpbf, npbf, mcoords, ncoords);
+	  
+	  // Store in prim matrices
+	  overlapPrims(u, v) = temp(0);
+	  kineticPrims(u, v) = temp(1);
 
-	  // Store in prim vectors
-	  overlapPrims[u*nN+v] = temp(0);
-	  kineticPrims[u*nN+v] = temp(1);
-	} // End prims loop on n
-      } // End prims loop on m
+	} // End v-loop over prims
+      } // End u-loop over prims
+      
+      // Now we need to contract all the integrals
+      // Get shell sizes
+      int msize = mshells(shells(m));
+      int nsize = nshells(shells(n));
 
-      // Contract
-      //if(m==35 && n==41){ overlapPrims.print(); }
-      sints(m, n) = makeContracted(mcoeffs, ncoeffs, overlapPrims);
-      sints(n, m) = sints(m, n);
-      tints(m, n) = makeContracted(mcoeffs, ncoeffs, kineticPrims);
-      tints(n, m) = tints(m, n);
+      Vector mplist; Vector nplist;
+      Vector mcoeff; Vector ncoeff;
+      // Loop
 
-    } // End of cgbf loop n
-  } // End of cgbf loop m
+      for (int i = 0; i < msize; i++){
+	// Get prim list for this bf, and contraction coeffs
+	mplist = ma.getBF(bfs(m+i)).getPrimList();
+	mcoeff = ma.getBF(bfs(m+i)).getCoeffs();
+
+	for (int j = 0; j < nsize; j++){
+	  nplist = na.getBF(bfs(n+j)).getPrimList();
+	  ncoeff = na.getBF(bfs(n+j)).getCoeffs();
+	  
+	  // Form the vector of appropriate prim integrals
+	  Vector overInts(mplist.size()*nplist.size());
+	  Vector kinInts(mplist.size()*nplist.size());
+	  for (int x = 0; x < mplist.size(); x++){
+	    for (int y = 0; y < nplist.size(); y++){
+	      overInts[x*nplist.size() + y] = overlapPrims(mplist(x), nplist(y));
+	      kinInts[x*nplist.size() + y] = kineticPrims(mplist(x), nplist(y));
+	    }
+	  }
+	  
+	  // Contract
+       	  sints(m+i, n+j) = makeContracted(mcoeff, ncoeff, overInts);
+	  tints(m+i, n+j) = makeContracted(mcoeff, ncoeff, kinInts);
+	  sints(n+j, m+i) = sints(m+i, n+j);
+	  tints(n+j, m+i) = tints(m+i, n+j);
+	}
+      }
+      n += nsize;
+    } // End s-loop over shells
+    m += mshells(shells(m));
+  } // End r-loop over shells
 }
-
 // Calculate the overlap and kinetic energy integrals between two primitive
 // cartesian gaussian basis functions, given the coordinates of their centres
 Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v, 

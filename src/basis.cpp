@@ -19,6 +19,7 @@ Basis::Basis(std::string n, Vector& atoms)
 {
   BasisReader input(n); // Make a basis reading object
   name = n;
+  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
   int natoms = atoms.size(); // Get how many different atoms there are
   // Now determine how many basis functions are needed
   int nbfs = 0;

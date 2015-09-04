@@ -18,6 +18,8 @@
  *                accessors: all of the above have get... routines
  *                           note that getCoords() returns an [x, y, z] vector
  *                           bfs has a setBasis(Basis) routine
+ *                           getShellBF(shell, i) - return the ith bf from a given shell 
+ *                           getShellPrim(shell, i) - same, but for primitives
  *                routines:
  *                      rotate(Matrix U) - rotate coords according to unitary
  *                                         transformation matrix, U
@@ -39,6 +41,7 @@
 
 // Declare forward dependencies
 class Matrix;
+class PBF;
 
 // Begin class definition
 class Atom
@@ -59,10 +62,13 @@ public:
   double getMass() const { return mass; }
   int getNbfs() const { return nbfs; }
   int getNshells() const { return nshells; }
+  int getNShellPrims(int shell) const;
   Vector getCoords() const;
   Vector getShells() const { return shells; }
   Vector getLnums() const { return lnums; }
   BF& getBF(int i) { return bfs[i]; } // Return bf i - no bounds check
+  BF& getShellBF(int shell, int i);
+  PBF& getShellPrim(int shell, int i);
   void setBasis(Basis& bs); // Set the basis functions using basis set bs
   // Routines
   void rotate(const Matrix& U); 

@@ -10,6 +10,7 @@
 
 // Includes
 #include "atom.hpp"
+#include "pbf.hpp"
 #include "matrix.hpp"
 #include <iostream>
 
@@ -35,7 +36,7 @@ Atom::Atom(const Atom& other)
   charge = other.charge;
   nbfs = other.nbfs;
   nshells = other.nshells;
-  
+ 
   // Copy in basis functions if they exist
   if (nbfs > 0){
     bfs = new BF[nbfs];
@@ -81,6 +82,83 @@ void Atom::setBasis(Basis& bs)
   }
   shells = bs.getShells(charge);
   lnums = bs.getLnums(charge);
+}
+
+// Get the number of distinct primitives in a given shell
+int Atom::getNShellPrims(int shell) const
+{
+  // Calculate the max. possible number of prims in this shell
+  int nP = 0;
+  for (int i = 0; i < nbfs; i++){
+    nP += bfs[i].getNPrims();
+  }
+
+  // Work out starting and ending bf for this shell
+  int start = 0;
+  for (int i = 0; i < shell; i++)
+    start += shells(i);
+  int end = start + shells(shell);
+
+  // Make a list of the ids of all prims on all bfs
+  // in this shell
+  Vector ids(nP);
+  Vector temp;
+  int k = 0;
+
+  for (int i = start; i < end; i++){
+    temp = bfs[i].getPrimList();
+    for (int j = 0; j < temp.size(); j++){
+      ids[k] = temp(j);
+      k++;
+    }
+  }
+
+  // Resize and sort
+  ids.resizeCopy(k);
+  ids.sort();
+
+  // Count unique entries
+  int count = 1;
+  for (int i = 1; i < k; i++){
+    if(ids(i)!=ids(i-1)){
+      count++;
+    }
+  }
+
+  return count;
+}
+
+// Get the ith BF in a given shell
+BF& Atom::getShellBF(int shell, int i)
+{
+  // Work out the position in the bfs array
+  // First find start position of this shell
+  int start = 0;
+  for (int i = 0; i < shell; i++){
+    start += shells(i);
+  }
+  return bfs[i+start];
+}
+
+// Get the ith unique primitive bf of a given shell
+PBF& Atom::getShellPrim(int shell, int i)
+{
+  bool found = false;
+  int bf = -1; // Counter for cgbfs
+  int pbf;
+  Vector pList;
+  // Loop until the prim with id i is found
+  while(!found){
+    bf++;
+    pbf = -1;
+    pList = bfs[bf].getPrimList();
+
+    while(pbf < pList.size() && !found){
+      pbf++;
+      found = (pList(pbf) == i ? true : false);
+    }
+  }
+  return bfs[bf].getPBF(pbf);
 }
 
 // Routines

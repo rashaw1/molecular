@@ -170,10 +170,12 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2: { //py
 	      l1 = l3 = 0; l2 = 1;
+	      for (int index = 0; index < ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
 	    case 3: { //pz
 	      l1 = l2 = 0; l3 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
 	    }
@@ -187,14 +189,17 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2:{ // px
 	      l1 = 1; l2 = l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
 	    case 3:{ // py
 	      l1 = l3 = 0; l2 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
 	    case 4:{ //pz
 	      l1 = l2 = 0; l3 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }
 	    }
@@ -208,22 +213,27 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2:{ // dxy
 	      l1 = l2 = 1; l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
 	    case 3:{ // dxz
 	      l1 = l3 = 1; l2 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
 	    case 4:{ // dyz
 	      l1 = 0; l2 = l3 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }
 	    case 5:{ // dxx 
 	      l1 = 2; l2 = l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
 	      break;
 	    }
 	    case 6:{ // dyy
 	      l2 = 2; l1 = l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
 	      break;
 	    }
 	    }
@@ -237,38 +247,47 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2:{ //fxzz
 	      l1 = 1; l2 = 0; l3 = 2;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
 	    case 3:{ //fyzz
 	      l1 = 0; l2 = 1; l3 = 2;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
 	    case 4:{ //fxxz
 	      l1 = 2; l2 = 0; l3 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }
 	    case 5:{ //fyyz
 	      l1 = 0; l2 = 2; l3 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
 	      break;
 	    }
 	    case 6:{ //fxxx
 	      l1 = 3; l2 = l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
 	      break;
 	    }
 	    case 7:{ //fyyy
 	      l1 = l3 = 0; l2 = 3;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*e.size(); }
 	      break;
 	    }
 	    case 8:{ // fxyz
 	      l1 = l2 = l3 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*e.size(); }
 	      break;
 	    }
 	    case 9:{ // fxxy
 	      l1 = 2; l2 = 1; l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*e.size(); }
 	      break;
 	    }
 	    case 10:{ // fyyx
 	      l1 = 1; l2 = 2; l3 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*e.size(); }
 	      break;
 	    }
 	    }
