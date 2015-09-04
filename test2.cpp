@@ -22,8 +22,9 @@ int main (int argc, char* argv[])
   //log.print(mol.getBF(7, 6));
   //log.print(mol.getBF(7, 6).getPBF(0));
   log.result("This is a result.");
+  std::cout << "All fine\n";
   IntegralEngine integral(mol);
-  std::cout << integral.getOverlap(2, 3) << "\n";
+  std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";
   log.print("\n");
   Vector ests;
   ests = (1.0/(1024.0*1024.0))*integral.getEstimates();

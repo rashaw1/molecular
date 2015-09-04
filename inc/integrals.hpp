@@ -8,6 +8,7 @@
  *                             need to be carried out.
  *                  sints - a matrix of overlap integrals
  *                  tints - a matrix of kinetic integrals.
+ *                  naints - a matrix of nuclear attraction integrals.
  *            data: sizes - a vector of the number of integrals needed for 
  *                          [1e cartesian, 2e cartesian, 1e spherical, 2e spherical]
  *                          assuming none can be neglected
@@ -20,22 +21,27 @@
  *                  getN(l, m) - returns the spherical normalisation for a GTO with
  *                               angular and magnetic quantum numbers l, m
  *                  getC(l, m, t, u, v) - returns the Clebsch-Gordon coefficient
- *                  getS(l1, l2, Si0, AB) - calculates the overlap of two primitives via recursion
- *                                           on the set Si0.
+ *                  overlapKinetic(u, v, ucoords, vcoords) - calculates the overlap and kinetic 
+ *                                         integrals between two primitives, u, v, given the 
+ *                                         coordinates of their atomic centres.
  *                  makeContracted(coeffs1, coeffs2, ints) - contracts the given set of integrals
  *                           with the given sets of coefficients (1e- integrals)
  *                  makeContracted(coeffs1, coeffs2, coeffs2, coeffs4, ints) - same, but for
  *                           2e- integrals
  *                  makeSpherical(l1, m1, l2, m2, ints) - convert to spherical gaussians, 1e- ints
  *                  makeSpherical(l1, m1, l2, m2, l3, m3, l4, m4, ints) - same, 2e- ints
- *                  formOverlap(), formKinetic() - forms the matrices sints, tints
- *                  makeMultipole(pole) - returns a matrix of multipole integrals of order pole
- *                  makeNucAttract() - returns a matrix of nuclear attraction integrals
+ *                  formOverlapKinetic() - forms the matrices sints, tints
+ *                  multipoleComponent(a, b, acoord, bcoord, ccoord, powers) - calculates the multipole
+ *                                     integral about c-coordinates to the power powers in each coordinate
+ *                                     for the basis functions a, b
+ *                  formNucAttract() - forms the matrix of nuclear attraction integrals, naints
  *                  makeERI() - returns a matrix of electron repulsion integrals
  *
  *   DATE          AUTHOR            CHANGES 
  *   =============================================================================
  *   02/09/15      Robert Shaw       Original code.
+ *   03/09/15      Robert Shaw       Kinetic integrals merged with overlap.
+ *   04/09/15      Robert Shaw       Multipole integrals added.
  * 
  */ 
 
@@ -56,6 +62,7 @@ private:
   Molecule& molecule;
   Matrix sints;
   Matrix tints;
+  Matrix naints;
   Vector sizes;
 public:
   IntegralEngine(Molecule& m); //Constructor
@@ -64,23 +71,29 @@ public:
   Vector getEstimates() const;
   double getOverlap(int i, int j) const { return sints(i, j); }
   double getKinetic(int i, int j) const { return tints(i, j); }
-  Matrix makeMultipole(int pole) const;
-  Matrix makeNucAttract() const;
+  double getNucAttract(int i, int j) const { return naints(i, j); }
   Matrix makeERI() const;
 
   // Intrinsic routines
   Vector getVals(double a, double b, const Vector& A, const Vector& B) const;
   double getN(int l, int m) const;
   double getC(int l, int m, int t, int u, double v) const;
-  double getS(int l1, int l2, Vector& Si0, double AB) const;
+  Vector overlapKinetic(const PBF& u, const PBF& v, const Vector& ucoords,
+			const Vector& vcoords) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& c3, 
 			Vector& c4, Matrix& ints) const;
   double makeSpherical(int l1, int m1, int l2, int m2, Matrix& ints) const;
   double makeSpherical(int l1, int m1, int l2, int m2, int l3, int m3,
 		       int l4, int m4, Matrix& ints) const;
-  void formOverlap();
-  void formKinetic();
+  void formOverlapKinetic();
+  void formNucAttract();
+  double multipole(const BF& a, const BF& b, const Vector& acoords,
+		   const Vector& bcoords, const Vector& ccoords, 
+		   const Vector& powers) const;
+  double multipole(const PBF& u, const PBF& v, const Vector& ucoords,
+		   const Vector& vcoords, const Vector& ccoords,
+		   const Vector& powers) const;
 };
 
 #endif  
