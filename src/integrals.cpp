@@ -44,11 +44,6 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
 
   formOverlapKinetic();
   formNucAttract();
-  std::cout << "\n\nOVERLAP: \n";
-  sints.print();
-  std::cout << "\n\nKINETIC: \n";
-  tints.print();
-  std::cout << "\n\n\n";
 }
 
 // Accessors
@@ -252,14 +247,10 @@ void IntegralEngine::formOverlapKinetic()
     M += molecule.getAtom(i).getNSpherical();
     NS += molecule.getAtom(i).getNshells();
   }
-  
-  // Resize sints, tints
-  sints.assign(M, M, 0.0);
-  tints.assign(M, M, 0.0);
-  
-  // Store the cartesian integrals
-  Matrix tempS(N, N); Matrix tempT(N, N);
 
+  // Resize sints, tints
+  sints.resize(N, N); tints.resize(N, N);
+  
   // Form a list of basis functions, the atoms they're on,
   // and the shells they belong to 
   Vector atoms(N); Vector bfs(N); Vector shells(N);
@@ -355,13 +346,13 @@ void IntegralEngine::formOverlapKinetic()
 	      kinInts[x*nplist.size() + y] = kineticPrims(mplist(x), nplist(y));
 	    }
 	  }
-	
+
 	  // Contract cartesian integrals into the temporary matrix
 	  // ordered canonically
-       	  tempS(m+i, n+j) = makeContracted(mcoeff, ncoeff, overInts);
-	  tempT(m+i, n+j) = makeContracted(mcoeff, ncoeff, kinInts);
-	  tempS(n+j, m+i) = tempS(m+i, n+j);
-	  tempT(n+j, m+i) = tempT(m+i, n+j);
+       	  sints(m+i, n+j) = makeContracted(mcoeff, ncoeff, overInts);
+	  tints(m+i, n+j) = makeContracted(mcoeff, ncoeff, kinInts);
+	  sints(n+j, m+i) = sints(m+i, n+j);
+	  tints(n+j, m+i) = tints(m+i, n+j);
 	}
       }
       
@@ -372,7 +363,6 @@ void IntegralEngine::formOverlapKinetic()
     // Increment basis function counts
     m += mshells(shells(m));
   } // End r-loop over shells
-  
 }
 
 // Calculate the overlap and kinetic energy integrals between two primitive

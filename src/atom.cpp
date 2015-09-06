@@ -155,12 +155,12 @@ PBF& Atom::getShellPrim(int shell, int i)
   // Loop until the prim with id i is found
   while(!found){
     bf++;
-    pbf = -1;
+    pbf = 0;
     pList = bfs[bf].getPrimList();
 
     while(pbf < pList.size() && !found){
-      pbf++;
       found = (pList(pbf) == i ? true : false);
+      if(!found){ pbf++; }
     }
   }
   return bfs[bf].getPBF(pbf);

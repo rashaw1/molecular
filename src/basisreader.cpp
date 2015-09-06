@@ -14,6 +14,7 @@
  #include "bf.hpp"
  #include "error.hpp"
  #include <algorithm>
+#include <iostream>
  
  // Implement class BasisReader
 
@@ -141,9 +142,9 @@ BF BasisReader::readBF(int q, int i)
 	  ids.resize(end - start + 1);
 	  for (int j = 0; j < end - start + 1; j++){
 	    e[j] = tempexps(start+j-1); // Take account of zero-indexing
-	    ids[j] = start+j-1;
+	    ids[j] = start*lmult + j - lmult;
 	  }
-	  
+
 	  // Get the coeffs
 	  c.resize(end - start + 1);
 	  for (int j = 0; j < end - start + 1; j++){
@@ -153,7 +154,7 @@ BF BasisReader::readBF(int q, int i)
 	    temp2.erase(std::remove(temp2.begin(), temp2.end(), ' '), temp2.end());
 	    c[j] = std::stod(temp2);
 	  }
-	  
+
 	  // Work out the lnums
 	  // sublmult is 1 too high
 	  sublmult--;

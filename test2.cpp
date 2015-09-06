@@ -27,23 +27,26 @@ int main (int argc, char* argv[])
   log.result("This is a result.");
   std::cout << mol.getAtom(2).getNShellPrims(1);
   std::cout << "\n";
+  std::cout << mol.getAtom(0).getBF(0).getPBF(0).getNorm() << " ";
+  std::cout << mol.getAtom(0).getBF(0).getPBF(1).getNorm() << " ";
+  std::cout << mol.getAtom(0).getBF(0).getPBF(2).getNorm() << "\n";
+  log.finalise();
+  output.close();
 
   IntegralEngine integral(mol);
   std::cout << "Fine\n";
   std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";
-  //  log.print("\n");
+    log.print("\n");
   //log.print(mol.getAtom(2).getBF(28));
   //log.print("\n");
   //log.print(mol.getAtom(2).getBF(24));
   //log.print("\n");
   Vector ests;
   ests = (1.0/(1024.0*1024.0))*integral.getEstimates();
-  log.print(ests);
-  log.print("\n");
-  log.finalise();
+  ests.print();
   Matrix testing(3, 3, 0.5);
   for (int i = 0; i < 3; i++) { testing(i, i) = 1.0; }
-  testing = integral.makeSpherical(1, 1, testing);
+  //testing = integral.makeSpherical(1, 1, testing);
   testing.print();
   std::cout << "\n";
   } catch (Error e) {
@@ -51,7 +54,7 @@ int main (int argc, char* argv[])
   }
   input.close();
   std::cout << "input closed\n";
-  output.close();
+  //  output.close();
   std::cout << "output closed\n";
 
   return 0;
