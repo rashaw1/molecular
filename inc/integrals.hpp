@@ -18,9 +18,6 @@
  *                  getVals(exponents, centres) - return the centre-of-charge 
  *                           coordinates, total exponents, reduced exponents,
  *                           and pre-exponential factors between two cgbfs
- *                  getN(l, m) - returns the spherical normalisation for a GTO with
- *                               angular and magnetic quantum numbers l, m
- *                  getC(l, m, t, u, v) - returns the Clebsch-Gordon coefficient
  *                  overlapKinetic(u, v, ucoords, vcoords) - calculates the overlap and kinetic 
  *                                         integrals between two primitives, u, v, given the 
  *                                         coordinates of their atomic centres.
@@ -76,14 +73,12 @@ public:
 
   // Intrinsic routines
   Vector getVals(double a, double b, const Vector& A, const Vector& B) const;
-  double getN(int l, int m) const;
-  double getC(int l, int m, int t, int u, double v) const;
   Vector overlapKinetic(const PBF& u, const PBF& v, const Vector& ucoords,
 			const Vector& vcoords) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& c3, 
 			Vector& c4, Matrix& ints) const;
-  double makeSpherical(int l1, int m1, int l2, int m2, Matrix& ints) const;
+  Matrix makeSpherical(int l1, int l2, Matrix& ints) const;
   double makeSpherical(int l1, int m1, int l2, int m2, int l3, int m3,
 		       int l4, int m4, Matrix& ints) const;
   void formOverlapKinetic();

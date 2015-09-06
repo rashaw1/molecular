@@ -1,0 +1,42 @@
+#include "mathutil.hpp"
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+
+int main(int argc, char* argv[]){
+  bool exit = false;
+  int l,m;
+  char input;
+  while(!exit){
+    std::cout << "Enter l, m: \n";
+    std::cin >> l >> m;
+    std::cout << "Nlm = " << sphernorm(l, m) << "\n";
+    // Calculate all clebsch coefficients
+    std::cout << std::setw(8) << "t";
+    std::cout << std::setw(8) << "u";
+    std::cout << std::setw(8) << "v";
+    std::cout << std::setw(8) << "C\n";
+    double vm = (m < 0 ? 0.5 : 0.0);
+    int mabs = std::abs(m);
+    int tmax = std::floor((l-mabs)/2.0);
+    int vmax = std::floor((mabs/2.0) - vm);
+    for (int t = 0; t < tmax+1; t++){
+      for (int u = 0; u < t+1; u++){
+	for (int v = 0; v < vmax+1; v++){
+	  std::cout << std::setw(8) << t;
+	  std::cout << std::setw(8) << u;
+	  std::cout << std::setw(8) << v+vm;
+	  std::cout << std::setw(8) << clebsch(l, m, t, u, v+vm) << "\n";
+	}
+      }
+    }
+
+
+    std::cout << "Continue? (y, n)\n";
+    std::cin >> input;
+    if (input == 'n'){
+      exit = true;
+    }
+  }
+  return 0;
+}

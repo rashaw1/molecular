@@ -20,6 +20,7 @@
  *                           bfs has a setBasis(Basis) routine
  *                           getShellBF(shell, i) - return the ith bf from a given shell 
  *                           getShellPrim(shell, i) - same, but for primitives
+ *                           getNSpherical() returns the number of cgbfs in spherical basis
  *                routines:
  *                      rotate(Matrix U) - rotate coords according to unitary
  *                                         transformation matrix, U
@@ -70,6 +71,7 @@ public:
   BF& getShellBF(int shell, int i);
   PBF& getShellPrim(int shell, int i);
   void setBasis(Basis& bs); // Set the basis functions using basis set bs
+  int getNSpherical() const;
   // Routines
   void rotate(const Matrix& U); 
   void translate(double dx, double dy, double dz);

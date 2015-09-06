@@ -7,6 +7,7 @@
  *    27/08/15     Robert Shaw     Original Code
  *    28/08/15     Robert Shaw     Implemented Boys function.
  *    02/09/15     Robert Shaw     Implemented binom function.
+ *    05/09/15     Robert Shaw     Implemented clebsch, sphernorm.
  */
 
 #include <cmath>
@@ -100,4 +101,36 @@ unsigned long int binom(int n, int m)
     }
   }
   return rval;
+}
+
+// Calculate the Clebsch-Gordan Coefficient C^{lm}_{tuv}
+// according to the formula in Helgaker, Jorgensen, Olsen,
+// Molecular Electronic Structure Theory, chapter 9 pg 338
+double clebsch(int l, int m, int t, int u, double v)
+{
+  double vm = (m < 0 ? 0.5 : 0.0);
+  int sign = ( ((int)(t+v-vm))%2 == 0 ? 1 : -1);
+  double cval = sign*std::pow(0.25, t);
+
+  // Get the binomial factors
+  int mabs = std::abs(m);
+  double ltb = binom(l, t);
+  double lmtb = binom(l-t, mabs + t);
+  double tub = binom(t, u);
+  cval = cval*ltb*lmtb*tub*binom(mabs, (int)(2*v));
+  return cval;
+}
+
+// Calculate the spherical normalisation Nlm
+double sphernorm(int l, int m)
+{
+  int mabs = std::abs(m);
+  double nval = std::pow(0.5, mabs)/((double)(fact(l)));
+  
+  // Get factorials
+  double lpmfact = fact(l + mabs);
+  double lmmfact = fact(l - mabs);
+  double zerom = (m==0 ? 2.0 : 1.0);
+  nval = nval*std::sqrt(2*lpmfact*lmmfact/zerom);
+  return nval;
 }

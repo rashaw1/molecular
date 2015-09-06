@@ -62,8 +62,8 @@ class Molecule
 {
 private:
   Basis bfset;
-  Logger& log;
   Atom* atoms;
+  Logger& log;
   int charge, nel, multiplicity, natoms;
   double enuc;
 public:

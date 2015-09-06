@@ -17,6 +17,7 @@
  *   27/08/15      Robert Shaw       Original code.
  *   28/08/15      Robert Shaw       Added boys function calculator.
  *   02/09/15      Robert Shaw       Added binomial coeff. calculator.
+ *   05/09/15      Robert Shaw       Added clebsch and sphernorm.
  */
 
 #ifndef MATHUTILHEADERDEF
@@ -36,5 +37,13 @@ Vector boys(double x, int mmax, int mmin = 0, double PRECISION=1e-14);
 
 // Calculates the binomial coefficient (n m)T
 unsigned long int binom(int n, int m); 
+
+// Calculate the Clebsch-Gordon coefficient C^{l, m}_{t, u, v} 
+// needed for transformation to spherical basis
+double clebsch(int l, int m, int t, int u, double v);
+
+// Calculate the normalisation constant for a spherical gaussian
+// with quantum numbers l,m
+double sphernorm(int l, int m);
 
 #endif

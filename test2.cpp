@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include "mathutil.hpp"
 #include "vector.hpp"
 #include "logger.hpp"
 #include "molecule.hpp"
@@ -40,6 +41,11 @@ int main (int argc, char* argv[])
   log.print(ests);
   log.print("\n");
   log.finalise();
+  Matrix testing(3, 3, 0.5);
+  for (int i = 0; i < 3; i++) { testing(i, i) = 1.0; }
+  testing = integral.makeSpherical(1, 1, testing);
+  testing.print();
+  std::cout << "\n";
   } catch (Error e) {
     log.error(e);
   }
@@ -47,5 +53,6 @@ int main (int argc, char* argv[])
   std::cout << "input closed\n";
   output.close();
   std::cout << "output closed\n";
+
   return 0;
 }

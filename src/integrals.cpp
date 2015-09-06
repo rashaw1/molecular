@@ -25,8 +25,10 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
   // Calculate sizes
   int natoms = molecule.getNAtoms();
   int N = 0; // No. of cartesian basis functions
+  int M = 0; // No. of spherical basis functions
   for (int i = 0; i < natoms; i++){
     N += m.getAtom(i).getNbfs();
+    M += m.getAtom(i).getNSpherical();
   }
   // Cartesian is easy - there are (N^2+N)/2
   // unique 1e integrals and ([(N^2+N)/2]^2 + (N^2+N)/2)/2
@@ -36,12 +38,17 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
   sizes[0] = ones;
   sizes[1] = (ones*(ones+1))/2;
   
-  // Spherical is much harder - tbc
+  ones = (M*(M+1))/2;
   sizes[2] = ones;
-  sizes[3] = sizes(1);
+  sizes[3] = (ones*(ones+1))/2;
 
   formOverlapKinetic();
   formNucAttract();
+  std::cout << "\n\nOVERLAP: \n";
+  sints.print();
+  std::cout << "\n\nKINETIC: \n";
+  tints.print();
+  std::cout << "\n\n\n";
 }
 
 // Accessors
@@ -94,36 +101,6 @@ Vector IntegralEngine::getVals(double a, double b, const Vector& A, const Vector
   return vals;
 }
 
-// Calculate the spherical normalisation constant for angular and magnetic
-// quantum numbers l, m. See Helgaker, Jorgensen, Olsen, Molecular Electronic
-// Structure Theory, Chapter 9 pg 338 for formulae.
-double IntegralEngine::getN(int l, int m) const
-{
-  int mabs = std::abs(m);
-  double lfact = (double)(fact(l));
-  double lplusmfact = (double)(fact(l+mabs));
-  double lminmfact = (double)(fact(l-mabs));
-  double zerom = (m == 0 ? 2.0 : 1.0);
-  
-  double N = 1.0/(std::pow(2.0, mabs)*lfact);
-  N = N*std::sqrt((2.0*lplusmfact*lminmfact)/zerom);
-  return N;
-}
-
-// Similarly, get the Clebsch-Gordon coefficient
-double IntegralEngine::getC(int l, int m, int t, int u, double v) const
-{
-  int mabs = std::abs(m);
-  double vm = (m < 0 ? 0.5 : 0.0);
-  double premult = std::pow(-1.0, t+v-vm) * std::pow(4.0, t);
-  double blt = (double)(binom(l, t));
-  double blmt = (double)(binom(l-t, mabs+t));
-  double btu = (double)(binom(t, u));
-  double bm2v = (double)(binom(mabs, 2*v));
-  
-  return premult*blt*blmt*btu*bm2v;
-}
-
 // Contract a set of 1e- integrals
 // Assumes that integrals are ordered as: 00, 01, 02, ..., 10, 11, 12, ...,
 // and so on, where the first number refers to the index of c1, and the second, 
@@ -173,36 +150,68 @@ double IntegralEngine::makeContracted(Vector& c1, Vector& c2, Vector& c3,
   return integral;
 }
 
-// Sphericalise a set of 1e- integrals
-double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2, Matrix& ints) const
+// Sphericalise a shell-pair of 1e- integrals (ints)
+// where the shells have angular momentum l1, l2 respectively
+// Returns matrix of integrals in canonical order
+Matrix IntegralEngine::makeSpherical(int l1, int l2, Matrix& ints) const
 {
-  double integral = 0.0;
-
-  // Get the normalisation 
-  double N = getN(l1, m1)*getN(l2, m2);
-
-  // Get the summation limits
-  int m1abs = std::abs(m1);
-  int m2abs = std::abs(m2);
-  double vm1 = (m1 < 0 ? 0.5 : 0);
-  double vm2 = (m2 < 0 ? 0.5 : 0);
-  double v1lim = std::floor(((double)(m1abs))/2.0 - vm1) + vm1;
-  double v2lim = std::floor(((double)(m2abs))/2.0 - vm2) + vm2;
-  int t1lim = std::floor((double)(l1-m1abs)/2.0);
-  int t2lim = std::floor((double)(l2-m2abs)/2.0);
+  // Work out how many m-quantum numbers there are for each l
+  int m1n = 2*l1+1;
+  int m2n = 2*l2+1;
   
-  // Loop over first set of indices
-  double C;
-  for (int t = 0; t <= t1lim; t++){
-    for (int u = 0; u <= t; u++){
-      double v = vm1;
-      while ( vm1 <= v1lim ){
+  Matrix retInts(m1n, m2n, 0.0); // The return matrix
+
+  // Calculate all normalisation constants 
+  Vector l1norms(m1n); Vector l2norms(m2n);  
+  for (int i = -l1; i < l1+1; i++)
+    l1norms[i+l1] = sphernorm(l1, i);
+  for (int i = -l2; i < l2+1; i++)
+    l2norms[i+l2] = sphernorm(l2, i);
+  
+  // Work out the bounds on summations
+  double v1m, v2m, c1, c2;
+  int t1max, t2max, v1max, v2max, m1abs, m2abs;
+
+  // Loop over all m1, m2
+  for (int m1 = -l1; m1 < l1+1; m1++){
+    v1m = (m1 < 0 ? 0.5 : 0.0);
+    m1abs = std::abs(m1);
+    t1max = std::floor((l1-m1abs)/2.0);
+    v1max = std::floor((m1abs/2.0)-v1m);
+  
+    for (int m2 = -l2; m2 < l2+1; m2++){
+      v2m = (m2 < 0 ? 0.5 : 0.0);
+      m2abs = std::abs(m2);
+      t2max = std::floor((l2-m2abs)/2.0);
+      v2max = std::floor((m2abs/2.0)-v2m);
+      for (int t1 = 0; t1 < t1max+1; t1++){
+	for (int u1 = 0; u1 < t1+1; u1++){
+	  for (int v1 = 0; v1 < v1max+1; v1++){
+	    // Get clebsch coefficient
+	    c1 = clebsch(l1, m1, t1, u1, v1+v1m);
+	    int pos1 = ((2*t1+m1abs)*(2*t1+m1abs+1))/2 + 2*t1+m1abs-2*(u1+v1+v1m);
+	    for (int t2 = 0; t2 < t2max+1; t2++){
+	      for (int u2 = 0; u2 < t2+1; u2++){
+		for (int v2 = 0; v2 < v2max+1; v2++){
+		  c2 = clebsch(l2, m2, t2, u2, v2+v2m);
+		  
+		  // Work out position of cartesian integral in ints
+		  int pos2 = ((2*t2+m2abs)*(2*t2+m2abs+1))/2 + 2*t2+m2abs-2*(u2+v2+v2m);
+
+		  // Compute the spherical integral
+		  retInts(m1+l1, m2+l2) += c1*c2*ints(pos1, pos2);
+		}
+	      }
+	    }
+	  }
+	}
       }
+      // Normalise
+      retInts(m1+l1, m2+l2) *= l1norms(m1+l1)*l2norms(m2+l2);
     }
   }
-  return integral;
+  return retInts;
 }
-
 // Same but for 2e- integrals
 double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
 				     int l3, int m3, int l4, int m4, Matrix& ints) const
@@ -214,10 +223,10 @@ double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
 // Form the overlap integral matrix sints using the Obara-Saika recurrence relations
 // Algorithm:
 //  - generate list of basis functions
-//  - for each cgbf m
-//      - for each cgbf n>=m
-//         - loop over prims (u) on m
-//            -loop over prims (v) on n
+//  - for each shell  r
+//      - for each shell s>=r
+//         - loop over prims (u) on in r
+//            -loop over prims (v) in s
 //                form Si0x,y,z
 //                calculate Sij in each cartesian direction
 //                Suv = Sij,x*Sij,y*Sij,z
@@ -226,7 +235,8 @@ double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
 //                Tuv = Tij,x*Sij,y*Sij,z + Sij,x*Tij,y*Sij,z + Sij,x*Sij,y*Tij,z
 //            end
 //         end
-//         contract Suv into Smn, and Tuv into Tmn
+//         contract Suv into Smn, and Tuv into Tmn for each pair of basis functions
+//         m,n in r, s, respectively.
 //      end
 //  end 
 void IntegralEngine::formOverlapKinetic()
@@ -234,24 +244,31 @@ void IntegralEngine::formOverlapKinetic()
   // Get the number of basis functions
   // and the number of shells
   int natoms = molecule.getNAtoms();
-  int N = 0; // No. of cgbfs
+  int N = 0; // No. of cartesian cgbfs
+  int M = 0; // No. of spherical cgbfs
   int NS = 0;
   for (int i = 0; i < natoms; i++){
     N += molecule.getAtom(i).getNbfs();
+    M += molecule.getAtom(i).getNSpherical();
     NS += molecule.getAtom(i).getNshells();
   }
-  sints.resize(N, N); // Resize the matrix
-  tints.resize(N, N);
   
+  // Resize sints, tints
+  sints.assign(M, M, 0.0);
+  tints.assign(M, M, 0.0);
+  
+  // Store the cartesian integrals
+  Matrix tempS(N, N); Matrix tempT(N, N);
+
   // Form a list of basis functions, the atoms they're on,
-  // and the shells they belong to
+  // and the shells they belong to 
   Vector atoms(N); Vector bfs(N); Vector shells(N);
   int k = 0;
-  Vector temp;
+  Vector temp; 
   for (int i = 0; i < natoms; i++){
     int nbfs = molecule.getAtom(i).getNbfs();
     temp = molecule.getAtom(i).getShells();
-
+    
     for (int j = 0; j < nbfs; j++){
       atoms[k] = i;
       bfs[k] = j;
@@ -269,9 +286,10 @@ void IntegralEngine::formOverlapKinetic()
 
   int m = 0; // Keep track of basis function count
   int n = 0;
+
   // Object placeholders
   Vector mcoords; Vector ncoords; Vector mshells; Vector nshells;
-  PBF mpbf; PBF npbf; Atom ma; Atom na;
+  PBF mpbf; PBF npbf; Atom ma; Atom na; 
 
   // Loop over shells
   for (int r = 0; r < NS; r++){ // Shells on first atom
@@ -280,7 +298,7 @@ void IntegralEngine::formOverlapKinetic()
     mcoords = ma.getCoords();
     mshells = ma.getShells();
     int mP = ma.getNShellPrims(shells(m));
-
+    
     n = m;
     for (int s = r; s < NS; s++){ // Shells on second atom
       // Get same for second atom
@@ -299,7 +317,7 @@ void IntegralEngine::formOverlapKinetic()
 
 	for (int v = 0; v < nP; v++){
 	  npbf = na.getShellPrim(shells(n), v);
-	  
+
 	  // Calculate the overlap and kinetic integrals
 	  temp = overlapKinetic(mpbf, npbf, mcoords, ncoords);
 	  
@@ -324,10 +342,10 @@ void IntegralEngine::formOverlapKinetic()
 	mplist = ma.getBF(bfs(m+i)).getPrimList();
 	mcoeff = ma.getBF(bfs(m+i)).getCoeffs();
 
-	for (int j = 0; j < nsize; j++){
+	for (int j = i; j < nsize; j++){
 	  nplist = na.getBF(bfs(n+j)).getPrimList();
 	  ncoeff = na.getBF(bfs(n+j)).getCoeffs();
-	  
+
 	  // Form the vector of appropriate prim integrals
 	  Vector overInts(mplist.size()*nplist.size());
 	  Vector kinInts(mplist.size()*nplist.size());
@@ -337,19 +355,26 @@ void IntegralEngine::formOverlapKinetic()
 	      kinInts[x*nplist.size() + y] = kineticPrims(mplist(x), nplist(y));
 	    }
 	  }
-	  
-	  // Contract
-       	  sints(m+i, n+j) = makeContracted(mcoeff, ncoeff, overInts);
-	  tints(m+i, n+j) = makeContracted(mcoeff, ncoeff, kinInts);
-	  sints(n+j, m+i) = sints(m+i, n+j);
-	  tints(n+j, m+i) = tints(m+i, n+j);
+	
+	  // Contract cartesian integrals into the temporary matrix
+	  // ordered canonically
+       	  tempS(m+i, n+j) = makeContracted(mcoeff, ncoeff, overInts);
+	  tempT(m+i, n+j) = makeContracted(mcoeff, ncoeff, kinInts);
+	  tempS(n+j, m+i) = tempS(m+i, n+j);
+	  tempT(n+j, m+i) = tempT(m+i, n+j);
 	}
       }
+      
+      // Increment basis function counts
       n += nsize;
     } // End s-loop over shells
+
+    // Increment basis function counts
     m += mshells(shells(m));
   } // End r-loop over shells
+  
 }
+
 // Calculate the overlap and kinetic energy integrals between two primitive
 // cartesian gaussian basis functions, given the coordinates of their centres
 Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v, 

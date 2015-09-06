@@ -164,8 +164,8 @@ BF BasisReader::readBF(int q, int i)
 	  }
 	  case 3: { // p type
 	    switch(sublmult){
-	    case 1: { //px 
-	      l1 = 1; l2 = l3 = 0;
+	    case 1: { //pz 
+	      l3 = 1; l2 = l1 = 0;
 	      break;
 	    }
 	    case 2: { //py
@@ -173,8 +173,8 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index < ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
-	    case 3: { //pz
-	      l1 = l2 = 0; l3 = 1;
+	    case 3: { //px
+	      l3 = l2 = 0; l1 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
@@ -187,8 +187,8 @@ BF BasisReader::readBF(int q, int i)
 	      l1 = l2 = l3 = 0;
 	      break;
 	    }
-	    case 2:{ // px
-	      l1 = 1; l2 = l3 = 0;
+	    case 2:{ // pz
+	      l3 = 1; l2 = l1 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
@@ -197,8 +197,8 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
-	    case 4:{ //pz
-	      l1 = l2 = 0; l3 = 1;
+	    case 4:{ //px
+	      l3 = l2 = 0; l1 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }
@@ -211,8 +211,8 @@ BF BasisReader::readBF(int q, int i)
 	      l3 = 2; l1 = l2 = 0;
 	      break;
 	    }
-	    case 2:{ // dxy
-	      l1 = l2 = 1; l3 = 0;
+	    case 2:{ // dyz
+	      l3 = l2 = 1; l1 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
@@ -221,18 +221,18 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
-	    case 4:{ // dyz
-	      l1 = 0; l2 = l3 = 1;
+	    case 4:{ // dyy
+	      l2 = 2; l3 = l1 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }
-	    case 5:{ // dxx 
-	      l1 = 2; l2 = l3 = 0;
+	    case 5:{ // dxy 
+	      l3 = 0; l2 = l1 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
 	      break;
 	    }
-	    case 6:{ // dyy
-	      l2 = 2; l1 = l3 = 0;
+	    case 6:{ // dxx
+	      l1 = 2; l2 = l3 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
 	      break;
 	    }
@@ -245,28 +245,28 @@ BF BasisReader::readBF(int q, int i)
 	      l1 = l2 = 0; l3 = 3;
 	      break;
 	    }
-	    case 2:{ //fxzz
-	      l1 = 1; l2 = 0; l3 = 2;
+	    case 2:{ //fyzz
+	      l1 = 0; l2 = 1; l3 = 2;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
-	    case 3:{ //fyzz
-	      l1 = 0; l2 = 1; l3 = 2;
+	    case 3:{ //fxzz
+	      l1 = 1; l2 = 0; l3 = 2;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
-	    case 4:{ //fxxz
-	      l1 = 2; l2 = 0; l3 = 1;
+	    case 4:{ //fyyz
+	      l1 = 0; l2 = 2; l3 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }
-	    case 5:{ //fyyz
-	      l1 = 0; l2 = 2; l3 = 1;
+	    case 5:{ //fxyz
+	      l1 = 1; l2 = 1; l3 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
 	      break;
 	    }
-	    case 6:{ //fxxx
-	      l1 = 3; l2 = l3 = 0;
+	    case 6:{ //fxxz
+	      l1 = 2; l2 = 0; l3 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
 	      break;
 	    }
@@ -275,8 +275,8 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*e.size(); }
 	      break;
 	    }
-	    case 8:{ // fxyz
-	      l1 = l2 = l3 = 1;
+	    case 8:{ // fxyy
+	      l1 = 1; l2 = 2; l3 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*e.size(); }
 	      break;
 	    }
@@ -285,8 +285,8 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*e.size(); }
 	      break;
 	    }
-	    case 10:{ // fyyx
-	      l1 = 1; l2 = 2; l3 = 0;
+	    case 10:{ // fxxx
+	      l1 = 3; l2 = 0; l3 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*e.size(); }
 	      break;
 	    }

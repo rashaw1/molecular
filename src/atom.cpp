@@ -5,7 +5,8 @@
  *    DATE         AUTHOR            CHANGES
  *    =======================================================================
  *    27/08/15     Robert Shaw       Original code.
- *
+ *    05/09/15     Robert Shaw       Added function to count number of cgbfs
+ *                                   in spherical basis.
  */
 
 // Includes
@@ -145,6 +146,10 @@ PBF& Atom::getShellPrim(int shell, int i)
 {
   bool found = false;
   int bf = -1; // Counter for cgbfs
+  // Find the start of the shell
+  for (int j = 0; j < shell; j++){
+    bf += shells(j);
+  }
   int pbf;
   Vector pList;
   // Loop until the prim with id i is found
@@ -159,6 +164,35 @@ PBF& Atom::getShellPrim(int shell, int i)
     }
   }
   return bfs[bf].getPBF(pbf);
+}
+
+int Atom::getNSpherical() const
+{
+  int scount=0, pcount=0, dcount=0, fcount=0; // Currently only cope with up to f-type bfs
+  // Loop over all bfs
+  for (int i = 0; i < nbfs; i++){
+    switch(bfs[i].getLnum()){
+    case 0: { // s type 
+      scount++;
+      break;
+    }
+    case 1: { // p type
+      pcount++;
+      break;
+    }
+    case 2: { // d type
+      dcount++;
+      break;
+    }
+    case 3: { // f type
+      fcount++;
+      break;
+    }
+    default: scount++; // Assume s type
+    }
+  }
+
+  return scount+pcount+(5*dcount/6)+(7*fcount/10);
 }
 
 // Routines
