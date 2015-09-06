@@ -564,10 +564,6 @@ Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v,
   return rvals;
 }
 
-// Form the matrix of nuclear attraction integrals
-void IntegralEngine::formNucAttract()
-{
-}
 
 // Calculate a multipole integral between two bfs a,b 
 // about the point c, to a given set of powers in the
@@ -612,6 +608,149 @@ double IntegralEngine::multipole(PBF& u,  PBF& v, const Vector& ucoords,
 		 const Vector& powers) const
 {
   // To be written
-  double integral;
+  double integral = 0.0;
+  return integral;
+}
+
+// Form the matrix of nuclear attraction integrals
+// Algorithm:
+//    For each pair of atoms m, n:
+//       loop over shells, r,  on m
+//          loop over shells, s,  on n
+//             loop over atomic centres, C
+//                loop over primitives u in r
+//                   loop over primitivs v in s
+//                       calculate the nucAttract between u, v and centre C
+//                   end v loop
+//                end u loop
+//                contract primitive integrals for centre C
+//                for each bf pair in (r,s)
+//             end C loop
+//             sum contributions from each atomic centre for each bf pair in (r,s)
+//           end s loop
+//        end r loop
+void IntegralEngine::formNucAttract()
+{
+  
+}
+
+// Calculate the nuclear attraction integral between two gaussian primitives
+// and nucleus C, using the Obara-Saika recurrence relations
+// Algorithm:
+//    To calculate ijklmn we need to get the aux. integral
+//          O(k+l+m+n)_ij0000 
+//      followed by 
+//          O(m+n)_ijkl00
+//      then finally
+//          O(0)ijklmn
+//   To get each of these, we must start recursively from O(i+j+k+l+m+n)_000000
+//      and then increment the first index by vertical recursion,
+//      followed by horizontal recursion to increment the second index. This is
+//      then repeated at each stage.
+double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
+				  const Vector& vcoords, const Vector& ccoords) const
+{
+  double integral = 0.0; // To return the answer in
+
+  // Get exponents, norms, and angular momenta
+  int ulx = u.getLx(); int uly = u.getLy(); int ulz = u.getLz();
+  int vlx = v.getLx(); int vly = v.getLy(); int vlz = v.getLz();
+  double unorm = u.getNorm(); double uexp = u.getExponent();
+  double vnorm = v.getNorm(); double vexp = v.getExponent();
+
+  // Get the necessary values from getVals
+  Vector vals;
+  vals = getVals(uexp, vexp, ucoords, vcoords);
+
+  // Determine the maximum N needed for the auxiliary integrals
+  // in each cartesian direction
+  int Nx = ulx + vlx; int Ny = uly + vly; int Nz = ulz + vlz;
+  int N = Nx + Ny + Nz;
+
+  // Calculate/retrieve the needed atomic separations
+  double XAB = vals(5); double YAB = vals(6); double ZAB = vals(7);
+  double XPA = vals(2) - ucoords(0); double XPC = vals(2) - ccoords(0);
+  double YPA = vals(3) - ucoords(1); double YPC = vals(3) - ccoords(1);
+  double ZPA = vals(4) - ucoords(2); double ZPC = vals(4) - ccoords(2); 
+
+  // Store the auxiliary integrals
+  Matrix aux(N+1, Nx+1, 0.0);
+    
+  // Calculate the 000000 integral for N, 
+  // via the boys function
+  double p = vals(0); double pionep = 2.0*M_PI/p; double one2p = 1.0/(2.0*p);
+  double K = vals(8)*vals(9)*vals(10); 
+  double pRPC2 = p*(XPC*XPC + YPC*YPC + ZPC*ZPC);
+  Vector boysval; boysval = boys(pRPC2, N, 0);
+  for (int n = 0; n < N+1; n++){ 
+    aux(n,0) = pionep*K*boysval(n);
+  }
+
+  // Increment the first cartesian index  by the recurrence relation:
+  // O(n)_i+1, 0 = XPA*O(n)i,0 - XPC*O(n+1)i,0 + (i/2p)*(O(n)_i-1,0 - O(n+1)_i-1,0)
+  // for each n from N-1 to N-Nx
+  for (int n = N-1; n > -1 ; n--){
+    // Calculate first increment
+    aux(n, 1) = XPA*aux(n, 0) - XPC*aux(n+1, 0); 
+    int Nmax = (N-n+1 > Nx+1 ? Nx+1 : N-n+1);
+    for (int k = 2; k < Nmax; k++){
+      aux(n, k) = XPA*aux(n, k-1) - XPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
+    }
+  }
+
+  // Increment the second index by the horizontal recursion relation if necessary
+  for (int n = N-Nx; n > -1; n--){
+    for (int j = 1; j < vlx+1; j++){
+      for (int i = 0; i < Nx; i++){
+	aux(n, i) = aux(n, i+1) + XAB*aux(n, i);
+      }
+    }
+  }
+
+  Vector temp; temp = aux.colAsVector(ulx);
+  aux.assign(N-Nx+1, Ny+1, 0.0); // Resize, and repeat procedure for next two indices
+  aux.setCol(0, temp);
+
+  for (int n = N-Nx-1; n > -1; n--){
+    // Calculate first increment
+    aux(n, 1) = YPA*aux(n, 0) - YPC*aux(n+1, 0);
+    int Nmax = (N-Nx-n+1 > Ny+1 ? Ny+1 : N-Nx-n+1);
+    for (int k = 2; k < Nmax; k++){
+      aux(n, k) = YPA*aux(n, k-1) - YPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
+    }
+  }
+
+  // Increment the second index by the horizontal recursion relation if necessary
+  for (int n = N-Nx-Ny; n > -1; n--){
+    for (int j = 1; j < vly+1; j++){
+      for (int i = 0; i < Ny; i++){
+	aux(n, i) = aux(n, i+1) + YAB*aux(n, i);
+      }
+    }
+  }
+
+  temp = aux.colAsVector(uly);
+  aux.assign(Nz+1, Nz+1, 0.0);
+  aux.setCol(0, temp);
+
+  for (int n = Nz-1; n > -1; n--){
+    // Calculate first increment
+    aux(n, 1) = ZPA*aux(n, 0) - ZPC*aux(n+1, 0);
+    
+    for (int k = 2; k < Nz-n+1; k++){
+      aux(n, k) = ZPA*aux(n, k-1) - ZPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
+    }
+  }
+
+  // Increment the second index by the horizontal recursion relation if necessary
+  for (int j = 1; j < vlz+1; j++){
+    for (int i = 0; i < Nz; i++){
+      aux(0, i) = aux(0, i+1) + ZAB*aux(0, i);
+    }
+  }
+
+  // The final integral is now stored in aux(0, ulz)
+  integral = unorm*vnorm*aux(0, ulz);
+
   return integral;
 }

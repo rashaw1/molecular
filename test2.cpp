@@ -33,8 +33,14 @@ int main (int argc, char* argv[])
   log.finalise();
   output.close();
 
+  Vector c = mol.getAtom(0).getCoords();  
+  Vector cd = mol.getAtom(1).getCoords();
+  Vector d = mol.getAtom(2).getCoords();
+
   IntegralEngine integral(mol);
   std::cout << "Fine\n";
+  std::cout << "Nuc Attract = " << integral.nucAttract(mol.getAtom(0).getBF(0).getPBF(2), mol.getAtom(2).getBF(13).getPBF(2), 
+						       c, d, cd) << "\n";
   std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";
     log.print("\n");
   //log.print(mol.getAtom(2).getBF(28));

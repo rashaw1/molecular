@@ -21,6 +21,7 @@
  *                  overlapKinetic(u, v, ucoords, vcoords) - calculates the overlap and kinetic 
  *                                         integrals between two primitives, u, v, given the 
  *                                         coordinates of their atomic centres.
+ *                  nucAttract(u, v, ucoords, vcoords) - same but calculates nuclear attraction ints.
  *                  makeContracted(coeffs1, coeffs2, ints) - contracts the given set of integrals
  *                           with the given sets of coefficients (1e- integrals)
  *                  makeContracted(coeffs1, coeffs2, coeffs2, coeffs4, ints) - same, but for
@@ -39,7 +40,7 @@
  *   02/09/15      Robert Shaw       Original code.
  *   03/09/15      Robert Shaw       Kinetic integrals merged with overlap.
  *   04/09/15      Robert Shaw       Multipole integrals added.
- * 
+ *   06/09/15      Robert Shaw       Nuclear attraction integrals.
  */ 
 
 #ifndef INTEGRALSHEADERDEF
@@ -75,6 +76,8 @@ public:
   Vector getVals(double a, double b, const Vector& A, const Vector& B) const;
   Vector overlapKinetic(const PBF& u, const PBF& v, const Vector& ucoords,
 			const Vector& vcoords) const;
+  double nucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
+		    const Vector& vcoords, const Vector& ccoords) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& c3, 
 			Vector& c4, Matrix& ints) const;
