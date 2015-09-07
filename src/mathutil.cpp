@@ -8,11 +8,13 @@
  *    28/08/15     Robert Shaw     Implemented Boys function.
  *    02/09/15     Robert Shaw     Implemented binom function.
  *    05/09/15     Robert Shaw     Implemented clebsch, sphernorm.
+ *    07/09/15     Robert Shaw     Implemented formTransMat.
  */
 
 #include <cmath>
 #include "mathutil.hpp"
 #include "vector.hpp"
+#include "matrix.hpp"
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/special_functions/erf.hpp>
 #include <boost/math/constants/constants.hpp>
@@ -134,3 +136,81 @@ double sphernorm(int l, int m)
   nval = nval*std::sqrt(2*lpmfact*lmmfact/zerom);
   return nval;
 }
+
+// Fill in a portion of the cart-to-spher. transformation matrix
+// corresponding to quantum numbers l, m. Assumes canonical order.
+void formTransMat(Matrix& mat, int row, int col, int l, int m){
+  double temp; 
+  switch(l){
+  case 1: { // p-type, one of 3 identity 3-vectors
+    switch(m){
+    case -1: { mat(row, col+1) = 1.0; break; } // py
+    case 0: { mat(row, col) = 1.0; break; }  // pz
+    default: { mat(row, col+2) = 1.0;} // px
+    }
+    break;
+  }
+  case 2: { // d-type
+    switch(m) {
+    case -2: { mat(row, col+4) = 1.0; break; } // dxy
+    case -1: { mat(row, col+1) = 1.0; break; } // dyz
+    case 0: { // dz2 
+      mat(row, col) = 1.0; 
+      mat(row, col+3) = mat(row, col+5) = -0.5;
+      break;
+    }
+    case 1: { mat(row, col+2) = 1.0; break; } // dxz
+    default: { // d(x^2-y^2)
+      temp = std::sqrt(3.0/4.0);
+      mat(row, col+5) = temp;
+      mat(row, col+3) = -temp;
+    }
+    }
+    break;
+  }
+  case 3: { // f-type
+    switch(m){
+    case -3: { 
+      mat(row, col+6) = std::sqrt(10)/4.0;
+      mat(row, col+8) = -3.0*std::sqrt(2)/4.0;
+      break;
+    }
+    case -2: { mat(row, col+4) = 1.0; break; }
+    case -1: { 
+      temp = std::sqrt(6.0/5.0);
+      mat(row, col+1) = temp;
+      mat(row, col+6) = -std::sqrt(6)/4.0;
+      mat(row, col+8) = -temp/4.0;
+      break;
+    }
+    case 0: {
+      mat(row, col) = mat(row, col+3) = 1.0;
+      mat(row, col+5) = -3.0/(2.0*std::sqrt(5));
+      break;
+    }
+    case 1: {
+      temp = std::sqrt(6.0/5.0);
+      mat(row, col+2) = temp;
+      mat(row, col+9) = -std::sqrt(6)/4.0;
+      mat(row, col+7) = -temp/4.0;
+      break;
+    }
+    case 2: {
+      temp = std::sqrt(3.0/4.0);
+      mat(row, col+5) = temp;
+      mat(row, col+3) = -temp;
+      break;
+    }
+    default: {
+      mat(row, col+9) = std::sqrt(10)/4.0;
+      mat(row, col+7) = -3.0*std::sqrt(2)/4.0;
+    }
+    }
+    break;
+  }
+  default: { // s-type
+    mat(row, col) = 1.0;
+  }
+  }
+}
+      

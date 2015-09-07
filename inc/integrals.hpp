@@ -81,7 +81,7 @@ public:
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& c3, 
 			Vector& c4, Matrix& ints) const;
-  Matrix makeSpherical(int l1, int l2, Matrix& ints) const;
+  Matrix makeSpherical(const Matrix& ints, const Vector& lnums) const;
   double makeSpherical(int l1, int m1, int l2, int m2, int l3, int m3,
 		       int l4, int m4, Matrix& ints) const;
   void formOverlapKinetic();

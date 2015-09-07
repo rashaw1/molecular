@@ -25,6 +25,7 @@
 
 // Declare forward dependencies
 class Vector;
+class Matrix;
 
 // Functions to calculate the factorial and double factorial of an integer i
 unsigned long int fact(int i);
@@ -45,5 +46,10 @@ double clebsch(int l, int m, int t, int u, double v);
 // Calculate the normalisation constant for a spherical gaussian
 // with quantum numbers l,m
 double sphernorm(int l, int m);
+
+// Form a section of the cartesian-to-spherical basis transformation
+// matrix, from a pre-calculated list of coefficients. 
+// See Schlegel and Frisch, Int. J. Q. Chem., 54, 83-87 (1995)
+void formTransMat(Matrix& mat, int row, int col, int l, int m);
 
 #endif

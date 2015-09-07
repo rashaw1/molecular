@@ -10,6 +10,8 @@
  *   03/09/15     Robert Shaw      Merged overlap and kinetic integrals.
  *   04/09/15     Robert Shaw      Now supports general contracted.
  *   06/09/15     Robert Shaw      Nuclear attraction ints for prims.
+ *   07/09/15     Robert Shaw      formNucAttract() now works, as does
+ *                                 makeSpherical(ints, lnums)
  */
 
 #include "error.hpp"
@@ -44,6 +46,7 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
   sizes[3] = (ones*(ones+1))/2;
 
   formOverlapKinetic();
+  std::cout << "OVERLAP: \n"; sints.print(); std::cout << "\n\n";
   formNucAttract();
 }
 
@@ -146,66 +149,91 @@ double IntegralEngine::makeContracted(Vector& c1, Vector& c2, Vector& c3,
   return integral;
 }
 
-// Sphericalise a shell-pair of 1e- integrals (ints)
-// where the shells have angular momentum l1, l2 respectively
+// Sphericalise a matrix of 1e- integrals (ints)
+// where the cols have angular momenta lnums.
 // Returns matrix of integrals in canonical order
-Matrix IntegralEngine::makeSpherical(int l1, int l2, Matrix& ints) const
+Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) const
 {
-  // Work out how many m-quantum numbers there are for each l
-  int m1n = 2*l1+1;
-  int m2n = 2*l2+1;
-  
-  Matrix retInts(m1n, m2n, 0.0); // The return matrix
-
-  // Calculate all normalisation constants 
-  Vector l1norms(m1n); Vector l2norms(m2n);  
-  for (int i = -l1; i < l1+1; i++)
-    l1norms[i+l1] = sphernorm(l1, i);
-  for (int i = -l2; i < l2+1; i++)
-    l2norms[i+l2] = sphernorm(l2, i);
-  
-  // Work out the bounds on summations
-  double v1m, v2m, c1, c2;
-  int t1max, t2max, v1max, v2max, m1abs, m2abs;
-
-  // Loop over all m1, m2
-  for (int m1 = -l1; m1 < l1+1; m1++){
-    v1m = (m1 < 0 ? 0.5 : 0.0);
-    m1abs = std::abs(m1);
-    t1max = std::floor((l1-m1abs)/2.0);
-    v1max = std::floor((m1abs/2.0)-v1m);
-  
-    for (int m2 = -l2; m2 < l2+1; m2++){
-      v2m = (m2 < 0 ? 0.5 : 0.0);
-      m2abs = std::abs(m2);
-      t2max = std::floor((l2-m2abs)/2.0);
-      v2max = std::floor((m2abs/2.0)-v2m);
-      for (int t1 = 0; t1 < t1max+1; t1++){
-	for (int u1 = 0; u1 < t1+1; u1++){
-	  for (int v1 = 0; v1 < v1max+1; v1++){
-	    // Get clebsch coefficient
-	    c1 = clebsch(l1, m1, t1, u1, v1+v1m);
-	    int pos1 = ((2*t1+m1abs)*(2*t1+m1abs+1))/2 + 2*t1+m1abs-2*(u1+v1+v1m);
-	    for (int t2 = 0; t2 < t2max+1; t2++){
-	      for (int u2 = 0; u2 < t2+1; u2++){
-		for (int v2 = 0; v2 < v2max+1; v2++){
-		  c2 = clebsch(l2, m2, t2, u2, v2+v2m);
-		  
-		  // Work out position of cartesian integral in ints
-		  int pos2 = ((2*t2+m2abs)*(2*t2+m2abs+1))/2 + 2*t2+m2abs-2*(u2+v2+v2m);
-
-		  // Compute the spherical integral
-		  retInts(m1+l1, m2+l2) += c1*c2*ints(pos1, pos2);
-		}
-	      }
-	    }
-	  }
-	}
-      }
-      // Normalise
-      retInts(m1+l1, m2+l2) *= l1norms(m1+l1)*l2norms(m2+l2);
+  // Calculate the size of matrix needed
+  int scount = 0, pcount = 0, dcount = 0, fcount = 0; 
+  for (int i = 0; i < lnums.size(); i++){
+    switch((int)(lnums(i))){
+    case 1: { pcount++; break; } // p-type
+    case 2: { dcount++; break; } // d-type
+    case 3: { fcount++; break; } // f-type
+    default: { scount++; } // Assume s-type
     }
   }
+
+  // Number of spherical basis functions
+  int M = scount + pcount + 5*(dcount/6) + 7*(fcount/10); 
+  // Number of cartesian basis functions.
+  int N = lnums.size();
+
+  // Declare the matrix to return the transformed integrals in
+  Matrix retInts;
+
+  // Construct a reduced list of lnums, and
+  // corresponding m-quantum numbers
+  Vector slnums(M); Vector smnums(M);
+  int j=0, k = 0; // Counter for slnums
+  while(j < N){
+    switch((int)(lnums(j))){
+    case 1: { // p-type 
+      slnums[k] = 1; smnums[k] = 0;
+      slnums[++k] = 1; smnums[k] = -1;
+      slnums[++k] = 1; smnums[k++] = 1; 
+      j += 3;
+      break;
+    } 
+    case 2: { // d-type
+      slnums[k] = 2; smnums[k] = 0;
+      slnums[++k] = 2; smnums[k] = -1;
+      slnums[++k] = 2; smnums[k] = 1;
+      slnums[++k] = 2; smnums[k] = -2;
+      slnums[++k] = 2; smnums[k++] = 2;
+      j += 6;
+      break;
+    }
+    case 3: { // f-type
+      slnums[k] = 3; smnums[k] = 0;
+      slnums[++k] = 3; smnums[k] = -1;
+      slnums[++k] = 3; smnums[k] = 1;
+      slnums[++k] = 3; smnums[k] = -2;
+      slnums[++k] = 3; smnums[k] = 2;
+      slnums[++k] = 3; smnums[k] = -3;
+      slnums[++k] = 3; smnums[k++] = 3;
+      j+=10;
+      break;
+    }
+    default: { // assume s-type
+      slnums[k] = 0; smnums[k++] = 0;
+      j++;
+    }
+    }
+  }
+
+  // Make the transformation matrix
+  Matrix trans(M, N, 0.0);
+  // Loop through all the slnums, looking up the coefficients
+  // as needed. 
+  j = 0; // Column and row counters
+  for(int i = 0; i < M; i++){
+    // Get the coefficients
+    formTransMat(trans, i, j, (int)(slnums(i)), (int)(smnums(i)));
+    if (slnums(i) - smnums(i) == 0){ // Increment j by a suitable amount
+      switch((int)(slnums(i))){
+      case 1: { j+=3; break;}
+      case 2: { j+=6; break;}
+      case 3: { j+=10; break;}
+      default: { j+=1; }
+      }
+    }
+  }
+
+  // Now transform the integral matrix
+  retInts = trans*ints;
+  retInts = retInts*(trans.transpose());
   return retInts;
 }
 // Same but for 2e- integrals
@@ -235,17 +263,16 @@ double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
 //         m,n in r, s, respectively.
 //      end
 //  end 
+//  Transform the integrals to the spherical harmonic basis.
 void IntegralEngine::formOverlapKinetic()
 {
   // Get the number of basis functions
   // and the number of shells
   int natoms = molecule.getNAtoms();
   int N = 0; // No. of cartesian cgbfs
-  int M = 0; // No. of spherical cgbfs
-  int NS = 0;
+  int NS = 0; // No. of shells
   for (int i = 0; i < natoms; i++){
     N += molecule.getAtom(i).getNbfs();
-    M += molecule.getAtom(i).getNSpherical();
     NS += molecule.getAtom(i).getNshells();
   }
 
@@ -253,14 +280,15 @@ void IntegralEngine::formOverlapKinetic()
   sints.assign(N, N, 0.0); tints.assign(N, N, 0.0);
   
   // Form a list of basis functions, the atoms they're on,
-  // and the shells they belong to 
-  Vector atoms(N); Vector bfs(N); Vector shells(N);
+  // and the shells they belong to, and the lnums of said bfs 
+  Vector atoms(N); Vector bfs(N); Vector shells(N); 
+  Vector lnums(N);
   int k = 0;
-  Vector temp; 
+  Vector temp; Vector temp2;
   for (int i = 0; i < natoms; i++){
     int nbfs = molecule.getAtom(i).getNbfs();
     temp = molecule.getAtom(i).getShells();
-    
+    temp2 = molecule.getAtom(i).getLnums();
     for (int j = 0; j < nbfs; j++){
       atoms[k] = i;
       bfs[k] = j;
@@ -272,6 +300,7 @@ void IntegralEngine::formOverlapKinetic()
 	}
       }
       shells[k] = shell;
+      lnums[k] = temp2(shell);
       k++;
     }
   }
@@ -364,6 +393,10 @@ void IntegralEngine::formOverlapKinetic()
     // Increment basis function counts
     m += mshells(shells(m));
   } // End r-loop over shells
+  
+  // Transform the matrices to the spherical harmonic basis
+  sints = makeSpherical(sints, lnums);
+  tints = makeSpherical(tints, lnums);
 }
 
 // Calculate the overlap and kinetic energy integrals between two primitive
@@ -630,17 +663,16 @@ double IntegralEngine::multipole(PBF& u,  PBF& v, const Vector& ucoords,
 //             sum contributions from each atomic centre for each bf pair in (r,s)
 //           end s loop
 //        end r loop
+//    Transform integrals to spherical harmonic basis.
 void IntegralEngine::formNucAttract()
 {
     // Get the number of basis functions
   // and the number of shells
   int natoms = molecule.getNAtoms();
   int N = 0; // No. of cartesian cgbfs
-  int M = 0; // No. of spherical cgbfs
-  int NS = 0;
+  int NS = 0; // No. of shells
   for (int i = 0; i < natoms; i++){
     N += molecule.getAtom(i).getNbfs();
-    M += molecule.getAtom(i).getNSpherical();
     NS += molecule.getAtom(i).getNshells();
   }
 
@@ -648,14 +680,16 @@ void IntegralEngine::formNucAttract()
   naints.assign(N, N, 0.0); 
   
   // Form a list of basis functions, the atoms they're on,
-  // and the shells they belong to 
+  // and the shells they belong to, and get lnums 
   Vector atoms(N); Vector bfs(N); Vector shells(N);
+  Vector lnums(N);
   int k = 0;
-  Vector temp; 
+  Vector temp; Vector temp2;
   for (int i = 0; i < natoms; i++){
     int nbfs = molecule.getAtom(i).getNbfs();
     temp = molecule.getAtom(i).getShells();
-    
+    temp2 = molecule.getAtom(i).getLnums();
+
     for (int j = 0; j < nbfs; j++){
       atoms[k] = i;
       bfs[k] = j;
@@ -667,6 +701,7 @@ void IntegralEngine::formNucAttract()
 	}
       }
       shells[k] = shell;
+      lnums[k] = temp2(shell);
       k++;
     }
   }
@@ -757,6 +792,10 @@ void IntegralEngine::formNucAttract()
     // Increment basis function counts
     m += mshells(shells(m));
   } // End r-loop over shells
+  
+  // Transform the integrals to the spherical harmonic basis
+  naints = makeSpherical(naints, lnums);
+
 }
 
 // Calculate the nuclear attraction integral between two gaussian primitives
