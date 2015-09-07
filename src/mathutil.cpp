@@ -50,7 +50,7 @@ unsigned long int fact2(int i)
 Vector boys(double x, int mmax, int mmin, double PRECISION)
 {
   // Initialise return array
-  Vector rvec(mmax - mmin + 1); // +1 as need to include both mmax and mmin
+  Vector rvec(mmax - mmin + 1, 0.0); // +1 as need to include both mmax and mmin
 
   if(x < PRECISION) { // x ~ 0, so no need for recursion
 
@@ -70,7 +70,7 @@ Vector boys(double x, int mmax, int mmin, double PRECISION)
     
     // Now use downward recursion relation to calculate all others
     int m = (mmin == 0 ? 1 : mmin);
-    for (int i = mmax-1; i > m; i--){
+    for (int i = mmax-1; i > m-1; i--){
       rvec[i-mmin] = (1.0/(2.0*(double)(i) + 1.0)) * (2.0*x*rvec[i-mmin+1] + std::exp(-1.0*x));
     } 
   }

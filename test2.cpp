@@ -30,8 +30,6 @@ int main (int argc, char* argv[])
   std::cout << mol.getAtom(0).getBF(0).getPBF(0).getNorm() << " ";
   std::cout << mol.getAtom(0).getBF(0).getPBF(1).getNorm() << " ";
   std::cout << mol.getAtom(0).getBF(0).getPBF(2).getNorm() << "\n";
-  log.finalise();
-  output.close();
 
   Vector c = mol.getAtom(0).getCoords();  
   Vector cd = mol.getAtom(1).getCoords();
@@ -39,7 +37,7 @@ int main (int argc, char* argv[])
 
   IntegralEngine integral(mol);
   std::cout << "Fine\n";
-  std::cout << "Nuc Attract = " << integral.nucAttract(mol.getAtom(0).getBF(0).getPBF(2), mol.getAtom(2).getBF(13).getPBF(2), 
+  std::cout << "Nuc Attract = " << integral.nucAttract(mol.getAtom(0).getBF(0).getPBF(2), mol.getAtom(2).getBF(0).getPBF(2), 
 						       c, d, cd) << "\n";
   std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";
     log.print("\n");
@@ -49,18 +47,19 @@ int main (int argc, char* argv[])
   //log.print("\n");
   Vector ests;
   ests = (1.0/(1024.0*1024.0))*integral.getEstimates();
-  ests.print();
+  log.print("\n");log.print(ests);log.print("\n");
   Matrix testing(3, 3, 0.5);
   for (int i = 0; i < 3; i++) { testing(i, i) = 1.0; }
-  //testing = integral.makeSpherical(1, 1, testing);
+  testing = integral.makeSpherical(1, 1, testing);
   testing.print();
   std::cout << "\n";
+  log.finalise();
   } catch (Error e) {
     log.error(e);
   }
   input.close();
   std::cout << "input closed\n";
-  //  output.close();
+  output.close();
   std::cout << "output closed\n";
 
   return 0;

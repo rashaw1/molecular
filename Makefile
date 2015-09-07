@@ -7,7 +7,7 @@ CXX = c++
 COMMANDLINE_OPTIONS = 
 
 # Compiler options
-COMPILE_OPTIONS = -g -Wall -stdlib=libc++
+COMPILE_OPTIONS = -g -Wall -stdlib=libc++ 
 
 # Header include directories
 HEADERS = -I./inc -I/usr/local/Cellar/boost/1.58.0/include

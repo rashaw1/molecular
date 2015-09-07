@@ -9,6 +9,7 @@
  *   02/09/15     Robert Shaw      Original code.
  *   03/09/15     Robert Shaw      Merged overlap and kinetic integrals.
  *   04/09/15     Robert Shaw      Now supports general contracted.
+ *   06/09/15     Robert Shaw      Nuclear attraction ints for prims.
  */
 
 #include "error.hpp"
@@ -249,7 +250,7 @@ void IntegralEngine::formOverlapKinetic()
   }
 
   // Resize sints, tints
-  sints.resize(N, N); tints.resize(N, N);
+  sints.assign(N, N, 0.0); tints.assign(N, N, 0.0);
   
   // Form a list of basis functions, the atoms they're on,
   // and the shells they belong to 
@@ -347,7 +348,7 @@ void IntegralEngine::formOverlapKinetic()
 	    }
 	  }
 
-	  // Contract cartesian integrals into the temporary matrix
+	  // Contract cartesian integrals into the integral matrices
 	  // ordered canonically
        	  sints(m+i, n+j) = makeContracted(mcoeff, ncoeff, overInts);
 	  tints(m+i, n+j) = makeContracted(mcoeff, ncoeff, kinInts);
@@ -631,7 +632,131 @@ double IntegralEngine::multipole(PBF& u,  PBF& v, const Vector& ucoords,
 //        end r loop
 void IntegralEngine::formNucAttract()
 {
+    // Get the number of basis functions
+  // and the number of shells
+  int natoms = molecule.getNAtoms();
+  int N = 0; // No. of cartesian cgbfs
+  int M = 0; // No. of spherical cgbfs
+  int NS = 0;
+  for (int i = 0; i < natoms; i++){
+    N += molecule.getAtom(i).getNbfs();
+    M += molecule.getAtom(i).getNSpherical();
+    NS += molecule.getAtom(i).getNshells();
+  }
+
+  // Resize naints, and assign all elements to zero
+  naints.assign(N, N, 0.0); 
   
+  // Form a list of basis functions, the atoms they're on,
+  // and the shells they belong to 
+  Vector atoms(N); Vector bfs(N); Vector shells(N);
+  int k = 0;
+  Vector temp; 
+  for (int i = 0; i < natoms; i++){
+    int nbfs = molecule.getAtom(i).getNbfs();
+    temp = molecule.getAtom(i).getShells();
+    
+    for (int j = 0; j < nbfs; j++){
+      atoms[k] = i;
+      bfs[k] = j;
+      int sum = 0; int shell = 0;
+      while(sum < j+1){
+	sum += temp(shell);
+	if(sum < j+1){
+	  shell++;
+	}
+      }
+      shells[k] = shell;
+      k++;
+    }
+  }
+
+  int m = 0; // Keep track of basis function count
+  int n = 0;
+
+  // Object placeholders
+  Vector mcoords; Vector ncoords; Vector ccoords;
+  Vector mshells; Vector nshells;
+  PBF mpbf; PBF npbf; Atom ma; Atom na; 
+
+  // Loop over shells
+  for (int r = 0; r < NS; r++){ // Shells on first atom
+    // Get the first atom coords and number of prims in this shell
+    ma = molecule.getAtom(atoms(m));
+    mcoords = ma.getCoords();
+    mshells = ma.getShells();
+    int mP = ma.getNShellPrims(shells(m));
+    
+    n = m;
+    for (int s = r; s < NS; s++){ // Shells on second atom
+      // Get same for second atom
+      na = molecule.getAtom(atoms(n));
+      ncoords = na.getCoords();
+      nshells = na.getShells();
+      int nP = na.getNShellPrims(shells(n));
+
+      // Store the primitive integrals
+      Matrix prims(mP, nP);
+      
+      // Get shell sizes                                                                                                                                                           
+      int msize = mshells(shells(m));
+      int nsize = nshells(shells(n));
+      
+      // Loop over atomic centres
+      for (int c = 0; c < natoms; c++){
+	// Get the coordinates and atomic charge for this centre
+	ccoords = molecule.getAtom(c).getCoords();
+	int Z = molecule.getAtom(c).getCharge(); 
+
+	// Loop over primitives
+	for (int u = 0; u < mP; u++){
+	  mpbf = ma.getShellPrim(shells(m), u);
+	  
+	  for (int v = 0; v < nP; v++){
+	    npbf = na.getShellPrim(shells(n), v);
+	    
+	    // Calculate the nuclear attraction integrals
+	    prims(u, v) = nucAttract(mpbf, npbf, mcoords, ncoords, ccoords);
+	    	    	  
+	  } // End v-loop over prims
+	} // End u-loop over prims
+      
+	// Now we need to contract all the integrals
+	Vector mplist; Vector nplist;
+	Vector mcoeff; Vector ncoeff;
+	// Loop
+	
+	for (int i = 0; i < msize; i++){
+	  // Get prim list for this bf, and contraction coeffs
+	  mplist = ma.getBF(bfs(m+i)).getPrimList();
+	  mcoeff = ma.getBF(bfs(m+i)).getCoeffs();
+	  
+	  for (int j = i; j < nsize; j++){
+	    nplist = na.getBF(bfs(n+j)).getPrimList();
+	    ncoeff = na.getBF(bfs(n+j)).getCoeffs();
+	    
+	    // Form the vector of appropriate prim integrals
+	    Vector ints(mplist.size()*nplist.size());
+	    for (int x = 0; x < mplist.size(); x++){
+	      for (int y = 0; y < nplist.size(); y++){
+		ints[x*nplist.size() + y] = prims(mplist(x), nplist(y));
+	      }
+	    }
+	    
+	    // Contract cartesian integrals into the nuclear attraction
+	    // matrix, weighting by the atomic charge of centre C
+	    naints(m+i, n+j) += -1.0*Z*makeContracted(mcoeff, ncoeff, ints);
+	    naints(n+j, m+i) = naints(m+i, n+j);
+	  }
+	} // End contraction loops
+      } // End loop over centres
+      // Increment basis function counts
+      n += nsize;
+    } // End s-loop over shells
+
+    // Increment basis function counts
+    m += mshells(shells(m));
+  } // End r-loop over shells
 }
 
 // Calculate the nuclear attraction integral between two gaussian primitives
@@ -701,7 +826,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   // Increment the second index by the horizontal recursion relation if necessary
   for (int n = N-Nx; n > -1; n--){
     for (int j = 1; j < vlx+1; j++){
-      for (int i = 0; i < Nx; i++){
+      for (int i = Nx-1; i > -1; i--){
 	aux(n, i) = aux(n, i+1) + XAB*aux(n, i);
       }
     }
@@ -723,7 +848,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   // Increment the second index by the horizontal recursion relation if necessary
   for (int n = N-Nx-Ny; n > -1; n--){
     for (int j = 1; j < vly+1; j++){
-      for (int i = 0; i < Ny; i++){
+      for (int i = Ny-1; i > -1; i--){
 	aux(n, i) = aux(n, i+1) + YAB*aux(n, i);
       }
     }
@@ -744,13 +869,12 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
 
   // Increment the second index by the horizontal recursion relation if necessary
   for (int j = 1; j < vlz+1; j++){
-    for (int i = 0; i < Nz; i++){
+    for (int i = Nz-1; i > -1; i--){
       aux(0, i) = aux(0, i+1) + ZAB*aux(0, i);
     }
   }
 
   // The final integral is now stored in aux(0, ulz)
   integral = unorm*vnorm*aux(0, ulz);
-
   return integral;
 }
