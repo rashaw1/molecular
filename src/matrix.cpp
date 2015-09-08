@@ -472,7 +472,7 @@ Matrix Matrix::operator*(const Matrix& other) const
 
 Matrix Matrix::transpose() const
 {
-  Matrix rMat(cols, rows); // Make return vector with rows and cols interchanged
+  Matrix rMat(cols, rows); // Make return matrix with rows and cols interchanged
   // Set elements
   for(int i = 0; i < rows; i++){
     for(int j = 0; j < cols; j++){

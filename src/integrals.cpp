@@ -12,6 +12,7 @@
  *   06/09/15     Robert Shaw      Nuclear attraction ints for prims.
  *   07/09/15     Robert Shaw      formNucAttract() now works, as does
  *                                 makeSpherical(ints, lnums)
+ *   08/09/15     Robert Shaw      Auxiliary 2e- integrals, twoe
  */
 
 #include "error.hpp"
@@ -916,4 +917,176 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   // The final integral is now stored in aux(0, ulz)
   integral = unorm*vnorm*aux(0, ulz);
   return integral;
+}
+
+// Calculate the two-electron integrals over
+// a set of four primitives u,v,w,x. Forms a matrix of
+// [u0|w0] integrals using the Obara-Saika vertical
+// and electron transfer recurrence relations. 
+// Algorithm:
+//   - Form the auxiliary integrals [00|00](m) for
+//     m in [0, Lu+Lv+Lw+Lx].
+//   - Use the vertical relation to form [u0|00] for
+//     u in [0, Lu+Lv+Lw+Lx]
+//   - Use electron-transfer relation to form [u0|w0]
+//     with u in [Lu, Lu+Lx] and w in [Lw, Lw+Lx]
+//   Return these as a matrix ready for contraction, 
+//   sphericalisation, and then horizontal recurrence.
+Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
+			    const PBF& x, const Vector& ucoords,
+			    const Vector& vcoords, const Vector& wcoords,
+			    const Vector& xcoords) const
+{
+  // Extract all the necessary data from the PBFs
+  Vector pvals; Vector qvals;
+  pvals = getVals(u.getExponent(), v.getExponent(), ucoords, vcoords);
+  qvals = getVals(w.getExponent(), x.getExponent(), wcoords, xcoords);
+  
+  // Unpack, and calculate distances, exponents, and multipliers.
+  double p = pvals(0); double q = wvals(0); double alpha = (p*q)/(p+q);
+  double XPA = pvals(2) - ucoords(0); double XPQ = pvals(2) - qvals(2);
+  double YPA = pvals(3) - ucoords(1); double YPQ = pvals(3) - qvals(3);
+  double ZPA = pvals(4) - ucoords(2); double ZPQ = pvals(4) - qvals(4);
+  double XAB = pvals(5); double YAB = pvals(6); double ZAB = pvals(7);
+  double XCD = qvals(5); double YCD = qvals(6); double ZCD = qvals(7);
+  double K = pvals(8)*pvals(9)*pvals(10)*qvals(8)*qvals(9)*qvals(10);
+  double zeromult = 2.0*K*M_PI*M_PI*std::sqrt(M_PI/(p+q))/(p*q);
+  double RPQ2 = XPQ*XPQ + YPQ*YPQ + ZPQ*ZPQ;
+  double ap = alpha/p; double one2p = 1.0/(2.0*p); double one2q = 1.0/(2.0*q);
+  double poq = p/q; 
+
+  // Get the angular momenta
+  int Lu = u.getLnum(); int Lv = v.getLnum(); int Lw = w.getLnum();
+  int Lx = x.getLnum(); int L = Lu+Lv+Lw+Lx;
+ 
+  int Nx = u.getLx() + v.getLx() + w.getLx() + x.getLx();
+  int Ny = u.getLy() + v.getLy() + w.getLy() + x.getLy();
+  int Nz = u.getLz() + v.getLz() + w.getLz() + x.getLz();
+
+  // Calculate the O(n)0000;0000;0000 integrals for n in [0, L=Lu+Lv+Lw+Lz]
+  // These are given by the formula:
+  // [00|00](n) = premult*F_n(alpha*RPQ^2), where F_n is the boys function
+  // of order n.
+  Vector boysvals(L+1); Matrix aux(L+1, Nx+1, 0.0);
+
+  // First calculate all boys function values
+  boysvals = boys(alpha*RPQ2, L, 0);
+  // Then convert 
+  for (int i = 0; i < L+1; i++)
+    aux(i, 0) = premult*boysvals(i);
+
+  // Now we need to use the vertical recurrence relation to increment
+  // the first index, one cartesian direction at a time
+  for (int n = L-1; n > -1; n--){
+    // Calculate first increment
+    aux(n, 1) = XPA*aux(n, 0) - ap*XPQ*aux(n+1, 0);
+    
+    // Now increment as high as needed
+    int kmax = (L-n+1 > Nx+1 ? Nx+1 : L-n+1);
+    for (int k = 2; k < kmax; k++){
+      aux(n, k) = XPA*aux(n, k-1) - ap*XPQ*aux(n+1, k-1) +
+	(k-1)*one2p*(aux(n, k-2) - ap*aux(n+1, k-2));
+    }
+  }
+
+  // for the Nx+1 columns truncated at n = L-Nx, increment
+  // the y-direction on u
+  
+  // Store the results
+  Matrix newAux(Nz+1, (Nx+1)*(Ny+1));
+  Matrix tempMat(L-Nx+1, Ny+1, 0.0); // For each increment
+  for (int m = 0; m < Nx+1; m++){
+    // Extract the column
+    for (int row = 0; row < L-Nx+1; row++)
+      tempMat(row, 0) = aux(row, m);
+
+    // Now increment the y-direction up to Ny
+    for (int n = L-Nx-1; n > -1; n--){
+      // Calculate the first increment
+      tempMat(n, 1) = YPA*tempMat(n, 0) - ap*YPQ*tempMat(n+1, 0);
+
+      int kmax = (L-Nx-n+1 > Ny+1 ? Ny+1 : L-Nx-n+1);
+      for (int k = 2; k < Nmax; k++){
+	tempMat(n, k) = YPA*tempMat(n, k-1) - ap*YPQ*tempMat(n+1, k-1)+
+	  (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
+      }
+    }
+    
+    // Copy the needed columns into newAux
+    for (int z = 0; z < Nz+1; z++){
+      for (int y = 0; y < Ny+1; y++){
+	newAux(z, (m*(Ny+1) + y)) = tempMat(z, y);
+      }
+    }
+  }
+
+  // Next increment in the z-direction for each of these columns of newAux
+  aux.assign(1, (Nx+1)*(Ny+1)*(Nz+1)); // To store the results
+  tempMat.assign(Nz+1, Nz+1, 0.0); // For each iteration
+  for (int m = 0; m < (Nx+1)*(Ny+1); m++){
+    // Extract the row from newAux
+    for (int row = 0; row < Nz+1; row++)
+      tempMat(row, 0) = newAux(row, m);
+
+    // Now increment
+    for (int n = Nz-1; n > -1; n--){
+      // Calculate first increment
+      tempMat(n, 1) = ZPA*tempMat(n, 0) - ap*ZPQ*tempMat(n+1, 0);
+      
+      for (int k = 2; k < Nz-n+1; k++){
+	tempMat(n, k) = ZPA*tempMat(n, k-1) - ap*ZPQ*tempMat(n+1, k-1) +
+	  (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
+      }
+    }
+    
+    // And copy results into aux
+    for(int z = 0; z < Nz+1; z++)
+      aux(0, m*(Nx+1)*(Ny+1) + z) = tempMat(0, z); 
+  }
+
+  // We now have all the integrals [u0|00] store in aux
+  // for u in [0, L]. They are ordered as follows:
+  // [000;0|00], [001;0|00], ..., [00Nz;0|00],
+  // [010;0|00], ..., [01Nz; 0|00], ...,
+  // [0Ny0; 0| 00], ..., [0NyNz;0|00], ...,
+  // [100;0|00], ... and so on.
+  
+  // Next step is then to use the electron-transfer recurrence relation
+  // to transfer cartesian powers from u to w (i.e. from elec 1 to elec 2)
+  // We need [u0|w0] for u in [Lu, Lu+Lv] and w in [Lw, Lw+Lx]
+  
+  double vXxXq = -(v.getExponent()*XAB + x.getExponent()*XCD)/q; 
+  int Nyz = (Ny+1)*(Nz+1);
+
+  // Increment all of aux in the x-coordinate up and get for wlx to wlx+xlx
+  int wlx = w.getLx(); int xlx = x.getLx();
+  nextAux.assign(wlx+xlx+1, (Nx+1)*Nyz, 0.0);
+  // Copy in zeroth row from aux, and do the first increment
+  nextAux.setRow(0, aux.rowAsVec(0));
+  // Set zeroth elements
+  for (int col = 0; col < Nyz; col++)
+    nextAux(1, col) = vXxXq*nextAux(0, col) - poq*nextAux(0, Nyz+col);
+  // Now do the rest of first row
+  for (int col1 = 1; col1 < Nx; col1++){
+    for (int col2 = 0; col2 < Nyz; col2++){
+      nextAux(1, col1*Nyz+col2) = vXxXq*nextAux(0, col1*Nyz+col2) + col1*one2q*nextAux(0, (col1-1)*Nyz+col2) -
+	poq*nextAux(0, (col1+1)*Nyz+col2);
+    }
+  }
+  // And the rest of the increments
+  for (int m = 2; m < wlx+xlx+1; m++){
+    // First portion first
+    for (int col = 0; col < Nyz; col++)
+      nextAux(m, col) = vXxXq*nextAux(m-1, col) + (m-1)*one2q*nextAux(m-2, col) - poq*nextAux(m-1, Nyz+col);
+ 
+    for (int col1 = 1; col1 < Nx-m+1; col1++){
+      for(int col2 = 0; col2 < Nyz; col2++){
+	nextAux(m, col1*Nyz+col2) = vXxXq*nextAux(m-1, col1*Nyz+col2) + col1*one2q*nextAux(m-1, (col1-1)*Nyz+col2) +
+	  (m-1)*one2q*nextAux(m-2, col1*Nyz+col2) - poq*nextAux(m-1, (col1+1)*Nyz+col2);
+      }
+    }
+  }
+ 
+  // We now have a full set of integrals electron-transferred in the x-coordinate.
+  // Do the same for the y-coordinate.  
 }

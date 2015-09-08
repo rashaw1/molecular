@@ -26,7 +26,8 @@
  *                           with the given sets of coefficients (1e- integrals)
  *                  makeContracted(coeffs1, coeffs2, coeffs2, coeffs4, ints) - same, but for
  *                           2e- integrals
- *                  makeSpherical(l1, m1, l2, m2, ints) - convert to spherical gaussians, 1e- ints
+ *                  makeSpherical(ints, lnums) - transform a matrix of 1e cartesian integrals to a 
+ *                                               spherical harmonic basis
  *                  makeSpherical(l1, m1, l2, m2, l3, m3, l4, m4, ints) - same, 2e- ints
  *                  formOverlapKinetic() - forms the matrices sints, tints
  *                  multipoleComponent(a, b, acoord, bcoord, ccoord, powers) - calculates the multipole
@@ -34,6 +35,8 @@
  *                                     for the basis functions a, b
  *                  formNucAttract() - forms the matrix of nuclear attraction integrals, naints
  *                  makeERI() - returns a matrix of electron repulsion integrals
+ *                  twoe(u, v, w, x, ucoords, vcoords, wcoords, xcoords) - calculate the [u0|w0]
+ *                                     2e- primitive cartesian integrals
  *
  *   DATE          AUTHOR            CHANGES 
  *   =============================================================================
@@ -78,6 +81,9 @@ public:
 			const Vector& vcoords) const;
   double nucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
 		    const Vector& vcoords, const Vector& ccoords) const;
+  Matrix twoe(const PBF& u, const PBF& v, const PBF& w, const PBF& x, 
+	      const Vector& ucoords, const Vector& vcoords, const Vector& wcoords,
+	      const Vector& xcoords) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& c3, 
 			Vector& c4, Matrix& ints) const;
