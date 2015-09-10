@@ -16,6 +16,9 @@
  *   09/09/15     Robert Shaw      Shell 2e- integrals, up to (m0|pq)
  *                                 - need to sphericalise, increment, 
  *                                 then sphericalise again.
+ *   10/09/15     Robert Shaw      Finished shell twoe. Got rid of 
+ *   							   makeContracted and makeSpherical
+ *                                 for 2e ints, as absorbed into twoe.
  */
 
 #include "error.hpp"
@@ -122,37 +125,6 @@ double IntegralEngine::makeContracted(Vector& c1, Vector& c2, Vector& ints) cons
   return integral;
 }
 
-// Do the same but for 2e- integrals
-// Assumes integrals are stored as:
-// 0000 0001 0002 ... 0010 0011 ....
-// 0100 0101 0102 ... 1010 1011 ....
-// 0200
-// .
-// .
-// .
-// 1000 and so on
-double IntegralEngine::makeContracted(Vector& c1, Vector& c2, Vector& c3,
-				      Vector& c4, Matrix& ints) const
-{
-  double integral = 0.0;
-  int N1 = c1.size();
-  int N2 = c2.size();
-  int N3 = c3.size();
-  int N4 = c4.size();
-  
-  // Loop over contraction coefficients
-  for (int i = 0; i < N1; i++){
-    for (int j = 0; j < N2; j++){
-      for (int k = 0; k < N3; k++){
-	for (int l = 0; l < N4; l++){
-	  integral += c1(i)*c2(j)*c3(k)*c4(l)*ints(i*N2+j, k*N4+l);
-	}
-      }
-    }
-  }
-  return integral;
-}
-
 // Sphericalise a matrix of 1e- integrals (ints)
 // where the cols have angular momenta lnums.
 // Returns matrix of integrals in canonical order
@@ -221,7 +193,7 @@ Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) co
   Matrix trans(M, N, 0.0);
   // Loop through all the slnums, looking up the coefficients
   // as needed. 
-  j = 0; // Column and row counters
+  j = 0; // Column counter
   for(int i = 0; i < M; i++){
     // Get the coefficients
     formTransMat(trans, i, j, (int)(slnums(i)), (int)(smnums(i)));
@@ -240,13 +212,7 @@ Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) co
   retInts = retInts*(trans.transpose());
   return retInts;
 }
-// Same but for 2e- integrals
-double IntegralEngine::makeSpherical(int l1, int m1, int l2, int m2,
-				     int l3, int m3, int l4, int m4, Matrix& ints) const
-{
-  double integral = 0.0;
-  return integral;
-}
+
 
 // Form the overlap integral matrix sints using the Obara-Saika recurrence relations
 // Algorithm:
@@ -495,10 +461,10 @@ Vector IntegralEngine::overlapKinetic(const PBF& u, const PBF& v,
   }
   if(vlz>0){
     for (int k = 0; k < ulz+1; k++){
-      int ktemp= (k > 0 ? k-1 : 0); // Avoid out of bounds errors                                                                                                                                               
+      int ktemp= (k > 0 ? k-1 : 0); // Avoid out of bounds errors
       Sijz(k, 1) = ZPB*Sijz(k,0) + one2p*k*Sijz(ktemp, 0);
 
-      // Then loop                                                                                                                                                                             
+      // Then loop
       for (int j = 2; j < vlz+1; j++)
         Sijz(k, j) = ZPB*Sijz(k, j-1) + one2p*(k*Sijz(ktemp, j-1) +
                                                (j-1)*Sijz(k, j-2));
@@ -1001,7 +967,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	    for (int v = 0; v < bplist.size(); v++){
 	      for (int w = 0; w < cplist.size(); w++){
 		for (int x = 0; x < dplist.size(); x++){
-		  cList(apos+bpos+cpos+d, aplist(u)*p1 + blist(v)*p2 + cplist(w)*npC + dplist(x)) 
+		  cList(apos+bpos+cpos+d, aplist(u)*p1 + bplist(v)*p2 + cplist(w)*npC + dplist(x)) 
 		    = acoeffs(u)*bcoeffs(v)*ccoeffs(w)*dcoeffs(x);
 		}
 	      }
@@ -1033,7 +999,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  // Contract this primitive quartet into each appropriate
 	  // cgbf quartet integral
 	  int cpos = u*npB*npC*npD + v*npC*npD + w*npD + x;
-	  for (int mat = 0; i < ncA*ncB*ncC*ncD; i++){
+	  for (int mat = 0; mat < ncA*ncB*ncC*ncD; mat++){
 	    cMats[mat] = cList(mat, cpos)*pMat + cMats[mat];
 	  }
 	} // End x-loop
@@ -1073,7 +1039,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  int cinc = (qly+1)*(qlz+1);
 	  for (int inc = 1; inc < qlx+1; inc++){ 
 	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
-	      for (int row = 0; row < (qlx+1)*cinc-inc; row++){
+	      for (int row = 0; row < (qlx-inc+1)*cinc; row++){
 		cMats[matpos](inc*cinc+row, col) = cMats[matpos]((inc+1)*cinc+row, col) +
 		  XCD*cMats[matpos](inc*cinc+row, col);
 	      }
@@ -1087,7 +1053,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  cinc = qlz+1;
 	  for (int inc = 1; inc < qly+1; inc++){
 	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
-	      for (int row = 0; row < (qly+1)*cinc-inc; row++){
+	      for (int row = 0; row < (qly-inc+1)*cinc; row++){
 		cMats[matpos](inc*cinc+row, col) = cMats[matpos]((inc+1)*cinc+row, col) +
 		  YCD*cMats[matpos](inc*cinc+row, col);
 	      }
@@ -1110,9 +1076,254 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   } // End of m-loop
 
   // The integrals are all now of the form (m0|pq), and the second electron is ready to be
-  // transformed to the spherical harmonic basis. Which I have no clue how to achieve :(
+  // transformed to the spherical harmonic basis. 
   
-  delete[] cMats; // Get rid of the temporary contraction matrices
+  // Get the number of transformed C and D bfs
+  int spherC = C.getNSpherical(); int spherD = D.getNSpherical();
+  
+  // Get the Lnums of the C and D shells
+  int LC = C.getShellBF(shellC, 0).getLnum();
+  int LD = D.getShellBF(shellD, 0).getLnum();
+  
+  // Make a list of mnums for each
+  Vector cmnums(spherC/(2*LC+1)); Vector dmnums(spherD/(2*LD+1));
+  
+  // Maps 0 -> 0, 1 -> -1, 2 -> 1, 3 -> -2, 4 -> 2, and so on.
+  for (int cm = 0; cm < cmnums.size(); cm++)
+  	cmnums[cm] = (1-2*(cm%2))*((cm+1)/2);
+  
+  for (int dm = 0; dm < dmnums.size(); dm++)
+  	dmnums[dm] = (1-2*(dm%2))*((dm+1)/2);	
+  
+  // Declare appropriately sized C and D transformation matrix
+  Matrix tMat1(spherC, ncC, 0.0); Matrix tMat2(spherD, ncD, 0.0);
+  
+  // Build the C trans matrix
+  int jinc; 
+  switch(LC){
+  	case 1: { jinc = 3; break; }
+  	case 2: { jinc = 6; break; }
+  	case 3: { jinc = 10; break; }
+  	default: jinc = 1;
+  }
+  int j = 0; // Column counter
+  int mod = 2*LC+1;
+  for(int i = 0; i < spherC; i++){  	
+    // Get the coefficients
+    formTransMat(tMat1, i, j, LC, cmnums(i%mod));
+    if (LC - cmnums(i%mod) == 0){ // Increment j by a suitable amount
+   		j+=jinc;
+    }
+  }
+  
+  // Build the D trans matrix
+   switch(LD){
+  	case 1: { jinc = 3; break; }
+  	case 2: { jinc = 6; break; }
+  	case 3: { jinc = 10; break; }
+  	default: jinc = 1;
+  }
+  j = 0; mod = 2*LD+1;
+  for(int i = 0; i < spherD; i++){  	
+    // Get the coefficients
+    formTransMat(tMat2, i, j, LD, dmnums(i%mod));
+    if (LD - dmnums(i%mod) == 0){ // Increment j by a suitable amount
+      j+=jinc;
+    }
+  }
+  
+  // Transform cMats into new cVecs
+  Vector* cVecs = new Vector[ncA*ncB*spherC*spherD];
+  pMat.resize(ncC, ncD);
+  for (int m = 0; m < ncA; m++){
+    for (int n = 0; n < ncB; n++){
+      nlx = B.getShellBF(shellB, n).getLx();
+      nly = B.getShellBF(shellB, n).getLy();
+      nlz = B.getShellBF(shellB, n).getLz();
+      int mpos = m*ncB*spherC*spherD;
+      int npos = n*spherC*spherD;
+      int nxyz = (nlx+1)*(nly+1)*(nlz+1);
+      
+      // Resize the relevant cVecs vectors
+      for (int c = 0; c < spherC; c++){
+	for (int d = 0; d < spherD; d++){
+	  cVecs[mpos + npos + c*spherD + d].assign(nxyz, 0.0);
+	}
+      }
+      
+      // Construct and transform all the pmats
+      for (int x = 0; x < nlx+1; x++){
+	int xpos = x*(nly+1)*(nlz+1);
+	for (int y = 0; y < nly+1; y++){
+	  int ypos = y*(nlz+1);
+	  for (int z = 0; z < nlz+1; z++){
+	    
+	    // Construct
+	    for (int p = 0; p < ncC; p++){
+	      for (int q = 0; q < ncD; q++){
+		pMat(p, q) = cMats[mpos+npos+p*ncC+q](0, xpos+ypos+z);
+	      }
+	    }		 
+	    
+	    // Transform
+	    pMat = tMat1 * ( pMat * ( tMat2.transpose() ) );
+	    
+	    // Copy into cVecs vectors
+	    for (int c = 0; c < spherC; c++){
+	      for (int d = 0; d < spherD; d++){
+		cVecs[mpos+npos+c*spherD+d][xpos+ypos+z] = pMat(c, d);
+	      }
+	    } // End of cVecs copy
+	  } // End of z-loop
+	} // End of y-loop
+      } // End of x-loop
+      
+    } // End of n-loop
+  } // End of m-loop
+  
+  // Get rid of cMats, as everything is now in cVecs
+  delete[] cMats;
+  
+  // We now have all integrals of the form (m0|cd).
+  // Move on to the second horizontal recursion step.
+  for (int m = 0; m < ncA; m++){
+    for (int n = 0; n < ncB; n++){
+      nlx = B.getShellBF(shellB, n).getLx();
+      nly = B.getShellBF(shellB, n).getLy();
+      nlz = B.getShellBF(shellB, n).getLz();
+      int mpos = m*ncB*spherC*spherD;
+      int npos = n*spherC*spherD;
+      
+      for (int c = 0; c < spherC; c++){
+	for (int d = 0; d < spherD; d++){
+	  
+	  // Which cVec are we dealing with?
+	  int cpos = mpos+npos+c*spherD+d;
+	  
+	  // Get the x-spacing of the ints matrix
+	  int cinc = (nly+1)*(nlz+1);
+	  
+	  // Increment in the x-index
+	  for (int inc = 1; inc < nlx+1; inc++){
+	    for (int col = 0; col < (nlx-inc+1)*cinc; col++){
+	      cVecs[cpos][col] = cVecs[cpos][col+cinc] + XAB*cVecs[cpos][col];
+	    }
+	  }
+	  
+	  // Get the y-spacing
+	  cinc = nlz+1;	
+	  // Increment in the y-index
+	  for (int inc = 1; inc < nly+1; inc++){
+	    for (int col = 0; col < (nly-inc+1)*cinc; col++){
+	      cVecs[cpos][col] = cVecs[cpos][col+cinc] + YAB*cVecs[cpos][col];
+	    }
+	  }
+	  
+	  // Finally, increment in the z-index
+	  for (int inc = 1; inc < nlz+1; inc++){
+	    for (int col = 0; col < nlz-inc+1; col++){
+	      cVecs[cpos][col] = cVecs[cpos][col+1] + ZAB*cVecs[cpos][col];
+	    }		
+	  }
+	} // End of d-loop
+      } // End of c-loop
+    } // End of n-loop
+  } // End of m-loop
+  
+  // All integrals are now (mn|cd), stored in the first element of each cVec
+  // Only thing left to	is to sphericalise the first electron
+  
+   // Get the number of transformed A and B bfs
+  int spherA = A.getNSpherical(); int spherB = B.getNSpherical();
+  
+  // Get the Lnums of the C and D shells
+  int LA = A.getShellBF(shellA, 0).getLnum();
+  int LB = B.getShellBF(shellB, 0).getLnum();
+  
+  // Make a list of mnums for each
+  cmnums.resize(spherA/(2*LA+1)); dmnums.resize(spherB/(2*LB+1));
+  
+  // Maps 0 -> 0, 1 -> -1, 2 -> 1, 3 -> -2, 4 -> 2, and so on.
+  for (int cm = 0; cm < cmnums.size(); cm++)
+    cmnums[cm] = (1-2*(cm%2))*((cm+1)/2);
+  
+  for (int dm = 0; dm < dmnums.size(); dm++)
+    dmnums[dm] = (1-2*(dm%2))*((dm+1)/2);	
+  
+  // Resize the tMats
+  tMat1.assign(spherA, ncA, 0.0); tMat2.assign(spherB, ncB, 0.0);
+  
+  // Build the A trans matrix
+  switch(LA){
+  case 1: { jinc = 3; break; }
+  case 2: { jinc = 6; break; }
+  case 3: { jinc = 10; break; }
+  default: jinc = 1;
+  }
+  j = 0; // Column counter
+  mod = 2*LA+1;
+  for(int i = 0; i < spherA; i++){  	
+    // Get the coefficients
+    formTransMat(tMat1, i, j, LA, cmnums(i%mod));
+    if (LA - cmnums(i%mod) == 0){ // Increment j by a suitable amount
+      j+=jinc;
+    }
+  }
+  
+  // Build the B trans matrix
+  switch(LB){
+  case 1: { jinc = 3; break; }
+  case 2: { jinc = 6; break; }
+  case 3: { jinc = 10; break; }
+  default: jinc = 1;
+  }
+  j = 0; mod = 2*LB+1;
+  for(int i = 0; i < spherB; i++){  	
+    // Get the coefficients
+    formTransMat(tMat2, i, j, LB, dmnums(i%mod));
+    if (LB - dmnums(i%mod) == 0){ // Increment j by a suitable amount
+      j+=jinc;
+    }
+  }
+  
+  // Transform the integrals into the return vector retInts
+  Vector retInts(spherA*spherB*spherC*spherD, 0.0);
+  pMat.resize(ncA, ncB);
+  for (int c = 0; c < spherC; c++){	
+    int cpos = c*spherD; 
+    for (int d = 0; d < spherD; d++){
+      
+      // Construct pMat
+      for (int m = 0; m < ncA; m++){
+	int mpos = m*ncB*spherC*spherD;
+	for (int n = 0; n < ncB; n++){
+	  int npos = n*spherC*spherD;
+	  pMat(m, n) = cVecs[mpos+npos+cpos+d](0);
+	}
+      }		 
+      
+      // Transform
+      pMat = tMat1 * ( pMat * ( tMat2.transpose() ) );
+      
+      // Copy into retInts
+      for (int a = 0; a < spherA; a++){
+	int apos = a*spherB*spherC*spherD;
+	for (int b = 0; b < spherB; b++){
+	  int bpos = b*spherC*spherD;
+	  retInts[apos+bpos+cpos+d] = pMat(a, b);
+	}
+      } // End of retInts copy
+      
+    } // End of d-loop
+  } // End of c-loop  
+  
+  // Get rid of cVecs
+  delete[] cVecs;
+  
+  // Integrals are now all (ab|cd) and are stored in retInts in the order
+  // 0000, 0001, 0002, ... , 0010, 0011, ..., 0100, 0101, ..., 0110, ..., 1000, 1001,
+  // and so on.
+  return retInts;
 }
 
 // Calculate the two-electron integrals over
@@ -1139,7 +1350,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   qvals = getVals(w.getExponent(), x.getExponent(), wcoords, xcoords);
   
   // Unpack, and calculate distances, exponents, and multipliers.
-  double p = pvals(0); double q = wvals(0); double alpha = (p*q)/(p+q);
+  double p = pvals(0); double q = qvals(0); double alpha = (p*q)/(p+q);
   double XPA = pvals(2) - ucoords(0); double XPQ = pvals(2) - qvals(2);
   double YPA = pvals(3) - ucoords(1); double YPQ = pvals(3) - qvals(3);
   double ZPA = pvals(4) - ucoords(2); double ZPQ = pvals(4) - qvals(4);
@@ -1202,7 +1413,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
       tempMat(n, 1) = YPA*tempMat(n, 0) - ap*YPQ*tempMat(n+1, 0);
 
       int kmax = (L-Nx-n+1 > Ny+1 ? Ny+1 : L-Nx-n+1);
-      for (int k = 2; k < Nmax; k++){
+      for (int k = 2; k < kmax; k++){
 	tempMat(n, k) = YPA*tempMat(n, k-1) - ap*YPQ*tempMat(n+1, k-1)+
 	  (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
       }
@@ -1217,7 +1428,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   }
 
   // Next increment in the z-direction for each of these columns of newAux
-  aux.assign(1, (Nx+1)*(Ny+1)*(Nz+1)); // To store the results
+  aux.assign(1, (Nx+1)*(Ny+1)*(Nz+1), 0.0); // To store the results
   tempMat.assign(Nz+1, Nz+1, 0.0); // For each iteration
   for (int m = 0; m < (Nx+1)*(Ny+1); m++){
     // Extract the column from newAux
@@ -1258,7 +1469,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   int wlx = w.getLx(); int xlx = x.getLx(); int ulx = u.getLx(); int vlx = v.getLx();
   newAux.assign(wlx+xlx+1, (Nx+1)*Nyz, 0.0);
   // Copy in zeroth row from aux, and do the first increment
-  newAux.setRow(0, aux.rowAsVec(0));
+  newAux.setRow(0, aux.rowAsVector(0));
   // Set zeroth elements
   if (wlx+xlx > 0){
     for (int col = 0; col < Nyz; col++)
@@ -1353,11 +1564,11 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   vXxXq = -(v.getExponent()*ZAB + x.getExponent()*ZCD)/q; 
   for (int row = 0; row < (xlx+1)*(xly+1); row++){ // Do a row at a time
     // Copy in zeroth row
-    tempMat.setRow(0, aux.rowAsVec(row));
+    tempMat.setRow(0, aux.rowAsVector(row));
     
     if (wlz+xlz > 0) { 
-		int pos = block*(Nz+1);
       for (int block = 0; block < Nxy; block++){
+      		int pos = block*(Nz+1);
 	// Do the zeroth section of each block for first row
 	  tempMat(1, pos) =   vXxXq*tempMat(0, pos) - poq*tempMat(0, pos+1);
 	

@@ -24,11 +24,8 @@
  *                  nucAttract(u, v, ucoords, vcoords) - same but calculates nuclear attraction ints.
  *                  makeContracted(coeffs1, coeffs2, ints) - contracts the given set of integrals
  *                           with the given sets of coefficients (1e- integrals)
- *                  makeContracted(coeffs1, coeffs2, coeffs2, coeffs4, ints) - same, but for
- *                           2e- integrals
  *                  makeSpherical(ints, lnums) - transform a matrix of 1e cartesian integrals to a 
  *                                               spherical harmonic basis
- *                  makeSpherical(l1, m1, l2, m2, l3, m3, l4, m4, ints) - same, 2e- ints
  *                  formOverlapKinetic() - forms the matrices sints, tints
  *                  multipoleComponent(a, b, acoord, bcoord, ccoord, powers) - calculates the multipole
  *                                     integral about c-coordinates to the power powers in each coordinate
@@ -47,7 +44,8 @@
  *   04/09/15      Robert Shaw       Multipole integrals added.
  *   06/09/15      Robert Shaw       Nuclear attraction integrals.
  *   08/09/15      Robert Shaw       Auxiliary two elec. ints. added.
- *   09/09/15      Robert Shaw       Shell quartet 2e- ints started.
+ *   09/09/15      Robert Shaw       Shell quartet 2e- ints added.
+ *   10/09/15      Robert Shaw       Removed 2e makeContracted/Spherical.
  */ 
 
 #ifndef INTEGRALSHEADERDEF
@@ -92,11 +90,7 @@ public:
 	      const Vector& ucoords, const Vector& vcoords, const Vector& wcoords,
 	      const Vector& xcoords) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;
-  double makeContracted(Vector& c1, Vector& c2, Vector& c3, 
-			Vector& c4, Matrix& ints) const;
   Matrix makeSpherical(const Matrix& ints, const Vector& lnums) const;
-  double makeSpherical(int l1, int m1, int l2, int m2, int l3, int m3,
-		       int l4, int m4, Matrix& ints) const;
   void formOverlapKinetic();
   void formNucAttract();
   double multipole(BF& a,  BF& b, const Vector& acoords,
