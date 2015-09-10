@@ -35,6 +35,8 @@
  *                                     for the basis functions a, b
  *                  formNucAttract() - forms the matrix of nuclear attraction integrals, naints
  *                  makeERI() - returns a matrix of electron repulsion integrals
+ *                  twoe(A, B, C, D, shellA, shellB, shellC, shellD) - calculate the (ab|cd) two electron
+ *                                     contracted spherical integrals over a shell quartet on atoms A,B,C,D
  *                  twoe(u, v, w, x, ucoords, vcoords, wcoords, xcoords) - calculate the [u0|w0]
  *                                     2e- primitive cartesian integrals
  *
@@ -44,6 +46,8 @@
  *   03/09/15      Robert Shaw       Kinetic integrals merged with overlap.
  *   04/09/15      Robert Shaw       Multipole integrals added.
  *   06/09/15      Robert Shaw       Nuclear attraction integrals.
+ *   08/09/15      Robert Shaw       Auxiliary two elec. ints. added.
+ *   09/09/15      Robert Shaw       Shell quartet 2e- ints started.
  */ 
 
 #ifndef INTEGRALSHEADERDEF
@@ -55,6 +59,7 @@
 #include "molecule.hpp"
 
 // Declare forward dependencies
+class Atom;
 
 //Begin class declaration
 class IntegralEngine
@@ -81,6 +86,8 @@ public:
 			const Vector& vcoords) const;
   double nucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
 		    const Vector& vcoords, const Vector& ccoords) const;
+  Vector twoe(Atom& A, Atom& B, Atom& C, Atom& D, int shellA, int shellB,
+	      int shellC, int shellD) const;
   Matrix twoe(const PBF& u, const PBF& v, const PBF& w, const PBF& x, 
 	      const Vector& ucoords, const Vector& vcoords, const Vector& wcoords,
 	      const Vector& xcoords) const;
