@@ -11,7 +11,7 @@
  #include "matrix.hpp"
  #include "vector.hpp"
 #include <cmath>
-
+#include <iostream>
 // Clean up utility for memory deallocation
 
 void Matrix::cleanUp()

@@ -28,6 +28,7 @@
 #include "logger.hpp"
 #include <cmath>
 #include <iostream>
+#include <iomanip>
 
 // Constructor
 IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
@@ -55,6 +56,8 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
   formOverlapKinetic();
   std::cout << "OVERLAP: \n"; sints.print(); std::cout << "\n\n";
   formNucAttract();
+  std::cout << "KINETIC: \n"; tints.print(); std::cout << "\n\n";
+  std::cout << "NUC ATTRACT: \n"; naints.print(); std::cout << "\n\n";
 }
 
 // Accessors
@@ -74,12 +77,123 @@ Vector IntegralEngine::getEstimates() const
   return estimates;
 }
 
-// Make a matrix of electron-electron repulsion integrals
-Matrix IntegralEngine::makeERI() const
+// Print a sorted list of ERIs to ostream output
+void IntegralEngine::printERI(std::ostream& output) const
 {
-  Matrix eri;
-  return eri;
-} 
+  // Get the number of basis functions
+  // and the number of shells
+  int natoms = molecule.getNAtoms();
+  int N = 0; // No. of cartesian cgbfs
+  int NS = 0; // No. of shells
+  for (int i = 0; i < natoms; i++){
+    N += molecule.getAtom(i).getNbfs();
+    NS += molecule.getAtom(i).getNshells();
+  }
+  
+  // Form a list of basis functions, the atoms they're on,
+  // and the shells they are in.
+  Vector atoms(N); Vector bfs(N); Vector shells(N); 
+  int k = 0;
+  Vector temp; Vector temp2;
+  for (int i = 0; i < natoms; i++){
+    int nbfs = molecule.getAtom(i).getNbfs();
+    temp = molecule.getAtom(i).getShells();
+    for (int j = 0; j < nbfs; j++){
+      atoms[k] = i;
+      bfs[k] = j;
+      int sum = 0; int shell = 0;
+      while(sum < j+1){
+	sum += temp(shell);
+	if(sum < j+1){
+	  shell++;
+	}
+      }
+      shells[k] = shell;
+      k++;
+    }
+  }
+  
+  // Counters to keep track of cart. bfs
+  int m = 0; int n = 0; int p = 0; int q = 0;
+  // Counters to keep track of spher. bfs
+  int a = 0; int b = 0; int c = 0; int d = 0;
+  
+  output << "TWO ELECTRON INTEGRALS: \n";
+  
+  Atom ma; Atom na; Atom pa; Atom qa;
+  // Loop over shell quartets
+  Vector tempInts;
+  for (int r = 0; r < NS; r++){
+  	ma = molecule.getAtom(atoms(m));
+  	Vector mshells = ma.getShells();
+  	int LR = ma.getShellBF(shells(m), 0).getLnum();
+  	int spherR = ma.getNSpherShellBF(shells(m));
+  	
+  	n = m;
+  	b = a;
+  	for (int s = r; s < NS; s++){
+  		na = molecule.getAtom(atoms(n));
+  		Vector nshells = na.getShells();
+  		int LS = na.getShellBF(shells(n), 0).getLnum();
+  		int spherS = na.getNSpherShellBF(shells(n));
+  	    
+  	    p = m;
+  	    c = a;
+  		for (int t = r; t < NS; t++){
+  			pa = molecule.getAtom(atoms(p));
+  			Vector pshells = pa.getShells();
+  			int LT = pa.getShellBF(shells(p), 0).getLnum();
+  			int spherT = pa.getNSpherShellBF(shells(p));
+  			
+  			q = n;
+  			d = b;
+  			for (int u = s; u < NS; u++){
+  				qa = molecule.getAtom(atoms(q));
+  				Vector qshells = qa.getShells();
+  				int LU = qa.getShellBF(shells(q), 0).getLnum();
+  				int spherU = qa.getNSpherShellBF(shells(q));
+  				
+  				// Get the integrals
+				tempInts = twoe(ma, na, pa, qa, shells(m), shells(n),
+					shells(p), shells(q));
+					
+				// Print them out 
+				for (int w = 0; w < spherR; w++){
+					int wpos = w*spherS*spherT*spherU;
+					for (int x = 0; x < spherS; x++){
+						int xpos = x*spherT*spherU;
+						for (int y = 0; y < spherT; y++){
+							int ypos = y*spherU;
+							for (int z = 0; z < spherU; z++){
+								output << std::setw(6) << a+w+1;
+								output << std::setw(6) << b+x+1;
+								output << std::setw(6) << c+y+1;
+								output << std::setw(6) << d+z+1;
+								output << std::setw(20) << tempInts(wpos+xpos+ypos+z);
+								output << "\n";
+							} // end z-loop
+						} // end y-loop
+					} // end x-loop
+				} // end w-loop
+				
+				q += qshells(shells(q));
+				d += spherU;
+			} // end u-loop
+			
+			p += pshells(shells(p));
+			c += spherT;
+		} // end t-loop
+		
+		n += nshells(shells(n));
+		b += spherS;
+	} // end s-loop
+	
+	m += mshells(shells(m));
+	a += spherR;
+} // end r-loop
+	
+				
+} 	
 
 // Utility functions needed to calculate integrals
 
@@ -956,7 +1070,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  
 	  Vector dplist; Vector dcoeffs;
 	  dplist = D.getShellBF(shellD, d).getPrimList();
-	  dcoeffs = D.getShellBF(shellD, d).getPrimList();
+	  dcoeffs = D.getShellBF(shellD, d).getCoeffs();
 
 	  // Assign a zero-filled matrix of appropriate size
 	  cMats[apos+bpos+cpos+d].assign((dlx+1)*(dly+1)*(dlz+1), (blx+1)*(bly+1)*(blz+1), 0.0);
@@ -1040,8 +1154,8 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  for (int inc = 1; inc < qlx+1; inc++){ 
 	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
 	      for (int row = 0; row < (qlx-inc+1)*cinc; row++){
-		cMats[matpos](inc*cinc+row, col) = cMats[matpos]((inc+1)*cinc+row, col) +
-		  XCD*cMats[matpos](inc*cinc+row, col);
+		cMats[matpos]((inc-1)*cinc+row, col) = cMats[matpos]((inc)*cinc+row, col) +
+		  XCD*cMats[matpos]((inc-1)*cinc+row, col);
 	      }
 	    }
 	  }
@@ -1054,8 +1168,8 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  for (int inc = 1; inc < qly+1; inc++){
 	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
 	      for (int row = 0; row < (qly-inc+1)*cinc; row++){
-		cMats[matpos](inc*cinc+row, col) = cMats[matpos]((inc+1)*cinc+row, col) +
-		  YCD*cMats[matpos](inc*cinc+row, col);
+		cMats[matpos]((inc-1)*cinc+row, col) = cMats[matpos]((inc)*cinc+row, col) +
+		  YCD*cMats[matpos]((inc-1)*cinc+row, col);
 	      }
 	    }
 	  }
@@ -1078,12 +1192,22 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   // The integrals are all now of the form (m0|pq), and the second electron is ready to be
   // transformed to the spherical harmonic basis. 
   
-  // Get the number of transformed C and D bfs
-  int spherC = C.getNSpherical(); int spherD = D.getNSpherical();
-  
   // Get the Lnums of the C and D shells
   int LC = C.getShellBF(shellC, 0).getLnum();
   int LD = D.getShellBF(shellD, 0).getLnum();
+  
+  // Get the number of transformed basis functions on C/D
+  int spherC; int spherD;
+  switch(LC){
+  	case 2: { spherC = 5*(sC(shellC)/6); break; }
+  	case 3: { spherC = 7*(sC(shellC)/10); break; }
+  	default: spherC = ncC;
+  }
+  switch(LD){
+  	case 2: { spherD = 5*(sD(shellD)/6); break; }
+  	case 3: { spherD = 7*(sD(shellD)/10); break; }
+  	default: spherD = ncD;
+  }
   
   // Make a list of mnums for each
   Vector cmnums(spherC/(2*LC+1)); Vector dmnums(spherD/(2*LD+1));
@@ -1124,6 +1248,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   	default: jinc = 1;
   }
   j = 0; mod = 2*LD+1;
+
   for(int i = 0; i < spherD; i++){  	
     // Get the coefficients
     formTransMat(tMat2, i, j, LD, dmnums(i%mod));
@@ -1134,7 +1259,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   
   // Transform cMats into new cVecs
   Vector* cVecs = new Vector[ncA*ncB*spherC*spherD];
-  pMat.resize(ncC, ncD);
+  pMat.assign(ncC, ncD, 0.0);
   for (int m = 0; m < ncA; m++){
     for (int n = 0; n < ncB; n++){
       nlx = B.getShellBF(shellB, n).getLx();
@@ -1161,7 +1286,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	    // Construct
 	    for (int p = 0; p < ncC; p++){
 	      for (int q = 0; q < ncD; q++){
-		pMat(p, q) = cMats[mpos+npos+p*ncC+q](0, xpos+ypos+z);
+		pMat(p, q) = cMats[m*ncB*ncC*ncD+n*ncC*ncD+p*ncD+q](0, xpos+ypos+z);
 	      }
 	    }		 
 	    
@@ -1233,12 +1358,22 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   // All integrals are now (mn|cd), stored in the first element of each cVec
   // Only thing left to	is to sphericalise the first electron
   
-   // Get the number of transformed A and B bfs
-  int spherA = A.getNSpherical(); int spherB = B.getNSpherical();
-  
   // Get the Lnums of the C and D shells
   int LA = A.getShellBF(shellA, 0).getLnum();
   int LB = B.getShellBF(shellB, 0).getLnum();
+  
+    // Get the number of transformed basis functions on A/B
+  int spherA; int spherB;
+  switch(LA){
+  	case 2: { spherA = 5*(sA(shellA)/6); break; }
+  	case 3: { spherA = 7*(sA(shellA)/10); break; }
+  	default: spherA = ncA;
+  }
+  switch(LB){
+  	case 2: { spherB = 5*(sB(shellB)/6); break; }
+  	case 3: { spherB = 7*(sB(shellB)/10); break; }
+  	default: spherB = ncB;
+  }
   
   // Make a list of mnums for each
   cmnums.resize(spherA/(2*LA+1)); dmnums.resize(spherB/(2*LB+1));
@@ -1360,7 +1495,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   double zeromult = 2.0*K*M_PI*M_PI*std::sqrt(M_PI/(p+q))/(p*q);
   double RPQ2 = XPQ*XPQ + YPQ*YPQ + ZPQ*ZPQ;
   double ap = alpha/p; double one2p = 1.0/(2.0*p); double one2q = 1.0/(2.0*q);
-  double poq = p/q; 
+  double poq = p/q; double norms = u.getNorm()*v.getNorm()*w.getNorm()*x.getNorm();
 
   // Get the angular momenta
   int Lu = u.getLnum(); int Lv = v.getLnum(); int Lw = w.getLnum();
@@ -1380,7 +1515,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   boysvals = boys(alpha*RPQ2, L, 0);
   // Then convert 
   for (int i = 0; i < L+1; i++)
-    aux(i, 0) = zeromult*boysvals(i);
+    aux(i, 0) = norms*zeromult*boysvals(i);
 
   // Now we need to use the vertical recurrence relation to increment
   // the first index, one cartesian direction at a time
@@ -1391,8 +1526,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
     // Now increment as high as needed
     int kmax = (L-n+1 > Nx+1 ? Nx+1 : L-n+1);
     for (int k = 2; k < kmax; k++){
-      aux(n, k) = XPA*aux(n, k-1) - ap*XPQ*aux(n+1, k-1) +
-	(k-1)*one2p*(aux(n, k-2) - ap*aux(n+1, k-2));
+      aux(n, k) = XPA*aux(n, k-1) - ap*XPQ*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - ap*aux(n+1, k-2));
     }
   }
 
@@ -1414,8 +1548,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
 
       int kmax = (L-Nx-n+1 > Ny+1 ? Ny+1 : L-Nx-n+1);
       for (int k = 2; k < kmax; k++){
-	tempMat(n, k) = YPA*tempMat(n, k-1) - ap*YPQ*tempMat(n+1, k-1)+
-	  (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
+	tempMat(n, k) = YPA*tempMat(n, k-1) - ap*YPQ*tempMat(n+1, k-1)+ (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
       }
     }
     
@@ -1441,8 +1574,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
       tempMat(n, 1) = ZPA*tempMat(n, 0) - ap*ZPQ*tempMat(n+1, 0);
       
       for (int k = 2; k < Nz-n+1; k++){
-	tempMat(n, k) = ZPA*tempMat(n, k-1) - ap*ZPQ*tempMat(n+1, k-1) +
-	  (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
+	tempMat(n, k) = ZPA*tempMat(n, k-1) - ap*ZPQ*tempMat(n+1, k-1) + (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
       }
     }
     
@@ -1477,9 +1609,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
     // Now do the rest of first row
     for (int col1 = 1; col1 < Nx; col1++){
       for (int col2 = 0; col2 < Nyz; col2++){
-	newAux(1, col1*Nyz+col2) = vXxXq*newAux(0, col1*Nyz+col2) + 
-		col1*one2q*newAux(0, (col1-1)*Nyz+col2) -
-	  poq*newAux(0, (col1+1)*Nyz+col2);
+	newAux(1, col1*Nyz+col2) = vXxXq*newAux(0, col1*Nyz+col2) + col1*one2q*newAux(0, (col1-1)*Nyz+col2) - poq*newAux(0, (col1+1)*Nyz+col2);
       }
     }
   }
@@ -1513,15 +1643,13 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
       for (int block = 0; block < vlx+1; block++){
 	// Do the zeroth section of each block for first row
 	for (int col = 0; col < Nz+1; col++)
-	  tempMat(1, (block*Nyz)+col) =   vXxXq*tempMat(0, (block*Nyz)+col) - 
-	  	poq*tempMat(0, (block*Nyz)+col+Nz+1);
+	  tempMat(1, (block*Nyz)+col) =   vXxXq*tempMat(0, (block*Nyz)+col) - poq*tempMat(0, (block*Nyz)+col+Nz+1);
 	
 	// Do the rest of the first row in each block
 	for (int col1 = 1; col1 < Ny; col1++){
 	  for (int col2 = 0; col2 < Nz+1; col2++){
 	    int pos = (block*Nyz)+(col1*(Nz+1)) + col2;
-	    tempMat(1, pos) = vXxXq*tempMat(0, pos) + col1*one2q*tempMat(0, pos - Nz -1) -
-	    	poq*tempMat(0, pos + Nz+1); 
+	    tempMat(1, pos) = vXxXq*tempMat(0, pos) + col1*one2q*tempMat(0, pos - Nz -1) - poq*tempMat(0, pos + Nz+1); 
 	  }
 	}
 	
@@ -1549,7 +1677,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
     for (int block = 0; block < vlx+1; block++){
       for (int col = uly; col < uly+vly+1; col++){
 	for (int row2 = wly; row2 < wly+xly+1; row2++){
-	  aux(row*(xly+1)+row2, block*(vly+1)+(col-uly)) = tempMat(row2, block*Nyz+col);
+	  aux((row-wlx)*(xly+1)+row2-wly, block*(vly+1)+(col-uly)) = tempMat(row2, block*Nyz+col);
 	}
       }
     } 
@@ -1596,7 +1724,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
     for (int block = 0; block < Nxy; block++){
       for (int col = ulz; col < ulz+vlz+1; col++){
 	for (int row2 = wlz; row2 < wlz+xlz+1; row2++){
-	  newAux(row*Nxy+row2, block*(vlz+1)+(col-ulz)) = tempMat(row2, block*(Nz+1)+col);
+	  newAux(row*(xlz+1)+row2-wlz, block*(vlz+1)+(col-ulz)) = tempMat(row2, block*(Nz+1)+col);
 	}
       }
     } 
@@ -1609,7 +1737,7 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   //     uz = ulz ... ulz+vlz   repeat
   // Same pattern for wx,y,z going down the rows. 
   // Therefore a ((xlx+1)*(xly+1)*(xlz+1), (vlx+1)*(vly+1)*(vlz+1)) matrix
-
+  
   return newAux;
 }
 

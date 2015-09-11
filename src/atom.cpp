@@ -195,6 +195,25 @@ int Atom::getNSpherical() const
   return scount+pcount+(5*dcount/6)+(7*fcount/10);
 }
 
+int Atom::getNSpherShellBF(int shell) const
+{
+	// Get angular momentum of this shell
+	int L = lnums(shell);
+	
+	// Get no of cart. bfs in this shell
+	int nc = shells(shell);
+	
+	// Calculate the corresponding number of spherical bfs
+	int ns = 0;
+	switch(L){
+		case 2: { ns = 5*(nc/6); break; }
+		case 3: { ns = 7*(nc/10); break; }
+		default: ns = nc;
+	}
+	
+	return ns;
+}		
+
 // Routines
 
 // Translate(dx, dy, dz) translates the coordinates by [dx, dy, dz]

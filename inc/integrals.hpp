@@ -31,7 +31,7 @@
  *                                     integral about c-coordinates to the power powers in each coordinate
  *                                     for the basis functions a, b
  *                  formNucAttract() - forms the matrix of nuclear attraction integrals, naints
- *                  makeERI() - returns a matrix of electron repulsion integrals
+ *                  printERI(output) - prints a sorted list of ERIs to the ostream output
  *                  twoe(A, B, C, D, shellA, shellB, shellC, shellD) - calculate the (ab|cd) two electron
  *                                     contracted spherical integrals over a shell quartet on atoms A,B,C,D
  *                  twoe(u, v, w, x, ucoords, vcoords, wcoords, xcoords) - calculate the [u0|w0]
@@ -55,6 +55,7 @@
 #include "matrix.hpp"
 #include "vector.hpp"
 #include "molecule.hpp"
+#include <iostream>
 
 // Declare forward dependencies
 class Atom;
@@ -76,9 +77,9 @@ public:
   double getOverlap(int i, int j) const { return sints(i, j); }
   double getKinetic(int i, int j) const { return tints(i, j); }
   double getNucAttract(int i, int j) const { return naints(i, j); }
-  Matrix makeERI() const;
 
   // Intrinsic routines
+  void printERI(std::ostream& output) const;
   Vector getVals(double a, double b, const Vector& A, const Vector& B) const;
   Vector overlapKinetic(const PBF& u, const PBF& v, const Vector& ucoords,
 			const Vector& vcoords) const;

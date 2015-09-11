@@ -1,9 +1,9 @@
-basis, STO-3G
+basis, sto-3g
 charge, 0
 multiplicity, 1
 maxiter, 100
 precision, 1e-13
 geom,
-H, 0.0, 0.0, 0.0 
-H, 0.0, 0.0, 1.4632
+Li, 0.0, 0.0, 0.0
+F, 0.0, 0.0, 2.947972765
 geomend

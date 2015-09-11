@@ -37,9 +37,14 @@ int main (int argc, char* argv[])
   */
   IntegralEngine integral(mol);
   std::cout << "Fine\n";
-  Vector twoints;
-  twoints = integral.twoe(mol.getAtom(0), mol.getAtom(1), mol.getAtom(1), mol.getAtom(0), 0, 0, 0, 0);
-  std::cout << "TWOINTS: \n"; twoints.print(); std::cout << "\n\n";
+  //  integral.printERI(std::cout);
+  Vector tempi;
+  tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
+  tempi.print(); std::cout << "\n\n";
+  Matrix twoprims;
+  twoprims = integral.twoe(mol.getAtom(0).getShellPrim(0, 0), mol.getAtom(0).getShellPrim(0, 1), mol.getAtom(1).getShellPrim(0, 0), mol.getAtom(1).getShellPrim(0, 1),
+			   mol.getAtom(0).getCoords(), mol.getAtom(0).getCoords(), mol.getAtom(1).getCoords(), mol.getAtom(1).getCoords());
+  std::cout << "Prim test:\n"; twoprims.print(); std::cout <<"\n\n";
   /*//std::cout << "Nuc Attract = " << integral.nucAttract(mol.getAtom(0).getBF(0).getPBF(2), mol.getAtom(2).getBF(0).getPBF(2), 
   //						       c, d, cd) << "\n";
   std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";
