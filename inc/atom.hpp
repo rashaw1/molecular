@@ -38,7 +38,7 @@
 #define ATOMHEADERDEF
 
 // Includes
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "bf.hpp"
 #include "basis.hpp"
 

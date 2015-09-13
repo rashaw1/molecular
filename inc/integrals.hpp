@@ -53,12 +53,14 @@
 
 // Includes
 #include "matrix.hpp"
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "molecule.hpp"
 #include <iostream>
 
 // Declare forward dependencies
 class Atom;
+class Tensor4;
+class Tensor6;
 
 //Begin class declaration
 class IntegralEngine
@@ -85,9 +87,9 @@ public:
 			const Vector& vcoords) const;
   double nucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
 		    const Vector& vcoords, const Vector& ccoords) const;
-  Vector twoe(Atom& A, Atom& B, Atom& C, Atom& D, int shellA, int shellB,
+  Tensor4 twoe(Atom& A, Atom& B, Atom& C, Atom& D, int shellA, int shellB,
 	      int shellC, int shellD) const;
-  Matrix twoe(const PBF& u, const PBF& v, const PBF& w, const PBF& x, 
+  Tensor6 twoe(const PBF& u, const PBF& v, const PBF& w, const PBF& x, 
 	      const Vector& ucoords, const Vector& vcoords, const Vector& wcoords,
 	      const Vector& xcoords) const;
   double makeContracted(Vector& c1, Vector& c2, Vector& ints) const;

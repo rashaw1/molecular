@@ -12,7 +12,7 @@
 #include "logger.hpp"
 #include "molecule.hpp"
 #include "matrix.hpp"
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "error.hpp"
 #include "solvers.hpp"
 #include <cmath>

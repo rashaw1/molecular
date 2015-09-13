@@ -11,6 +11,8 @@
  *                                 mmin = 0 by default. Returns values as
  *                                 a vector.
  *           binom(int m, int n) : calculates the binomial coefficient (n m)
+ *           rmultiply(mat, vec), lmultiply(vec, mat) - right and left mult.
+ *                               of a matrix by a vector.
  *
  *   DATE          AUTHOR            CHANGES
  *   =======================================================================
@@ -51,5 +53,8 @@ double sphernorm(int l, int m);
 // matrix, from a pre-calculated list of coefficients. 
 // See Schlegel and Frisch, Int. J. Q. Chem., 54, 83-87 (1995)
 void formTransMat(Matrix& mat, int row, int col, int l, int m);
+
+Vector rmultiply(const Matrix& mat, const Vector& v);
+Vector lmultiply(const Vector& v, const Matrix& mat);
 
 #endif

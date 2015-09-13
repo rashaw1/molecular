@@ -9,24 +9,16 @@
  */
  
  #include "matrix.hpp"
- #include "vector.hpp"
+#include "mvector.hpp"
 #include <cmath>
 #include <iostream>
+
 // Clean up utility for memory deallocation
 
 void Matrix::cleanUp()
 {
   // No memory to deallocate if the matrix is null
-  if(rows > 0){
-    if(cols > 0){
-      // Delete columns
-      for (int i = 0; i < rows; i++){
-	delete[] arr[i];
-      }
-    }
-    // Delete rows
-    delete[] arr;
-  }
+  arr.erase(arr.begin(), arr.end());
 }
 
 // Constructors and destructor
@@ -36,21 +28,10 @@ Matrix::Matrix(int m, int n)
   // Set no. of rows and columns
   rows = m;
   cols = n;
-  // Allocate memory
-  if (m > 0) {
-    // Start with rows
-    arr = new double* [m];
-    // then columns
-    for (int i = 0; i < m; i++){
-      if (n > 0) {
-	arr[i] = new double[n];
-      } else {
-	arr[i] = NULL;
-      }
-    }
-  } else {
-    arr = NULL;
-  }
+  // Allocate container
+  arr.resize(m);
+  for (int i = 0; i < m; i++)
+    arr[i].resize(n);
 }
 
 
@@ -61,53 +42,23 @@ Matrix::Matrix(int m, int n, const double& a)
   // Set no. of rows and columns                            
   rows = m;
   cols = n;
-  // Allocate memory                                                                         
-  if (m> 0) {
-    // Start with rows                                                               
-    arr = new double* [m];
-    // then columns                                                               
-    for(int i = 0; i < m; i++){
-      if (n > 0) {
-	arr[i] = new double[n];
-	// Set elements to a
-	for (int j = 0; j < n; j++) {
-	  arr[i][j] = a;
-	}
-      } else {
-        arr[i] = NULL;
-      }
-    }
-  } else {
-    arr = NULL;
-  }
+  // Allocate container
+  arr.resize(m);
+  for (int i = 0; i < m; i++)
+    arr[i].assign(n, a);
 }
 
 // Same again, but now initialise all rows to a given vector, a
 
-Matrix::Matrix(int m, int n, const double* a)
+Matrix::Matrix(int m, int n, const Vector& a)
 {
   // Set no. of rows and columns                      
   rows = m;
   cols = n;
-  // Allocate memory                                                   
-  if (m> 0) {
-    // Start with rows                                                          
-    arr = new double* [m];
-    // then columns                                                                 
-    for(int i = 0; i <m; i++){
-      if (n > 0) {
-	arr[i] = new double[n];
-	// Set elements - hope a is length n!
-	for (int j = 0; j < n; j++){
-	  arr[i][j] = a[j];
-	}
-      } else {
-        arr[i] = NULL;
-      }
-    }
-  } else {
-    arr = NULL;
-  }
+  // Allocate container
+  arr.resize(m);
+  for (int i = 0; i < m; i++)
+    arr[i] = a;
 }
 
 // Copy constructor
@@ -117,32 +68,16 @@ Matrix::Matrix(const Matrix& other)
   // Set size
   rows = other.nrows();
   cols = other.ncols();
-  if (rows > 0) {
-    // Allocate memory for rows
-    arr = new double* [rows];
-    for (int i = 0; i < rows; i++){
-      if (cols > 0){
-	// Allocate memory for cols
-	arr[i] = new double[cols];
-	// Copy in values
-	for (int j = 0; j < cols; j++){
-	  arr[i][j] = other.arr[i][j];
-	} 
-      } else {
-	arr[i] = NULL;
-      }
-    }
-  } else {
-    arr = NULL;
-  }
+  arr.resize(rows);
+  for (int i = 0; i < rows; i++)
+    arr[i] = other.arr[i];
 }
 
 // Destructor
 
 Matrix::~Matrix()
 {
-  // Deallocate memory if necessary
-  cleanUp();
+
 }
 
 // Accessors
@@ -150,12 +85,7 @@ Matrix::~Matrix()
 Vector Matrix::rowAsVector(int r) const
 {
   // No bounds checking
-  Vector rVec(cols); // Create a vector with dimension 'cols'
-  // Copy in the values from row r
-  for (int i = 0; i < cols; i++){
-    rVec[i] = arr[r][i];
-  }
-  return rVec;
+  return arr[r];
 }
 
 Vector Matrix::colAsVector(int c) const
@@ -163,7 +93,7 @@ Vector Matrix::colAsVector(int c) const
   // No bounds checking
   Vector rVec(rows);
   for (int i = 0; i < rows; i++){
-    rVec[i] = arr[i][c];
+    rVec[i] = arr[i](c);
   }
   return rVec;
 }
@@ -181,9 +111,7 @@ void Matrix::setRow(int r, const Vector& u)
     throw( Error("SETROW", "Vector and matrix are different sizes.") );
   }
   // Proceed anyway, as far as possible
-  for (int i = 0; i < size; i++){
-    arr[r][i] = u(i);
-  }
+  arr[r] = u;
 }
 
 void Matrix::setCol(int c, const Vector& u)
@@ -204,66 +132,30 @@ void Matrix::setCol(int c, const Vector& u)
 
 void Matrix::resize(int m, int n)
 {
-  // Deallocate old memory if necessary
-  cleanUp();
   // Set size
   rows = m;
   cols = n;
   // Reallocate memory
-  if (m> 0) {
-    // Start with rows                                                       
-    arr = new double* [m];
-    // then columns                                                  
-    for(int i = 0; i <m; i++){
-      if (n > 0) {
-	arr[i] = new double[n];
-      } else {
-        arr[i] = NULL;
-      }
-    }
-  } else {
-    arr = NULL;
-  }
+  arr.resize(m);
+  for (int i = 0; i < m; i++)
+    arr[i].resize(n);
 }
 
 // Do the above, but setting every element to a
 
 void Matrix::assign(int m, int n, const double& a)
 {
-  //Do the resizing
-  resize(m, n);
-  //Assign the values
-  if ( m > 0 && n > 0 ) {
-    for(int i = 0; i < m; i++){
-      for(int j = 0; j < n; j++){
-	arr[i][j] = a;
-      }
-    }
-  }
+  rows = m;
+  cols = n;
+  arr.resize(m);
+  for (int i = 0; i < m; i++)
+    arr[i].assign(n, a);
 }
 
 // Remove a given column or row from the matrix
 void Matrix::removeRow(int r)
 {
-  Matrix temp(rows-1, cols);
-  // Copy rows into temp
-  int k = 0; // Count through loop
-  for (int i = 0; i < rows; i++){
-    if (i != r){
-      for (int j = 0; j < cols; j++){
-	temp(k, j) = arr[i][j];
-      }
-      k++;
-    }
-  }
-  // Resize and copy temp back
-  int m = rows;
-  resize(m-1, cols);
-  for (int i = 0; i < m-1; i++){
-    for (int j = 0; j < cols; j++){
-      arr[i][j] = temp(i, j);
-    }
-  }
+  arr.erase(arr.begin() + r);
 }
 
 void Matrix::removeCol(int c)
@@ -274,7 +166,7 @@ void Matrix::removeCol(int c)
   for (int i = 0; i < cols; i++){
     if ( i != c ) {
       for (int j = 0; j < rows; j++){
-	temp(j, k) = arr[j][i];
+	temp(j, k) = arr[j](i);
       }
       k++;
     }
@@ -282,11 +174,9 @@ void Matrix::removeCol(int c)
   // Resize and copy temp back                                        
   int n = cols;
   resize(rows, n-1);
-  for (int i = 0; i <n-1; i++){
-    for (int j = 0; j < rows; j++){
-      arr[j][i] = temp(j, i);
-    }
-  }
+  for (int i = 0; i < rows; i++)
+    arr[i] = temp.rowAsVector(i);
+
 }
 
 // Swap two columns or rows
@@ -329,7 +219,7 @@ void Matrix::swapCols(int i, int j, int start)
 double& Matrix::operator[](int i)
 {
   // No bounds checking
-  return arr[i][0];
+  return arr.at(i)[0];
 }
 
 // Return pointer to element ij
@@ -337,7 +227,7 @@ double& Matrix::operator[](int i)
 double& Matrix::operator()(int i, int j)
 {
   // No bounds checking
-  return arr[i][j];
+  return arr.at(i)[j];
 }
 
 // Return by value
@@ -345,7 +235,7 @@ double& Matrix::operator()(int i, int j)
 double Matrix::operator()(int i, int j) const
 {
   // No bounds checking
-  return arr[i][j];
+  return arr.at(i)(j);
 }
 
 // Overload assignment operator
@@ -358,11 +248,7 @@ Matrix& Matrix::operator=(const Matrix& other)
   // Resize the matrix
   resize(newNRows, newNCols);
   // Copy in the values from other
-  for (int i = 0; i < newNRows; i++){
-    for (int j = 0; j < newNCols; j++){
-      arr[i][j] = other.arr[i][j];
-    }
-  }
+  arr = other.arr;
   return *this;
 }
 
@@ -497,10 +383,8 @@ double Matrix::trace() const
 void Matrix::print(double PRECISION) const
 {
   // Prints vectors by row
-  Vector temp(cols);
   for (int i = 0; i < rows; i++) {
-    temp = rowAsVector(i);
-    temp.print(PRECISION);
+    arr[i].print(PRECISION);
   }
 }
 
@@ -565,19 +449,17 @@ double pnorm(const Matrix& m, int p)
     {  Vector temp1(cols); // Make a temporary vector to store each row
     double tval1; // Temporary norm value
     for (int i = 0; i < rows; i++) { // Loop over rows
-      temp1 = m.rowAsVector(i);
-      tval1 = pnorm(temp1, 1); // Get 1-norm (i.e. sum of absolute values)
+      tval1 = pnorm(m.arr[i], 1); // Get 1-norm (i.e. sum of absolute values)
       // Change rval if tval is bigger
       rval = (tval1 > rval ? tval1 : rval);
     }
     }
     break;
   case 1: // The induced 1-norm is the maximum col sum
-    {Vector temp2(rows);
+    {
     double tval2;
     for (int i = 0; i < cols; i++) {
-      temp2 = m.colAsVector(i);
-      tval2 = pnorm(temp2, 1);
+      tval2 = pnorm(m.arr[i], 1);
       rval = (tval2 > rval ? tval2 : rval);
     }
     }

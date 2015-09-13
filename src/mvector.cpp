@@ -1,5 +1,5 @@
 /*
- *   Implementation of vector.hpp
+ *   Implementation of mvector.hpp
  *
  *   DATE               AUTHOR                  CHANGES
  *   ============================================================================
@@ -10,7 +10,8 @@
  *   26/08/15           Robert Shaw             Added cross/triple products.
  */
  
- #include "vector.hpp"
+ #include "mvector.hpp"
+#include "matrix.hpp"
  #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -19,49 +20,32 @@
 // Memory clean up function
 void Vector::cleanUp()
 {
-  // if n = 0, no memory was ever allocated!
-  if ( size() > 0 ) {
-    delete[] v;
-  }
+  v.erase(v.begin(), v.end());
 }
 
 // Constructors
 Vector::Vector(int length)
 {
   n = length; // Set length of vector
-  if(length > 0){ // Allocate memory
-    v = new double[length];
-  } else {
-    v = NULL;
-  }
+  v.resize(length);
 }
 
 
 Vector::Vector(int length, const double& a)
 {
   n = length; // Set length of vector
-  if(length > 0){ // Allocate memory and set all values to a
-    v = new double[length];
-    for(int i=0; i<length; i++){
-      v[i] = a;
-    }
-  } else {
-    v = NULL;
-  }
+  v.resize(length);
+  for (int i = 0; i < length; i++)
+    v[i] = a;
 }
 
 
 Vector::Vector(int length, const double* a)
 {
   n = length; // Set length
-  if (length > 0) { // Allocate memory, and copy a into vector
-    v = new double[length];
-    for(int i = 0; i < length; i++){
-      v[i] = a[i]; // Really hope that a is the right length!
-    }
-  } else {
-    v = NULL;
-  }
+  v.resize(length);
+  for (int i = 0; i < length; i++)
+    v[i] = a[i];
 }
 
 // Copy constructor
@@ -69,55 +53,35 @@ Vector::Vector(int length, const double* a)
 Vector::Vector(const Vector& u)
 {
   n = u.size(); // Get size
-  if(n > 0) { // Allocate size, and copy in values
-    v = new double[n];
-    for (int i = 0; i < n; i++) {
-      v[i] = u.v[i];
-    }
-  } else {
-    v = NULL;
-  }
+  v = u.v;
 }
 
 // Destructor
 
 Vector::~Vector()
 {
-  cleanUp(); // Deallocate memory if necessary
+
 }
 
 // Shaping functions
 
 void Vector::resize(int length) // Resize with loss of values
 {
-  cleanUp(); // Deallocate old memory
   n = length; // Reset size
-  if (length > 0) { // Reallocate memory
-    v = new double[length];
-  } else {
-    v = NULL;
-  }
+  v.resize(length);
 }
 
 
-void Vector::resizeCopy(int length) { 
-  // Resizes, keeping as many values as fit
-  double* tempV;
-  if ( n > 0 ) {
-    tempV = new double[n]; // Store old values
-    for (int i = 0; i < n; i++) {
-      tempV[i] = v[i];
-    }
-  }
-  // Do the resizing
-  resize(length);
-  // Copy in old values as far as fits, leaving excess empty
-  if ( n > 0 ) {
-    int m = ( n < length ? n : length ); // m is the lesser of n, length
-    for (int i = 0; i < m; i++) {
-      v[i] = tempV[i];
-    }
-  }
+void Vector::resizeCopy(int length) 
+{ 
+  std::vector<double> temp;
+  temp = v;
+  v.resize(length);
+  int max = (n < length ? n : length);
+  for (int i = 0; i < max; i++)
+    v[i] = temp[i];
+
+  n = length;
 }
 
 
@@ -126,11 +90,8 @@ void Vector::assign(int length, const double& a) // Resizes, setting all vals to
   // Do resizing
   resize(length);
   // Set values to a
-  if ( length > 0 ) {
-    for(int i = 0; i < length; i++){
-      v[i] = a;
-    }
-  }
+  for(int i = 0; i < length; i++)
+      v[i] = a; 
 }
 
 // Swap elements i and j
@@ -147,21 +108,21 @@ void Vector::swap(int i, int j)
 double& Vector::operator[](int i) // Return v[i]
 {
   // No bounds checking
-  return v[i];
+  return v.at(i);
 }
 
 
 double Vector::operator[](int i) const // Return by value
 {
   // No bounds checking
-  return v[i];
+  return v.at(i);
 }
 
 
 double Vector::operator()(int i) const // Return by value
 {
   // No bounds checking
-  return v[i];
+  return v.at(i);
 }
 
 
@@ -240,7 +201,7 @@ void Vector::print(double PRECISION) const
     if (fabs(v[i]) > PRECISION){
       val = v[i];
     } else { val = 0.0; }
-    std::cout << std::setprecision(8) << std::setw(14) << val;
+    std::cout << std::setprecision(12) << std::setw(18) << val;
   }
   std::cout << "\n";
 }
@@ -402,7 +363,6 @@ double angle(const Vector& u, const Vector& w)
   }
   return rval;
 }
-
 
 // !!!ONLY FOR 3D VECTORS!!!
 

@@ -1,6 +1,6 @@
 // Implements factors.hpp
 
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "matrix.hpp"
 #include "error.hpp"
 #include "factors.hpp"

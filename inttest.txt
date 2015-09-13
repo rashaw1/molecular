@@ -4,8 +4,10 @@
 #include "logger.hpp"
 #include "molecule.hpp"
 #include "pbf.hpp"
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "matrix.hpp"
+#include "tensor6.hpp"
+#include "tensor4.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -13,19 +15,19 @@ int main(int argc, char* argv[])
   std::ofstream output("inty.out");
   Logger log(input, output, std::cout);
 
-  PBF p1(1.0, 2, 1, 1);
-  PBF p2(1.5, 1, 1, 2);
-  PBF p3(1.3, 2, 1, 1);
-  PBF p4(1.9, 1, 1, 2);
+  PBF p1(19.50173109, 0, 0, 2);
+  PBF p2(19.50173109, 0, 0, 2);
+  PBF p3(19.50173109, 0, 1, 1);
+  PBF p4(19.50173109, 0, 1, 1);
 
   Vector c1(3, 0.0); Vector c2(3, 0.0);
-  c2[2] = 1.0;
+  c2[2] = 1.0; c1[2] = -1.0;
   Molecule mol(log);
   IntegralEngine ints(mol);
 
-  Matrix pMat;
+  Tensor6 pMat;
 
-  pMat = ints.twoe(p1, p2, p3, p4, c1, c2, c2, c1);
+  pMat = ints.twoe(p1, p2, p3, p4, c2, c2, c2, c2);
   pMat.print();
   
   return 0;

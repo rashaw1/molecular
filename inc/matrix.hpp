@@ -18,22 +18,23 @@
 #define MATRIXHEADERDEF
 
 // Declare forward dependencies
-class Vector;
 
 #include "error.hpp"
+#include "mvector.hpp"
+#include <vector>
 
 class Matrix
 {
 private:
   int rows, cols; // No. of rows and columns of the matrix
-  double** arr; // 2D array of matrix entries
+  std::vector<Vector> arr;
   void cleanUp(); // Utility function for memory deallocation
 public:
   // Constructors and destructor
   Matrix() : rows(0), cols(0) {} // Default, forms zero length vector
   Matrix(int m, int n); // Declare an m x n matrix
   Matrix(int m, int n, const double& a); // Declare m x n matrix, all entries = a
-  Matrix(int m, int n, const double* a); // Matrix of m row copies of n-vector a
+  Matrix(int m, int n, const Vector& a); // Matrix of m row copies of n-vector a
   Matrix(const Matrix& other); // Copy constructor
   ~Matrix(); // Destructor
   // Accessors

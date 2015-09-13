@@ -2,7 +2,7 @@
 
 #include "factors.hpp"
 #include "solvers.hpp"
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "matrix.hpp"
 #include "error.hpp"
 #include <cmath>

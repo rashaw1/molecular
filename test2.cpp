@@ -2,11 +2,14 @@
 #include <fstream>
 #include <iomanip>
 #include "mathutil.hpp"
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "logger.hpp"
+#include "tensor6.hpp"
+#include "tensor4.hpp"
 #include "molecule.hpp"
 #include "error.hpp"
 #include "integrals.hpp"
+#include <stdexcept>
 
 int main (int argc, char* argv[])
 {
@@ -35,16 +38,23 @@ int main (int argc, char* argv[])
   //Vector cd = mol.getAtom(1).getCoords();
   //Vector d = mol.getAtom(2).getCoords();
   */
+  log.print("PRELIMINARIES FINISHED\n");
+  log.localTime();
   IntegralEngine integral(mol);
-  std::cout << "Fine\n";
-  //  integral.printERI(std::cout);
-  Vector tempi;
-  tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
-  tempi.print(); std::cout << "\n\n";
-  Matrix twoprims;
-  twoprims = integral.twoe(mol.getAtom(0).getShellPrim(0, 0), mol.getAtom(0).getShellPrim(0, 1), mol.getAtom(1).getShellPrim(0, 0), mol.getAtom(1).getShellPrim(0, 1),
-			   mol.getAtom(0).getCoords(), mol.getAtom(0).getCoords(), mol.getAtom(1).getCoords(), mol.getAtom(1).getCoords());
-  std::cout << "Prim test:\n"; twoprims.print(); std::cout <<"\n\n";
+  log.print("1E INTEGRALS DONE\n");
+  log.localTime();
+  std::ofstream intout("twoints.out");
+    integral.printERI(intout);
+    log.print("2E INTEGRALS DONE\n");
+    log.localTime();
+    intout.close();
+  //Vector tempi;
+  //tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
+  //tempi.print(); std::cout << "\n\n";
+  //Matrix twoprims;
+  //twoprims = integral.twoe(mol.getAtom(0).getShellPrim(0, 0), mol.getAtom(0).getShellPrim(0, 1), mol.getAtom(1).getShellPrim(0, 0), mol.getAtom(1).getShellPrim(0, 1),
+  //			   mol.getAtom(0).getCoords(), mol.getAtom(0).getCoords(), mol.getAtom(1).getCoords(), mol.getAtom(1).getCoords());
+  //std::cout << "Prim test:\n"; twoprims.print(); std::cout <<"\n\n";
   /*//std::cout << "Nuc Attract = " << integral.nucAttract(mol.getAtom(0).getBF(0).getPBF(2), mol.getAtom(2).getBF(0).getPBF(2), 
   //						       c, d, cd) << "\n";
   std::cout << integral.getOverlap(6, 6) << "  " << integral.getKinetic(6, 6) << "\n";

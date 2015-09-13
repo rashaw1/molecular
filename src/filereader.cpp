@@ -41,7 +41,7 @@ int FileReader::findToken(std::string t)
   else if (t == "precision") { rval = 4; }
   else if (t == "basis") { rval = 5; }
   else if (t == "geom") { rval = 6; }
-  
+  else if (t == "thrint") { rval = 7; }
   return rval;
 }
 
@@ -54,6 +54,7 @@ void FileReader::readParameters()
   maxiter = 50;
   precision = 1e-12;
   geomstart = 0; geomend = 0;
+  thrint = 1e-12;
 
   // Read line by line and parse
   std::string line, token;
@@ -103,6 +104,10 @@ void FileReader::readParameters()
 	  std::getline(input, line);
 	  geomend++;
 	}
+	break;
+      }
+      case 7: { // Thrint
+	thrint = std::stod(line.substr(pos+1, line.length()));
 	break;
       }
       default: { // Unkown command issued

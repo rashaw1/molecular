@@ -9,11 +9,13 @@
  *    02/09/15     Robert Shaw     Implemented binom function.
  *    05/09/15     Robert Shaw     Implemented clebsch, sphernorm.
  *    07/09/15     Robert Shaw     Implemented formTransMat.
+ *    12/09/15     Robert Shaw     Move vecxmatrix multiplication here.
  */
 
 #include <cmath>
 #include "mathutil.hpp"
-#include "vector.hpp"
+#include "error.hpp"
+#include "mvector.hpp"
 #include "matrix.hpp"
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/special_functions/erf.hpp>
@@ -212,5 +214,49 @@ void formTransMat(Matrix& mat, int row, int col, int l, int m){
     mat(row, col) = 1.0;
   }
   }
+}
+
+
+// Vector x matrix and matrix x vector- will throw an error if wrong shapes                                                                                         
+// Left and right vector x matrix multiplication functions
+
+Vector lmultiply(const Vector& v, const Matrix& mat)
+{
+  // Assume left multiplication implies transpose                                                                                                                   
+  int n = v.size();
+  int cols = mat.ncols();
+  int rows = mat.nrows();
+  Vector rVec(cols); // Return vector should have dimension cols                                                                                                    
+  // For this to work we require n = rows                                                                                                                           
+  if (n != rows) {
+    throw(Error("VECMATMULT", "Vector and matrix are wrong sizes to multiply."));
+  } else { // Do the multiplication                                                                                                                                 
+    for (int i = 0; i < cols; i++){
+      Vector temp(rows); // Get each column of the matrix                                                                                                           
+      temp = mat.colAsVector(i);
+      rVec[i] = inner(v, temp);
+    }
+  }
+  return rVec;
+}
+
+
+Vector rmultiply(const Matrix& mat, const Vector& v)
+{
+  int n = v.size();
+  int cols = mat.ncols();
+  int rows = mat.nrows();
+  Vector rVec(rows); // Return vector should have dimension rows                                                                                                    
+  // For this to work we require n = cols                                                                                                                           
+  if (n != cols) {
+    throw(Error("MATVECMULT", "Vector and matrix are wrong sizes to multiply."));
+  } else { // Do the multiplication                                                                                                                                 
+    for (int i = 0; i < rows; i++){
+      Vector temp(cols);
+      temp = mat.rowAsVector(i);
+      rVec[i] = inner(v, temp);
+    }
+  }
+  return rVec;
 }
       

@@ -14,18 +14,21 @@
 #ifndef VECTORHEADERDEF
 #define VECTORHEADERDEF
 
-#include "matrix.hpp"
+class Matrix;
+
 #include "error.hpp"
+#include "mathutil.hpp"
+#include <vector>
 
 class Vector
 {
 private:
   int n; // The number of elements
-  double* v; // The elements themselves
+  std::vector<double> v;
   void cleanUp(); // Deallocates memory
 public:
   // Constructors and destructor
-  Vector() : n(0), v(NULL) {} // Default constructor, zero length vector
+  Vector() : n(0) {} // Default constructor, zero length vector
   Vector(int length); // Empty vector of length length
   Vector(int length, const double& a); // Vector with 'length' values, all a
   Vector(int length, const double* a); // Initialise vector to array a
@@ -94,47 +97,14 @@ inline Vector operator*(const Vector& v, const double& scalar)
   return rvec;
 }
 
-// Vector x matrix and matrix x vector- will throw an error if wrong shapes
-
 inline Vector operator*(const Vector& v, const Matrix& mat)
 {
-  // Assume left multiplication implies transpose                                      
-  int n = v.size();
-  int cols = mat.ncols();
-  int rows = mat.nrows();
-  Vector rVec(cols); // Return vector should have dimension cols                  
-  // For this to work we require n = rows                                      
-  if (n != rows) {
-    throw(Error("VECMATMULT", "Vector and matrix are wrong sizes to multiply."));
-  } else { // Do the multiplication                                         
-    for (int i = 0; i < cols; i++){
-      Vector temp(rows); // Get each column of the matrix
-      temp = mat.colAsVector(i);
-      rVec[i] = inner(v, temp);
-    }
-  }
-  return rVec;
+  return lmultiply(v, mat);
 }
-
 
 inline Vector operator*(const Matrix& mat, const Vector& v)
 {
-  int n = v.size();
-  int cols = mat.ncols();
-  int rows = mat.nrows();
-  Vector rVec(rows); // Return vector should have dimension rows                                      
-  // For this to work we require n = cols                                                
-  if (n != cols) {
-    throw(Error("MATVECMULT", "Vector and matrix are wrong sizes to multiply."));
-  } else { // Do the multiplication                                                                            
-    for (int i = 0; i < rows; i++){
-      Vector temp(cols);
-      temp = mat.rowAsVector(i);
-      rVec[i] = inner(v, temp);
-    }
-  }
-  return rVec;
+  return rmultiply(mat, v);
 }
-
 
 #endif

@@ -96,7 +96,7 @@ private:
   boost::timer::nanosecond_type last_time;
   Basis basisset;
   // User defined constants
-  double PRECISION;
+  double PRECISION, THRINT;
   int MAXITER;
 public:
   // Conversion factors
@@ -115,6 +115,7 @@ public:
   int getMultiplicity() const { return multiplicity; }
   Atom getAtom(int i) const { return atoms[i]; }
   double precision() const { return PRECISION; }
+  double thrint() const { return THRINT; }
   int maxiter() const { return MAXITER; }
   int getNatoms() const { return natoms; }
   // Overloaded print functions

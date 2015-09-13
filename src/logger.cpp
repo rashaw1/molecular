@@ -17,7 +17,7 @@
 #include "bf.hpp"
 #include "pbf.hpp"
 #include "matrix.hpp"
-#include "vector.hpp"
+#include "mvector.hpp"
 #include "error.hpp"
 #include "ioutil.hpp"
 #include "filereader.hpp"
@@ -54,6 +54,7 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   multiplicity = input.getMultiplicity();
   PRECISION = input.getPrecision();
   MAXITER = input.getMaxIter();
+  THRINT = input.getThrint();
 
   // Now we deal with the arrays
   natoms = input.getNAtoms(); // Get how many atoms there are
@@ -544,7 +545,7 @@ void Logger::error(Error& e)
 void Logger::localTime()
 {
   boost::timer::nanosecond_type temp = timer.elapsed().wall;
-  outfile << "Time taken: " <<  ((double)(last_time - temp))/(1e9)
+  outfile << "Time taken: " <<  ((double)(temp - last_time))/(1e9)
 	  << " seconds\n";
   last_time = temp;
 }

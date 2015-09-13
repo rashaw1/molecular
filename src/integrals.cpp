@@ -26,6 +26,10 @@
 #include "mathutil.hpp"
 #include "basis.hpp"
 #include "logger.hpp"
+#include "tensor4.hpp"
+#include "tensor6.hpp"
+#include "ten4ten6.hpp"
+#include "ten4ten4.hpp"
 #include <cmath>
 #include <iostream>
 #include <iomanip>
@@ -54,10 +58,7 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
   sizes[3] = (ones*(ones+1))/2;
 
   formOverlapKinetic();
-  std::cout << "OVERLAP: \n"; sints.print(); std::cout << "\n\n";
   formNucAttract();
-  std::cout << "KINETIC: \n"; tints.print(); std::cout << "\n\n";
-  std::cout << "NUC ATTRACT: \n"; naints.print(); std::cout << "\n\n";
 }
 
 // Accessors
@@ -85,9 +86,11 @@ void IntegralEngine::printERI(std::ostream& output) const
   int natoms = molecule.getNAtoms();
   int N = 0; // No. of cartesian cgbfs
   int NS = 0; // No. of shells
+  int NSpher = 0; // No. of spherical cgbfs
   for (int i = 0; i < natoms; i++){
     N += molecule.getAtom(i).getNbfs();
     NS += molecule.getAtom(i).getNshells();
+    NSpher += molecule.getAtom(i).getNSpherical();
   }
   
   // Form a list of basis functions, the atoms they're on,
@@ -118,81 +121,145 @@ void IntegralEngine::printERI(std::ostream& output) const
   // Counters to keep track of spher. bfs
   int a = 0; int b = 0; int c = 0; int d = 0;
   
-  output << "TWO ELECTRON INTEGRALS: \n";
-  
   Atom ma; Atom na; Atom pa; Atom qa;
   // Loop over shell quartets
-  Vector tempInts;
+  Tensor4 tempInts;
+  Tensor4 twoints(NSpher, NSpher, NSpher, NSpher, 0.0);
+
+  // Do the "diagonal" elements for pre-screening purposes
+  Matrix prescreen(NS, NS, 0.0);
+  for (int r = 0; r < NS; r++) { 
+    ma = molecule.getAtom(atoms(m));
+    Vector mshells = ma.getShells();
+    int spherR = ma.getNSpherShellBF(shells(m));
+
+    n = m;
+    b = a;
+    for (int s = r; s < NS; s++) {
+      na = molecule.getAtom(atoms(n));
+      Vector nshells = na.getShells();
+      int spherS = na.getNSpherShellBF(shells(n));
+
+      // Get the integrals
+      tempInts = twoe(ma, na, ma, na, shells(m), shells(n), shells(m), shells(n));
+      
+      // Copy into two ints, and find maximum element
+      double maxval = 0.0;
+      double tempval;
+      for (int w = 0; w < spherR; w++){
+	for (int x = 0; x < spherS; x++){
+	  for (int y = 0; y < spherR; y++){
+	    for (int z = 0; z < spherS; z++){
+	      tempval = fabs(tempInts(w,x,y,z));
+	      maxval = (tempval > maxval ? tempval : maxval);
+	      twoints(a+w, b+x, a+y, b+z) = tempInts(w, x, y, z);
+	    }
+	  }
+	}
+      }
+      
+      // Put maxval in the prescreening matrx
+      prescreen(r, s) = std::sqrt(maxval);
+      prescreen(s, r) = prescreen(r, s);
+      
+      // Increment no. of bfs
+      n += nshells(shells(n));
+      b += spherS;
+    }
+
+    m += mshells(shells(m));
+    a += spherR;
+  }
+  std::cout << "PRESCREENING:\n"; prescreen.print(); std::cout << "\n\n";
+	
+  m = n = a = b = 0;
   for (int r = 0; r < NS; r++){
-  	ma = molecule.getAtom(atoms(m));
-  	Vector mshells = ma.getShells();
-  	int LR = ma.getShellBF(shells(m), 0).getLnum();
-  	int spherR = ma.getNSpherShellBF(shells(m));
+    ma = molecule.getAtom(atoms(m));
+    Vector mshells = ma.getShells();
+    int spherR = ma.getNSpherShellBF(shells(m));
+    
+    n = m;
+    b = a;
+    for (int s = r; s < NS; s++){
+      na = molecule.getAtom(atoms(n));
+      Vector nshells = na.getShells();
+      int spherS = na.getNSpherShellBF(shells(n));
+      
+      p = m;
+      c = a;
+      for (int t = r; t < NS; t++){
+	pa = molecule.getAtom(atoms(p));
+	Vector pshells = pa.getShells();
+	int spherT = pa.getNSpherShellBF(shells(p));
   	
-  	n = m;
-  	b = a;
-  	for (int s = r; s < NS; s++){
-  		na = molecule.getAtom(atoms(n));
-  		Vector nshells = na.getShells();
-  		int LS = na.getShellBF(shells(n), 0).getLnum();
-  		int spherS = na.getNSpherShellBF(shells(n));
-  	    
-  	    p = m;
-  	    c = a;
-  		for (int t = r; t < NS; t++){
-  			pa = molecule.getAtom(atoms(p));
-  			Vector pshells = pa.getShells();
-  			int LT = pa.getShellBF(shells(p), 0).getLnum();
-  			int spherT = pa.getNSpherShellBF(shells(p));
-  			
-  			q = n;
-  			d = b;
-  			for (int u = s; u < NS; u++){
-  				qa = molecule.getAtom(atoms(q));
-  				Vector qshells = qa.getShells();
-  				int LU = qa.getShellBF(shells(q), 0).getLnum();
-  				int spherU = qa.getNSpherShellBF(shells(q));
-  				
-  				// Get the integrals
-				tempInts = twoe(ma, na, pa, qa, shells(m), shells(n),
-					shells(p), shells(q));
-					
-				// Print them out 
-				for (int w = 0; w < spherR; w++){
-					int wpos = w*spherS*spherT*spherU;
-					for (int x = 0; x < spherS; x++){
-						int xpos = x*spherT*spherU;
-						for (int y = 0; y < spherT; y++){
-							int ypos = y*spherU;
-							for (int z = 0; z < spherU; z++){
-								output << std::setw(6) << a+w+1;
-								output << std::setw(6) << b+x+1;
-								output << std::setw(6) << c+y+1;
-								output << std::setw(6) << d+z+1;
-								output << std::setw(20) << tempInts(wpos+xpos+ypos+z);
-								output << "\n";
-							} // end z-loop
-						} // end y-loop
-					} // end x-loop
-				} // end w-loop
-				
-				q += qshells(shells(q));
-				d += spherU;
-			} // end u-loop
-			
-			p += pshells(shells(p));
-			c += spherT;
-		} // end t-loop
-		
-		n += nshells(shells(n));
-		b += spherS;
-	} // end s-loop
+	q = p;
+	d = c;
+	for (int u = t; u < NS; u++){
+	  qa = molecule.getAtom(atoms(q));
+	  Vector qshells = qa.getShells();
+	  int spherU = qa.getNSpherShellBF(shells(q));
+	  
+	  // Prescreen before doing the integrals - Cauchy-Schwarz
+	  if ( ((r!=t) || (s!=u)) && (prescreen(r, s)*prescreen(t, u) > molecule.getLog().thrint()) ) {
+	    // Get the integrals
+	    tempInts = twoe(ma, na, pa, qa, shells(m), shells(n),
+			    shells(p), shells(q));
+	    
+	    // Copy them into two ints
+	    for (int w = 0; w < spherR; w++){
+	      for (int x = 0; x < spherS; x++){
+		for (int y = 0; y < spherT; y++){
+		  for (int z = 0; z < spherU; z++){
+		    twoints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
+		  } // end z-loop
+		} // end y-loop
+	      } // end x-loop
+	    } // end w-loop
+	  }
+	  
+	  q += qshells(shells(q));
+	  d += spherU;
+	} // end u-loop
 	
-	m += mshells(shells(m));
-	a += spherR;
-} // end r-loop
-	
-				
+	p += pshells(shells(p));
+	c += spherT;
+      } // end t-loop
+      
+      n += nshells(shells(n));
+      b += spherS;
+    } // end s-loop
+    
+    m += mshells(shells(m));
+    a += spherR;
+  } // end r-loop
+  
+  std::cout << "2e MEMORY: " << NSpher*NSpher*NSpher*NSpher*sizeof(twoints)/(1024.0*1024.0) << "\n";
+  output << " TWO ELECTRON INTEGRALS: \n";
+  // print them out
+  int icount = 0; 
+  for (int c1 = 0; c1 < NSpher; c1++){
+    for (int c2 = 0; c2 < c1+1; c2++){
+      for (int c3 = 0; c3 < c1+1; c3++){
+	for(int c4 = 0; c4 < (c2 < c3 ? c2+1 : c3+1); c4++){
+	  icount++;
+	  double multiplier = 0.125;
+	  if (c1!=c2) { multiplier *= 2.0; }
+	  if (c3!=c4) { multiplier *= 2.0; }
+	  if ((c1+c2)!=(c3+c4)) { multiplier *= 2.0; }
+	  else if ((c1!=c3) && (c1 != c4)) { multiplier *=2.0; }
+	  else if ((c2!=c3) && (c2 != c4)) { multiplier *=2.0; }
+	  if (fabs(twoints(c4, c3, c2, c1)) < 1e-14 ) { multiplier = 0; }
+	  output << std::setw(6) << c1+1;
+	  output << std::setw(6) << c2+1;
+	  output << std::setw(6) << c3+1;
+	  output << std::setw(6) << c4+1;
+	  output << std::setw(20) << multiplier*twoints(c4, c3, c2, c1);
+	  output << "\n";	
+	}
+      }
+    }
+  }			
+  std::cout << "N 2e Ints: " << icount << "\n";
 } 	
 
 // Utility functions needed to calculate integrals
@@ -937,6 +1004,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   // Increment the first cartesian index  by the recurrence relation:
   // O(n)_i+1, 0 = XPA*O(n)i,0 - XPC*O(n+1)i,0 + (i/2p)*(O(n)_i-1,0 - O(n+1)_i-1,0)
   // for each n from N-1 to N-Nx
+  if ( Nx > 0) {
   for (int n = N-1; n > -1 ; n--){
     // Calculate first increment
     aux(n, 1) = XPA*aux(n, 0) - XPC*aux(n+1, 0); 
@@ -944,6 +1012,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
     for (int k = 2; k < Nmax; k++){
       aux(n, k) = XPA*aux(n, k-1) - XPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
     }
+  }
   }
 
   // Increment the second index by the horizontal recursion relation if necessary
@@ -959,6 +1028,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   aux.assign(N-Nx+1, Ny+1, 0.0); // Resize, and repeat procedure for next two indices
   aux.setCol(0, temp);
 
+  if( Ny > 0 ) {
   for (int n = N-Nx-1; n > -1; n--){
     // Calculate first increment
     aux(n, 1) = YPA*aux(n, 0) - YPC*aux(n+1, 0);
@@ -967,7 +1037,8 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
       aux(n, k) = YPA*aux(n, k-1) - YPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
     }
   }
-
+  }
+  
   // Increment the second index by the horizontal recursion relation if necessary
   for (int n = N-Nx-Ny; n > -1; n--){
     for (int j = 1; j < vly+1; j++){
@@ -1017,7 +1088,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
 //        - Use the horizontal recursion on first electron
 //          to get (mn|cd)
 //        - Sphericalise to (ab|cd)
-Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D, 
+Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D, 
 			    int shellA, int shellB, int shellC, int shellD) const
 {
   // Get the coordinates of each atom, number of prims in each shell,
@@ -1030,72 +1101,18 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   sA = A.getShells(); sB = B.getShells(); sC = C.getShells(); sD = D.getShells();
   int ncA = sA(shellA); int ncB = sB(shellB); int ncC = sC(shellC); int ncD = sD(shellD);
 
-  // For each quartet of bfs we need a contraction matrix
-  Matrix* cMats = new Matrix[ncA*ncB*ncC*ncD];
-  // And a list of contraction coefficients
-  Matrix cList(ncA*ncB*ncC*ncD, npA*npB*npC*npD, 0.0);
-  // Now work out how big they all need to be, and assign them all to zero
-  // whilst constructing the contraction coefficient list
-  int blx, bly, blz, dlx, dly, dlz;
-  for (int a = 0; a < ncA; a++){
-    // First term in position in the matrix array
-    int apos = a*ncB*ncC*ncD;
-
-    // List of contributing prims, and contraction coeffs
-    Vector aplist; Vector acoeffs;
-    aplist = A.getShellBF(shellA, a).getPrimList();
-    acoeffs = A.getShellBF(shellA, a).getCoeffs();
-    
-    for (int b = 0; b < ncB; b++){
-      int bpos = b*ncC*ncD;
-      blx= B.getShellBF(shellB, b).getLx();
-      bly= B.getShellBF(shellB, b).getLy();
-      blz= B.getShellBF(shellB, b).getLz();
-
-      Vector bplist; Vector bcoeffs;
-      bplist = B.getShellBF(shellB, b).getPrimList();
-      bcoeffs = B.getShellBF(shellB, b).getCoeffs();
-
-      for (int c = 0; c < ncC; c++){
-	int cpos = c*ncD;
-
-	Vector cplist; Vector ccoeffs;
-	cplist = C.getShellBF(shellC, c).getPrimList();
-	ccoeffs = C.getShellBF(shellC, c).getCoeffs();
-
-	for (int d = 0; d < ncD; d++){
-	  dlx= D.getShellBF(shellD, d).getLx();
-	  dly= D.getShellBF(shellD, d).getLy();
-	  dlz= D.getShellBF(shellD, d).getLz();
-	  
-	  Vector dplist; Vector dcoeffs;
-	  dplist = D.getShellBF(shellD, d).getPrimList();
-	  dcoeffs = D.getShellBF(shellD, d).getCoeffs();
-
-	  // Assign a zero-filled matrix of appropriate size
-	  cMats[apos+bpos+cpos+d].assign((dlx+1)*(dly+1)*(dlz+1), (blx+1)*(bly+1)*(blz+1), 0.0);
-	
-	  // Fill out the row in the coefficients matrix for this cgbf quartet
-	  int p1 = npB*npC*npD; int p2 = npC*npD;
-	  for (int u = 0; u < aplist.size(); u++){
-	    for (int v = 0; v < bplist.size(); v++){
-	      for (int w = 0; w < cplist.size(); w++){
-		for (int x = 0; x < dplist.size(); x++){
-		  cList(apos+bpos+cpos+d, aplist(u)*p1 + bplist(v)*p2 + cplist(w)*npC + dplist(x)) 
-		    = acoeffs(u)*bcoeffs(v)*ccoeffs(w)*dcoeffs(x);
-		}
-	      }
-	    }
-	  } // End of coeffs loop
-	  
-	} // End of atom D cgbf loop
-      } // End of atom C cgbf loop
-    } // End of atom B cgbf loop
-  } // End of atom A cgbf loop
+  // Get the Lnums of the shells
+  int LA = A.getShellBF(shellA, 0).getLnum();
+  int LB = B.getShellBF(shellB, 0).getLnum();
+  int LC = C.getShellBF(shellC, 0).getLnum();
+  int LD = D.getShellBF(shellD, 0).getLnum();
+  
+  // Form a 4-tensor of 6-tensors to store prim ints and to contract into
+  Ten4Ten6 prims(npA, npB, npC, npD);
+  Ten4Ten6 contr(ncA, ncB, ncC, ncD);
   
   // Now we need to do all the calculations over primitive shell quartets
   PBF upbf; PBF vpbf; PBF wpbf; PBF xpbf;
-  Matrix pMat;
   for (int u = 0; u < npA; u++){
     upbf = A.getShellPrim(shellA, u);
 
@@ -1107,29 +1124,71 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 
 	for (int x = 0; x < npD; x++){
 	  xpbf = D.getShellPrim(shellD, x);
-	  
-	  pMat = twoe(upbf, vpbf, wpbf, xpbf, cA, cB, cC, cD);
 
-	  // Contract this primitive quartet into each appropriate
-	  // cgbf quartet integral
-	  int cpos = u*npB*npC*npD + v*npC*npD + w*npD + x;
-	  for (int mat = 0; mat < ncA*ncB*ncC*ncD; mat++){
-	    cMats[mat] = cList(mat, cpos)*pMat + cMats[mat];
-	  }
-	} // End x-loop
+	  // Calculate the primitive quartet integrals
+	  prims.set(u, v, w, x, twoe(upbf, vpbf, wpbf, xpbf, cA, cB, cC, cD));
+		} // End x-loop
       } // End w-loop
     } // End v-loop
   } // End u-loop
 
+
+  // Contract prims into contr
+  for (int a = 0; a < ncA; a++){
+	Vector aplist; Vector acoeffs;
+	aplist = A.getShellBF(shellA, a).getPrimList();
+	acoeffs = A.getShellBF(shellA, a).getCoeffs();
+	
+  	for (int b = 0; b < ncB; b++){
+  		Vector bplist; Vector bcoeffs;
+		bplist = B.getShellBF(shellB, b).getPrimList();
+		bcoeffs = B.getShellBF(shellB, b).getCoeffs();
+		int blx = B.getShellBF(shellB, b).getLx();
+		int bly = B.getShellBF(shellB, b).getLy();
+		int blz = B.getShellBF(shellB, b).getLz();	
+		
+  		for (int c = 0; c < ncC; c++){
+  			Vector cplist; Vector ccoeffs;
+			cplist = C.getShellBF(shellC, c).getPrimList();
+			ccoeffs = C.getShellBF(shellC, c).getCoeffs();
+			
+  			for (int d = 0; d < ncD; d++){
+  				Vector dplist; Vector dcoeffs;
+				dplist = D.getShellBF(shellD, d).getPrimList();
+				dcoeffs = D.getShellBF(shellD, d).getCoeffs();
+				int dlx = D.getShellBF(shellD, d).getLx();
+				int dly = D.getShellBF(shellD, d).getLy();
+				int dlz = D.getShellBF(shellD, d).getLz();
+				
+				contr(a, b, c, d).assign(blx+1, bly+1, blz+1, dlx+1, dly+1, dlz+1, 0.0);
+				for (int u = 0; u < aplist.size(); u++){
+					for (int v = 0; v < bplist.size(); v++){
+						for (int w = 0; w < cplist.size(); w++){
+							for (int x = 0; x < dplist.size(); x++){
+								double cmult = acoeffs(u)*bcoeffs(v)*ccoeffs(w)*dcoeffs(x);
+								contr(a, b, c, d) = contr(a, b, c, d) + 
+									cmult*prims(aplist(u), bplist(v), cplist(w), dplist(x));
+							}
+						}
+					}
+				}
+			} // End of d-loop
+		} // End of c-loop
+	} // End of b-loop
+  } // End of a-loop									
+  
+  // Done with prims
+  prims.clean();	
+  
   // Get atomic separations
   double XAB, YAB, ZAB, XCD, YCD, ZCD;
   XAB = cA(0)-cB(0); YAB = cA(1)-cB(1); ZAB = cA(2)-cB(2);
   XCD = cC(0)-cD(0); YCD = cC(1)-cD(1); ZCD = cC(2)-cD(2);
 
   // We now have contracted integrals of the form (m0|p0) sitting in 
-  // the cMats matrices. First we transform these to (m0|pq) by the
+  // the contr ten4ten6. First we transform these to (m0|pq) by the
   // horizontal recursion relation.
-  int nlx, nly, nlz, qlx, qly, qlz, matpos;
+  int nlx, nly, nlz, qlx, qly, qlz;
   for (int m = 0; m < ncA; m++){
     for (int n = 0; n < ncB; n++){
       // Get angular momenta
@@ -1143,47 +1202,44 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  qlx = D.getShellBF(shellD, q).getLx();
 	  qly = D.getShellBF(shellD, q).getLy();
 	  qlz = D.getShellBF(shellD, q).getLz();
+	  // Increment q
+  	  for (int vx = 0; vx < nlx+1; vx++){
+	  	 for (int vy = 0; vy < nly+1; vy++){
+	  		for (int vz = 0; vz < nlz+1; vz++){
+	  		  for (int inc = 1; inc < qlx+1; inc++){		
+	  			// Start with the x-coordinate
+	  			for (int xy = 0; xy < qly+1; xy++){
+	  				for (int xz = 0; xz < qlz+1; xz++){
+	  					for (int xx = 0; xx < qlx-inc+1; xx++){
+	  						contr(m, n, p, q)(vx, vy, vz, xx, xy, xz) = 
+	  							contr(m, n, p, q)(vx, vy, vz, xx+1, xy, xz) 
+	  							+ XCD*contr(m, n, p, q)(vx, vy, vz, xx, xy, xz);
+	  					}
+	  			  	}
+	  			 }
+	  		   }
+	  		   
+	  		// Then the y-coordinate
+	  		for (int inc = 1; inc < qly+1; inc++){
+	  			for (int xz = 0; xz < qlz+1; xz++){
+	  				for (int xy = 0; xy < qly-inc+1; xy++){
+	  					contr(m, n, p, q)(vx, vy, vz, 0, xy, xz) = 
+	  						contr(m, n, p, q)(vx, vy, vz, 0, xy+1, xz) 
+	  						+ YCD*contr(m, n, p, q)(vx, vy, vz, 0, xy, xz);
+	  				}
+	  			}
+	  		}
 	  
-	  // Get position in cMats matrix
-	  matpos = m*ncB*ncC*ncD + n*ncC*ncD + p*ncD + q;
-	  
-	  // Increment q, starting with the x-coordinate
-	  
-	  // Get the x-spacing of the ints matrix
-	  int cinc = (qly+1)*(qlz+1);
-	  for (int inc = 1; inc < qlx+1; inc++){ 
-	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
-	      for (int row = 0; row < (qlx-inc+1)*cinc; row++){
-		cMats[matpos]((inc-1)*cinc+row, col) = cMats[matpos]((inc)*cinc+row, col) +
-		  XCD*cMats[matpos]((inc-1)*cinc+row, col);
-	      }
-	    }
-	  }
-	  
-	  
-	  // Then the y coordinate
-	  
-	  // Get the y-spacing
-	  cinc = qlz+1;
-	  for (int inc = 1; inc < qly+1; inc++){
-	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
-	      for (int row = 0; row < (qly-inc+1)*cinc; row++){
-		cMats[matpos]((inc-1)*cinc+row, col) = cMats[matpos]((inc)*cinc+row, col) +
-		  YCD*cMats[matpos]((inc-1)*cinc+row, col);
-	      }
-	    }
-	  }
-	  
-	  // And finally the z-coordinate
-	  for (int inc = 1; inc < qlz+1; inc++){
-	    for (int col = 0; col < (nlx+1)*(nly+1)*(nlz+1); col++){
-	      for (int row = 0; row < qlz+1-inc; row++){
-		cMats[matpos](row, col) = cMats[matpos](row, col) + 
-		  ZCD*cMats[matpos](row+1, col);
-	      }
-	    }
-	  }
-  
+	  		// And finally the z-coordinate	 
+	  		for (int inc = 1; inc < qlz+1; inc++){
+	  			for (int xz = 0; xz < qlz-inc+1; xz++){
+	  				contr(m, n, p, q)(vx, vy, vz, 0, 0, xz) = 
+	  					contr(m,n,p,q)(vx,vy,vz,0,0, xz+1) + ZCD*contr(m,n,p,q)(vx,vy,vz,0,0,xz);
+	  			}
+	  		}
+	  	} // End of vz-loop
+	   } // End of vy-loop					
+	  } // End of vx-loop 
 	} // End of q-loop
       } // End of p-loop
     } // End of n-loop
@@ -1191,10 +1247,6 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 
   // The integrals are all now of the form (m0|pq), and the second electron is ready to be
   // transformed to the spherical harmonic basis. 
-  
-  // Get the Lnums of the C and D shells
-  int LC = C.getShellBF(shellC, 0).getLnum();
-  int LD = D.getShellBF(shellD, 0).getLnum();
   
   // Get the number of transformed basis functions on C/D
   int spherC; int spherD;
@@ -1210,7 +1262,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   }
   
   // Make a list of mnums for each
-  Vector cmnums(spherC/(2*LC+1)); Vector dmnums(spherD/(2*LD+1));
+  Vector cmnums(2*LC+1); Vector dmnums(2*LD+1);
   
   // Maps 0 -> 0, 1 -> -1, 2 -> 1, 3 -> -2, 4 -> 2, and so on.
   for (int cm = 0; cm < cmnums.size(); cm++)
@@ -1257,57 +1309,50 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
     }
   }
   
-  // Transform cMats into new cVecs
-  Vector* cVecs = new Vector[ncA*ncB*spherC*spherD];
-  pMat.assign(ncC, ncD, 0.0);
+  // Transform contr into halfspher
+  Ten4Ten4 halfspher(ncA, ncB, spherC, spherD);
   for (int m = 0; m < ncA; m++){
     for (int n = 0; n < ncB; n++){
       nlx = B.getShellBF(shellB, n).getLx();
       nly = B.getShellBF(shellB, n).getLy();
       nlz = B.getShellBF(shellB, n).getLz();
-      int mpos = m*ncB*spherC*spherD;
-      int npos = n*spherC*spherD;
-      int nxyz = (nlx+1)*(nly+1)*(nlz+1);
       
-      // Resize the relevant cVecs vectors
+      // Resize the relevant halfspher tensors
       for (int c = 0; c < spherC; c++){
 	for (int d = 0; d < spherD; d++){
-	  cVecs[mpos + npos + c*spherD + d].assign(nxyz, 0.0);
+	  halfspher(m, n, c, d).assign(nlx+1, nly+1, nlz+1, 1, 0.0);
 	}
       }
-      
       // Construct and transform all the pmats
       for (int x = 0; x < nlx+1; x++){
-	int xpos = x*(nly+1)*(nlz+1);
-	for (int y = 0; y < nly+1; y++){
-	  int ypos = y*(nlz+1);
-	  for (int z = 0; z < nlz+1; z++){
-	    
-	    // Construct
-	    for (int p = 0; p < ncC; p++){
-	      for (int q = 0; q < ncD; q++){
-		pMat(p, q) = cMats[m*ncB*ncC*ncD+n*ncC*ncD+p*ncD+q](0, xpos+ypos+z);
-	      }
-	    }		 
-	    
-	    // Transform
-	    pMat = tMat1 * ( pMat * ( tMat2.transpose() ) );
-	    
-	    // Copy into cVecs vectors
-	    for (int c = 0; c < spherC; c++){
-	      for (int d = 0; d < spherD; d++){
-		cVecs[mpos+npos+c*spherD+d][xpos+ypos+z] = pMat(c, d);
-	      }
-	    } // End of cVecs copy
-	  } // End of z-loop
-	} // End of y-loop
+		for (int y = 0; y < nly+1; y++){
+	  	  for (int z = 0; z < nlz+1; z++){
+	  	    Matrix temp(ncC, ncD, 0.0);
+		    for (int p = 0; p < ncC; p++){
+		      for (int q = 0; q < ncD; q++) {
+		    	  temp(p, q) = contr(m, n, p, q)(x, y, z, 0, 0, 0);
+		      }
+			}
+			
+	    	// Transform and copy into halfsher
+	    	for (int c = 0; c < spherC; c++){
+	      		for (int d = 0; d < spherD; d++){
+					for (int p = 0; p < ncC; p++){
+						for (int q = 0; q < ncD; q++){
+							halfspher(m, n, c, d)(x, y, z, 0) += tMat1(c, p)*temp(p, q)*tMat2(d, q);
+						}
+					}		
+	      		}
+	   		} // End of copy
+	  	  } // End of z-loop
+		} // End of y-loop
       } // End of x-loop
-      
+
     } // End of n-loop
   } // End of m-loop
   
-  // Get rid of cMats, as everything is now in cVecs
-  delete[] cMats;
+  // Get rid of contr, as everything is now in halfspher
+  contr.clean();
   
   // We now have all integrals of the form (m0|cd).
   // Move on to the second horizontal recursion step.
@@ -1316,38 +1361,37 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
       nlx = B.getShellBF(shellB, n).getLx();
       nly = B.getShellBF(shellB, n).getLy();
       nlz = B.getShellBF(shellB, n).getLz();
-      int mpos = m*ncB*spherC*spherD;
-      int npos = n*spherC*spherD;
       
       for (int c = 0; c < spherC; c++){
 	for (int d = 0; d < spherD; d++){
 	  
-	  // Which cVec are we dealing with?
-	  int cpos = mpos+npos+c*spherD+d;
-	  
-	  // Get the x-spacing of the ints matrix
-	  int cinc = (nly+1)*(nlz+1);
-	  
 	  // Increment in the x-index
 	  for (int inc = 1; inc < nlx+1; inc++){
-	    for (int col = 0; col < (nlx-inc+1)*cinc; col++){
-	      cVecs[cpos][col] = cVecs[cpos][col+cinc] + XAB*cVecs[cpos][col];
-	    }
-	  }
+		for (int ny = 0; ny < nly+1; ny++){
+			for (int nz = 0; nz < nlz+1; nz++){
+				for (int nx = 0; nx < nlx-inc+1; nx++){
+					halfspher(m,n,c,d)(nx,ny,nz,0) = halfspher(m,n,c,d)(nx+1,ny,nz,0)
+						+XAB*halfspher(m,n,c,d)(nx,ny,nz,0);
+				}
+			}
+		}
+	  }					
 	  
-	  // Get the y-spacing
-	  cinc = nlz+1;	
 	  // Increment in the y-index
 	  for (int inc = 1; inc < nly+1; inc++){
-	    for (int col = 0; col < (nly-inc+1)*cinc; col++){
-	      cVecs[cpos][col] = cVecs[cpos][col+cinc] + YAB*cVecs[cpos][col];
-	    }
+	    for (int nz = 0; nz < nlz+1; nz++){
+	    	for (int ny = 0; ny < nly-inc+1; ny++){
+	    		halfspher(m,n,c,d)(0, ny, nz, 0) = halfspher(m,n,c,d)(0,ny+1,nz,0)
+	    			+YAB*halfspher(m,n,c,d)(0,ny,nz,0);
+	    	}
+	    }			
 	  }
 	  
 	  // Finally, increment in the z-index
 	  for (int inc = 1; inc < nlz+1; inc++){
-	    for (int col = 0; col < nlz-inc+1; col++){
-	      cVecs[cpos][col] = cVecs[cpos][col+1] + ZAB*cVecs[cpos][col];
+	    for (int nz = 0; nz < nlz-inc+1; nz++){
+			halfspher(m,n,c,d)(0, 0, nz, 0) = halfspher(m,n,c,d)(0,0,nz+1,0)
+				+ ZAB*halfspher(m,n,c,d)(0,0,nz,0);
 	    }		
 	  }
 	} // End of d-loop
@@ -1355,12 +1399,8 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
     } // End of n-loop
   } // End of m-loop
   
-  // All integrals are now (mn|cd), stored in the first element of each cVec
-  // Only thing left to	is to sphericalise the first electron
-  
-  // Get the Lnums of the C and D shells
-  int LA = A.getShellBF(shellA, 0).getLnum();
-  int LB = B.getShellBF(shellB, 0).getLnum();
+  // All integrals are now (mn|cd), stored in the first element of each tensor
+  // Only thing left to	do is to sphericalise the first electron
   
     // Get the number of transformed basis functions on A/B
   int spherA; int spherB;
@@ -1376,7 +1416,7 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   }
   
   // Make a list of mnums for each
-  cmnums.resize(spherA/(2*LA+1)); dmnums.resize(spherB/(2*LB+1));
+  cmnums.resize(2*LA+1); dmnums.resize(2*LB+1);
   
   // Maps 0 -> 0, 1 -> -1, 2 -> 1, 3 -> -2, 4 -> 2, and so on.
   for (int cm = 0; cm < cmnums.size(); cm++)
@@ -1422,42 +1462,36 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   }
   
   // Transform the integrals into the return vector retInts
-  Vector retInts(spherA*spherB*spherC*spherD, 0.0);
-  pMat.resize(ncA, ncB);
+  Tensor4 retInts(spherA, spherB, spherC, spherD, 0.0);
   for (int c = 0; c < spherC; c++){	
-    int cpos = c*spherD; 
     for (int d = 0; d < spherD; d++){
       
-      // Construct pMat
+      Matrix temp(ncA, ncB, 0.0);
+      // Construct temp and transform
       for (int m = 0; m < ncA; m++){
-	int mpos = m*ncB*spherC*spherD;
-	for (int n = 0; n < ncB; n++){
-	  int npos = n*spherC*spherD;
-	  pMat(m, n) = cVecs[mpos+npos+cpos+d](0);
-	}
+		for (int n = 0; n < ncB; n++){
+	  		temp(m, n) = halfspher(m, n, c, d)(0, 0, 0, 0);
+		}
       }		 
-      
-      // Transform
-      pMat = tMat1 * ( pMat * ( tMat2.transpose() ) );
       
       // Copy into retInts
       for (int a = 0; a < spherA; a++){
-	int apos = a*spherB*spherC*spherD;
 	for (int b = 0; b < spherB; b++){
-	  int bpos = b*spherC*spherD;
-	  retInts[apos+bpos+cpos+d] = pMat(a, b);
+		for (int m = 0; m < ncA; m++){
+			for (int n = 0; n < ncB; n++){
+	  			retInts(a,b,c,d) += tMat1(a, m)*temp(m, n)*tMat2(b, n);
+	  		}
+	  	}		
 	}
       } // End of retInts copy
       
     } // End of d-loop
   } // End of c-loop  
   
-  // Get rid of cVecs
-  delete[] cVecs;
+  // Get rid of halfspher
+  halfspher.clean();
   
-  // Integrals are now all (ab|cd) and are stored in retInts in the order
-  // 0000, 0001, 0002, ... , 0010, 0011, ..., 0100, 0101, ..., 0110, ..., 1000, 1001,
-  // and so on.
+  // Integrals are now all (ab|cd) and are stored in retInts
   return retInts;
 }
 
@@ -1472,9 +1506,9 @@ Vector IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 //     u in [0, Lu+Lv+Lw+Lx]
 //   - Use electron-transfer relation to form [u0|w0]
 //     with u in [Lu, Lu+Lx] and w in [Lw, Lw+Lx]
-//   Return these as a matrix ready for contraction, 
+//   Return these as a Tensor ready for contraction, 
 //   sphericalisation, and then horizontal recurrence.
-Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
+Tensor6 IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
 			    const PBF& x, const Vector& ucoords,
 			    const Vector& vcoords, const Vector& wcoords,
 			    const Vector& xcoords) const
@@ -1496,7 +1530,8 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   double RPQ2 = XPQ*XPQ + YPQ*YPQ + ZPQ*ZPQ;
   double ap = alpha/p; double one2p = 1.0/(2.0*p); double one2q = 1.0/(2.0*q);
   double poq = p/q; double norms = u.getNorm()*v.getNorm()*w.getNorm()*x.getNorm();
-
+  zeromult *= norms;
+  
   // Get the angular momenta
   int Lu = u.getLnum(); int Lv = v.getLnum(); int Lw = w.getLnum();
   int Lx = x.getLnum(); int L = Lu+Lv+Lw+Lx;
@@ -1509,235 +1544,236 @@ Matrix IntegralEngine::twoe(const PBF& u, const PBF& v, const PBF& w,
   // These are given by the formula:
   // [00|00](n) = premult*F_n(alpha*RPQ^2), where F_n is the boys function
   // of order n.
-  Vector boysvals(L+1); Matrix aux(L+1, Nx+1, 0.0);
+  Vector boysvals(L+1, 0.0); 
+  
+  // Make a tensor to store results in
+  Tensor4 aux(L+1, Nx+1, Ny+1, Nz+1, 0.0);
 
   // First calculate all boys function values
   boysvals = boys(alpha*RPQ2, L, 0);
+  
   // Then convert 
   for (int i = 0; i < L+1; i++)
-    aux(i, 0) = norms*zeromult*boysvals(i);
+    aux(i, 0, 0, 0) = zeromult*boysvals(i);
 
   // Now we need to use the vertical recurrence relation to increment
   // the first index, one cartesian direction at a time
+  if ( Nx > 0 ){
   for (int n = L-1; n > -1; n--){
     // Calculate first increment
-    aux(n, 1) = XPA*aux(n, 0) - ap*XPQ*aux(n+1, 0);
+    aux(n, 1, 0, 0) = XPA*aux(n, 0, 0, 0) - ap*XPQ*aux(n+1, 0, 0, 0);
     
     // Now increment as high as needed
     int kmax = (L-n+1 > Nx+1 ? Nx+1 : L-n+1);
     for (int k = 2; k < kmax; k++){
-      aux(n, k) = XPA*aux(n, k-1) - ap*XPQ*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - ap*aux(n+1, k-2));
+      aux(n, k, 0, 0) = XPA*aux(n, k-1, 0, 0) - ap*XPQ*aux(n+1, k-1, 0, 0) + (k-1)*one2p*(aux(n, k-2, 0, 0) - ap*aux(n+1, k-2, 0, 0));
     }
+  }
   }
 
   // for the Nx+1 columns truncated at n = L-Nx, increment
   // the y-direction on u
   
-  // Store the results
-  Matrix newAux(Nz+1, (Nx+1)*(Ny+1));
-  Matrix tempMat(L-Nx+1, Ny+1, 0.0); // For each increment
   for (int m = 0; m < Nx+1; m++){
-    // Extract the column
-    for (int row = 0; row < L-Nx+1; row++)
-      tempMat(row, 0) = aux(row, m);
 
     // Now increment the y-direction up to Ny
+    if (Ny > 0) {
     for (int n = L-Nx-1; n > -1; n--){
       // Calculate the first increment
-      tempMat(n, 1) = YPA*tempMat(n, 0) - ap*YPQ*tempMat(n+1, 0);
+      aux(n, m, 1, 0) = YPA*aux(n, m, 0, 0) - ap*YPQ*aux(n+1, m, 0, 0);
 
       int kmax = (L-Nx-n+1 > Ny+1 ? Ny+1 : L-Nx-n+1);
       for (int k = 2; k < kmax; k++){
-	tempMat(n, k) = YPA*tempMat(n, k-1) - ap*YPQ*tempMat(n+1, k-1)+ (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
+		aux(n, m, k, 0) = YPA*aux(n, m, k-1, 0) - ap*YPQ*aux(n+1, m, k-1, 0)
+		+ (k-1)*one2p*(aux(n, m, k-2, 0) - ap*aux(n+1, m, k-2, 0));
       }
+    }
     }
     
-    // Copy the needed columns into newAux
-    for (int z = 0; z < Nz+1; z++){
-      for (int y = 0; y < Ny+1; y++){
-	newAux(z, (m*(Ny+1) + y)) = tempMat(z, y);
-      }
-    }
   }
 
-  // Next increment in the z-direction for each of these columns of newAux
-  aux.assign(1, (Nx+1)*(Ny+1)*(Nz+1), 0.0); // To store the results
-  tempMat.assign(Nz+1, Nz+1, 0.0); // For each iteration
-  for (int m = 0; m < (Nx+1)*(Ny+1); m++){
-    // Extract the column from newAux
-    for (int row = 0; row < Nz+1; row++)
-      tempMat(row, 0) = newAux(row, m);
+  // Next increment in the z-direction
+  for (int m = 0; m < Nx+1; m++){
+  	for (int n = 0; n < Ny+1; n++){
 
-    // Now increment
-    for (int n = Nz-1; n > -1; n--){
-      // Calculate first increment
-      tempMat(n, 1) = ZPA*tempMat(n, 0) - ap*ZPQ*tempMat(n+1, 0);
+	    // Now increment
+    	for (int row = Nz-1; row > -1; row--){
+      		// Calculate first increment
+     		 aux(row, m, n, 1) = ZPA*aux(row, m, n, 0) - ap*ZPQ*aux(row+1, m, n, 0);
       
-      for (int k = 2; k < Nz-n+1; k++){
-	tempMat(n, k) = ZPA*tempMat(n, k-1) - ap*ZPQ*tempMat(n+1, k-1) + (k-1)*one2p*(tempMat(n, k-2) - ap*tempMat(n+1, k-2));
-      }
-    }
-    
-    // And copy results into aux
-    for(int z = 0; z < Nz+1; z++)
-      aux(0, m*(Nz+1) + z) = tempMat(0, z); 
+     		 for (int k = 2; k < Nz-row+1; k++){
+				aux(row, m, n, k) = ZPA*aux(row, m, n, k-1) - ap*ZPQ*aux(row+1, m, n, k-1) 
+				+ (k-1)*one2p*(aux(row, m, n, k-2) - ap*aux(row+1, m, n, k-2));
+     		 }
+    	}  
+    }	  
   }
 
   // We now have all the integrals [u0|00] stored in aux
-  // for u in [0, L]. They are ordered as follows:
-  // [000;0|00], [001;0|00], ..., [00Nz;0|00],
-  // [010;0|00], ..., [01Nz; 0|00], ...,
-  // [0Ny0; 0| 00], ..., [0NyNz;0|00], ...,
-  // [100;0|00], ... and so on.
+  // for u in [0, L]. 
   
   // Next step is then to use the electron-transfer recurrence relation
   // to transfer cartesian powers from u to w (i.e. from elec 1 to elec 2)
   // We need [u0|w0] for u in [Lu, Lu+Lv] and w in [Lw, Lw+Lx]
+	
+  // Some premultipliers	
+  double multX = -(v.getExponent()*XAB + x.getExponent()*XCD)/q;
+  double multY = -(v.getExponent()*YAB + x.getExponent()*YCD)/q;
+  double multZ = -(v.getExponent()*ZAB + x.getExponent()*ZCD)/q;
   
-  double vXxXq = -(v.getExponent()*XAB + x.getExponent()*XCD)/q; 
-  int Nyz = (Ny+1)*(Nz+1);
-
-  // Increment all of aux in the x-coordinate up and get for wlx to wlx+xlx
+  // Get the components of the angular momenta
   int wlx = w.getLx(); int xlx = x.getLx(); int ulx = u.getLx(); int vlx = v.getLx();
-  newAux.assign(wlx+xlx+1, (Nx+1)*Nyz, 0.0);
-  // Copy in zeroth row from aux, and do the first increment
-  newAux.setRow(0, aux.rowAsVector(0));
-  // Set zeroth elements
-  if (wlx+xlx > 0){
-    for (int col = 0; col < Nyz; col++)
-      newAux(1, col) = vXxXq*newAux(0, col) - poq*newAux(0, Nyz+col);
-    // Now do the rest of first row
-    for (int col1 = 1; col1 < Nx; col1++){
-      for (int col2 = 0; col2 < Nyz; col2++){
-	newAux(1, col1*Nyz+col2) = vXxXq*newAux(0, col1*Nyz+col2) + col1*one2q*newAux(0, (col1-1)*Nyz+col2) - poq*newAux(0, (col1+1)*Nyz+col2);
-      }
-    }
-  }
-  // And the rest of the increments
-  for (int m = 2; m < wlx+xlx+1; m++){
-    // First portion first
-    for (int col = 0; col < Nyz; col++)
-      newAux(m, col) = vXxXq*newAux(m-1, col) + (m-1)*one2q*newAux(m-2, col) - 
-      	poq*newAux(m-1, Nyz+col);
- 
-    for (int col1 = 1; col1 < Nx-m+1; col1++){
-      for(int col2 = 0; col2 < Nyz; col2++){
-	newAux(m, col1*Nyz+col2) = vXxXq*newAux(m-1, col1*Nyz+col2) + col1*one2q*newAux(m-1, (col1-1)*Nyz+col2) +
-	  (m-1)*one2q*newAux(m-2, col1*Nyz+col2) - poq*newAux(m-1, (col1+1)*Nyz+col2);
-      }
-    }
-  }
- 
-  // We now have a full set of integrals electron-transferred in the x-coordinate.
-  // Do the same for the y-coordinate.  
   int wly = w.getLy(); int xly = x.getLy(); int uly = u.getLy(); int vly = v.getLy();
-  aux.assign((xly+1)*(xlx+1), (Nz+1)*(vly+1)*(vlx+1), 0.0);
-  tempMat.assign(wly+xly+1, Nyz*(vlx+1), 0.0);
-  vXxXq = -(v.getExponent()*YAB + x.getExponent()*YCD)/q; 
-  for (int row = wlx; row < wlx+xlx+1; row++){ // Do a row at a time
-    // Copy in zeroth row
-    for (int col = ulx; col < ulx+vlx+1; col++)
-      tempMat(0, col-ulx) = newAux(row, col); 
-    
-    if (wly+xly > 0) { 
-      for (int block = 0; block < vlx+1; block++){
-	// Do the zeroth section of each block for first row
-	for (int col = 0; col < Nz+1; col++)
-	  tempMat(1, (block*Nyz)+col) =   vXxXq*tempMat(0, (block*Nyz)+col) - poq*tempMat(0, (block*Nyz)+col+Nz+1);
-	
-	// Do the rest of the first row in each block
-	for (int col1 = 1; col1 < Ny; col1++){
-	  for (int col2 = 0; col2 < Nz+1; col2++){
-	    int pos = (block*Nyz)+(col1*(Nz+1)) + col2;
-	    tempMat(1, pos) = vXxXq*tempMat(0, pos) + col1*one2q*tempMat(0, pos - Nz -1) - poq*tempMat(0, pos + Nz+1); 
-	  }
-	}
-	
-	// Now do all the other increments for this block
-	for (int m = 2; m < wly+xly+1; m++){
-	  // Do the zeroth section
-	  for (int col = 0; col < Nz+1; col++)
-	    tempMat(m, (block*Nyz)+col) = vXxXq*tempMat(m-1, (block*Nyz)+col) + 
-	    	(m-1)*one2q*tempMat(m-2, (block*Nyz)+col)
-	      - poq*tempMat(m-1, (block*Nyz)+col+Nz+1);
-
-	  // Do the rest of the sections in this row
-	  for (int col1 = 1; col1 < Ny-m+1; col1++){
-	    for (int col2 = 0; col2 < Nz+1; col2++){
-	      int pos = (block*Nyz)+(col1*(Nz+1)) +  col2;
-	      tempMat(m, pos) = vXxXq*tempMat(m-1, pos) + col1*one2q*tempMat(m-1, pos - Nz - 1) + 
-		(m-1)*one2q*tempMat(m-2, pos) - poq*tempMat(m-1, pos+Nz+1);
-	    }
-	  } // End of column loop
-	} // End of increment loop
-      } // End of block loop
-    } // End if 
-
-    // Copy the results into the appropriate portion of aux
-    for (int block = 0; block < vlx+1; block++){
-      for (int col = uly; col < uly+vly+1; col++){
-	for (int row2 = wly; row2 < wly+xly+1; row2++){
-	  aux((row-wlx)*(xly+1)+row2-wly, block*(vly+1)+(col-uly)) = tempMat(row2, block*Nyz+col);
-	}
-      }
-    } 
-    
-  } // End y-increment loop
-    
-  // Finally, we need to increment the z-coordinate index
   int wlz = w.getLz(); int xlz = x.getLz(); int ulz = u.getLz(); int vlz = v.getLz();
-  int Nxy = (vlx+1)*(vly+1);
-  newAux.assign((xlz+1)*(xly+1)*(xlx+1), (vlz+1)*Nxy, 0.0);
-  tempMat.assign(wlz+xlz+1, (Nz+1)*Nxy, 0.0);
-  vXxXq = -(v.getExponent()*ZAB + x.getExponent()*ZCD)/q; 
-  for (int row = 0; row < (xlx+1)*(xly+1); row++){ // Do a row at a time
-    // Copy in zeroth row
-    tempMat.setRow(0, aux.rowAsVector(row));
-    
-    if (wlz+xlz > 0) { 
-      for (int block = 0; block < Nxy; block++){
-      		int pos = block*(Nz+1);
-	// Do the zeroth section of each block for first row
-	  tempMat(1, pos) =   vXxXq*tempMat(0, pos) - poq*tempMat(0, pos+1);
-	
-	// Do the rest of the first row in each block
-	for (int col = 1; col < Nz; col++)
-	  tempMat(1, pos+col) = vXxXq*tempMat(0, pos+col) + col*one2q*tempMat(0, pos+col-1) -
-	    poq*tempMat(0, pos+col+1); 
-	
-	// Now do all the other increments for this block
-	for (int m = 2; m < wlz+xlz+1; m++){
-	  // Do the zeroth section
-	  tempMat(m, pos) = vXxXq*tempMat(m-1, pos) + (m-1)*one2q*tempMat(m-2, pos) -
-	    poq*tempMat(m-1, pos+1);
 
-	  // Do the rest of the sections in this row
-	  for (int col = 1; col < Nz-m+1; col++){
-	    tempMat(m, pos+col) = vXxXq*tempMat(m-1, pos+col) + col*one2q*tempMat(m-1, pos+col-1) + 
-	      (m-1)*one2q*tempMat(m-2, pos+col) - poq*tempMat(m-1, pos+col+1);
-	  }
-	} // End of increment loop
-      } // End of block loop
-    } // End if 
+  // Make a tensor for the calculations
+  Tensor6 newAux(Nx+1, Ny+1, Nz+1, wlx+xlx+1, wly+xly+1, wlz+xlz+1, 0.0);
+  
+  // Copy aux into newAux
+  for (int m = 0; m < Nx+1; m++){
+    for (int n = 0; n < Ny+1; n++){
+      for (int r = 0; r < Nz+1; r++){
+	newAux(m, n, r, 0, 0, 0) = aux(0, m, n, r);
+      }
+    }		
+  }
+  
+  // Get rid of aux
+  aux.resize(0,0,0,0);
+  
+  // Increment the x-index
+  if(wlx+xlx>0){
+    // Do the first increment of first bit
+    for (int n = 0; n < Ny+1; n++){
+      for (int r = 0; r < Nz+1; r++){
+	newAux(0, n, r, 1, 0, 0) = multX*newAux(0, n, r, 0, 0, 0) -poq*newAux(1, n, r, 0, 0, 0);
+      }
+    }
     
-    // Copy the results into the appropriate portion of newAux
-    for (int block = 0; block < Nxy; block++){
-      for (int col = ulz; col < ulz+vlz+1; col++){
-	for (int row2 = wlz; row2 < wlz+xlz+1; row2++){
-	  newAux(row*(xlz+1)+row2-wlz, block*(vlz+1)+(col-ulz)) = tempMat(row2, block*(Nz+1)+col);
+    // And the rest of first increment
+    for (int m = 1; m < Nx; m++){
+      for (int n = 0; n < Ny+1; n++){
+	for (int r = 0; r < Nz+1; r++){
+	  newAux(m, n, r, 1, 0, 0) = multX*newAux(m, n, r, 0, 0, 0) + m*one2q*newAux(m-1, n, r, 0, 0, 0)
+	    -poq*newAux(m+1, n, r, 0, 0, 0);
+	}	
+      }	
+    }
+    
+    // And the rest of the increments
+    for (int inc = 2; inc < wlx+xlx+1; inc++){
+      // Do the first bit
+      for (int n = 0; n < Ny+1; n++){
+	for (int r = 0; r < Nz+1; r++){
+	  newAux(0, n, r, inc, 0, 0) = multX*newAux(0, n, r, inc-1, 0, 0) 
+	    +(inc-1)*one2q*newAux(0, n, r, inc-2, 0, 0) - poq*newAux(1, n, r, inc-1, 0, 0);
 	}
       }
-    } 
-    
-  } // End z-increment loop  
-
-  // The results are now stored in newAux in the form 
-  //     ux =    ulx                                 ulx+1       ...         ulx+vlx
-  //     uy =  uly              uly+1 ... uly+vly    repeat
-  //     uz = ulz ... ulz+vlz   repeat
-  // Same pattern for wx,y,z going down the rows. 
-  // Therefore a ((xlx+1)*(xly+1)*(xlz+1), (vlx+1)*(vly+1)*(vlz+1)) matrix
+      
+      // And the rest
+      for (int m = 1; m < Nx-inc+1; m++){
+	for (int n = 0; n < Ny+1; n++){
+	  for (int r = 0; r < Nz+1; r++){
+	    newAux(m, n, r, inc, 0, 0) = multX*newAux(m, n, r, inc-1, 0, 0)
+	      +m*one2q*newAux(m-1, n, r, inc-1, 0, 0) + (inc-1)*one2q*newAux(m, n, r, inc-2, 0, 0)
+	      -poq*newAux(m+1, n, r, inc-1, 0, 0);
+	  }
+	}
+      }
+    } // End of further increments
+  } // End of x-if-loop
   
-  return newAux;
+  // Increment the y-index
+  if (wly+xly>0){
+    for (int m = ulx; m < ulx+vlx+1; m++){
+      for (int s = wlx; s < wlx+xlx+1; s++){
+	// Do the first increment of the first bit
+	for (int r = 0; r < Nz+1; r++){
+	  newAux(m, 0, r, s, 1, 0) = multY*newAux(m, 0, r, s, 0, 0) -poq*newAux(m, 1, r, s, 0, 0);
+	}
+  	
+	// And the rest of the first increment
+	for (int n = 1; n < Ny; n++){
+	  for (int r = 0; r < Nz+1; r++){
+	    newAux(m, n, r, s, 1, 0) = multY*newAux(m, n, r, s, 0, 0) + n*one2q*newAux(m, n-1, r, s, 0, 0)
+	      -poq*newAux(m, n+1, r, s, 0, 0);
+	  }
+	}
+  	
+	// And the rest of the increments
+	for (int inc = 2; inc < wly+xly+1; inc++){
+	  // Do the first bit
+	  for (int r = 0; r < Nz+1; r++){
+	    newAux(m, 0, r, s, inc, 0) = multY*newAux(m, 0, r, s, inc-1, 0)
+	      + (inc-1)*one2q*newAux(m, 0, r, s, inc-2, 0) -poq*newAux(m, 1, r, s, inc-1, 0);
+	  }
+	  
+	  // And the rest
+	  for (int n = 1; n < Ny-inc+1; n++){
+	    for (int r = 0; r < Nz+1; r++){
+	      newAux(m, n, r, s, inc, 0) = multY*newAux(m, n, r, s, inc-1, 0)
+		+n*one2q*newAux(m, n-1, r, s, inc-1, 0) + (inc-1)*one2q*newAux(m, n, r, s, inc-2, 0)
+		-poq*newAux(m, n+1, r, s, inc-1, 0);
+	    }
+	  }
+	} // End of increment loop				
+      } // End of s-loop	 			
+    } // End of m-loop
+  } // End of y-if-loop
+  
+  // Finally, increment the z-index
+  if(wlz+xlz>0){
+    for (int m = ulx; m < ulx+vlx+1; m++){
+      for (int n = uly; n < uly+vly+1; n++){
+	for (int s = wlx; s < wlx+xlx+1; s++){
+	  for (int t = wly; t < wly+xly+1; t++){
+	    // Do the first increment of first element
+	    newAux(m, n, 0, s, t, 1) = multZ*newAux(m, n, 0, s, t, 0) -poq*newAux(m, n, 1, s, t, 0);
+	    
+	    // Do the rest of first increment
+	    for (int r = 1; r < Nz; r++){
+	      newAux(m, n, r, s, t, 1) = multZ*newAux(m, n, r, s, t, 0) 
+		+r*one2q*newAux(m, n, r-1, s, t, 0) - poq*newAux(m, n, r+1, s, t, 0);
+	    }
+	    
+	    // And the rest of the increments
+	    for (int inc = 2; inc < wlz+xlz+1; inc++){
+	      // Do the first element
+	      newAux(m, n, 0, s, t, inc) = multZ*newAux(m, n, 0, s, t, inc-1)
+		+(inc-1)*one2q*newAux(m, n, 0, s, t, inc-2) - poq*newAux(m, n, 1, s, t, inc-1);
+	      
+	      // And the rest
+	      for (int r = 1; r < Nz-inc+1; r++){
+		newAux(m, n, r, s, t, inc) = multZ*newAux(m, n, r, s, t, inc-1)
+		  +r*one2q*newAux(m, n, r-1, s, t, inc-1) + (inc-1)*one2q*newAux(m, n, r, s, t, inc-2)
+		  -poq*newAux(m, n, r+1, s, t, inc-1);
+	      }			
+	    } // End of increment loop
+	  } // End of t-loop
+	} //End of s-loop
+      } // End of n-loop
+    } // End of m-loop
+  } // End of z-if-loop
+  
+  // All necessary integrals of the form [u0|w0] have now been calculated
+  // and are stored in newAux. Transfer them to a more suitably sized tensor
+  // for returning.
+  
+  Tensor6 retInts(vlx+1, vly+1, vlz+1, xlx+1, xly+1, xlz+1, 0.0);
+  for (int m = ulx; m < ulx+vlx+1; m++){
+    for (int n = uly; n < uly+vly+1; n++){
+      for (int r = ulz; r < ulz+vlz+1; r++){
+	for (int s = wlx; s < wlx+xlx+1; s++){
+	  for (int t = wly; t < wly+xly+1; t++){
+	    for (int z = wlz; z < wlz+xlz+1; z++){
+	      retInts(m-ulx, n-uly, r-ulz, s-wlx, t-wly, z-wlz) = newAux(m, n, r, s, t, z);
+	    }	
+	  }
+	}
+      }
+    }
+  }						 						
+  
+  return retInts;
 }
 

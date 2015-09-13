@@ -10,7 +10,7 @@
  
  #include "basisreader.hpp"
  #include "ioutil.hpp"
- #include "vector.hpp"
+ #include "mvector.hpp"
  #include "bf.hpp"
  #include "error.hpp"
  #include <algorithm>
