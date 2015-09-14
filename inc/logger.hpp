@@ -23,8 +23,8 @@
  *              fundamental constants:
  *                    M_PI - a definition of pi, in case one is not available for some reason
  *              conversion factors:
- *                    RTOCM, RTOMHZ - convert the rotation constants calculated by molecule into
- *                                    units of cm-1 or MHz, respectively.
+ *                    RTOCM, RTOGHZ - convert the rotation constants calculated by molecule into
+ *                                    units of cm-1 or GHz, respectively.
  *                    TOKCAL, TOKJ - convert energies in Hartrees to kcal/mol or kj/mol
  *                    TOBOHR, TOANG - convert distances either from angstrom to bohr, or bohr 
  *                                    to angstrom, respectively
@@ -101,7 +101,7 @@ private:
 public:
   // Conversion factors
   static const double RTOCM;
-  static const double RTOMHZ;
+  static const double RTOGHZ;
   static const double TOKCAL;
   static const double TOKJ;
   static const double TOBOHR;

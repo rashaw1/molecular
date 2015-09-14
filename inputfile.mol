@@ -1,11 +1,10 @@
-basis, 6-311G
+basis, sto-3g
 charge, 0
 multiplicity, 1
 maxiter, 100
 precision, 1e-13
 thrint, 1e-8
 geom,
-H, 0.0, 2.706724148, -1.816103138
-H, 0.0, -2.706724148, -1.816103138
-O, 0.0, 0.0, 0.454025789
+Li, 0.0, 0.0, 0.0
+F, 0.0, 0.0, 2.947972765
 geomend

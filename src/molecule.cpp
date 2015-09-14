@@ -347,13 +347,14 @@ Vector Molecule::rConsts(int units)
   double K;
   // Choose units
   if (units == 0){ // reciprocal centimetres
-    K = Logger::RTOCM; // ~27.99319901 cm-1 . A^2 . amu
-  } else { // MHz
-    K = Logger::RTOMHZ; // ~8.39214994 x 10^5 MHz . A^2 . amu
+    K = Logger::RTOCM; 
+  } else { // GHz
+    K = Logger::RTOGHZ; // ~8.39214994 x 10^2 GHz . A^2 . amu
   }
   // Constant Bi = K/Ii 
   for (int i = 0; i < 3; i++){
-    I[i] = K/I(i);
+    if (I(i) < log.precision()) { I[i] = 0.0; }  
+    else { I[i] = K/I(i); }
   }
   return I;
 }

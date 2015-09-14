@@ -23,8 +23,8 @@
 #include "filereader.hpp"
 
 // Define static constants
-const double Logger::RTOCM = 16.857630400054006;
-const double Logger::RTOMHZ = 0.5052274767280815;
+const double Logger::RTOCM = 60.19969093279;
+const double Logger::RTOGHZ = 1804.74133155814269;
 const double Logger::TOKCAL = 627.509469;
 const double Logger::TOKJ = 2625.49962;
 const double Logger::TOBOHR = 0.52917721092;
@@ -381,7 +381,7 @@ void Logger::print(Molecule& mol, bool inertia) const
     // Get it
     temp = mol.rType();
     Vector rconsts(3);
-    rconsts = mol.rConsts(0); // cm-1
+    rconsts = mol.rConsts(1); // MHz
     Vector inert(3);
     inert = mol.getInertia(true);
     // Print it out
@@ -393,7 +393,7 @@ void Logger::print(Molecule& mol, bool inertia) const
     outfile << ",  Ic = " << std::setw(12) << inert(2) << "\n";
     outfile << "Rotational type: " << temp << "\n";
     outfile << std::string(29, '.') << "\n";
-    outfile << "Rotational Constants / cm-1\n";
+    outfile << "Rotational Constants / GHz\n";
     outfile << std::string(29, '.') << "\n";
     outfile << "A = " << std::setw(12) << rconsts(0);
     outfile << ",  B = " << std::setw(12) << rconsts(1);
