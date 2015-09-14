@@ -56,10 +56,10 @@
 #include "mvector.hpp"
 #include "molecule.hpp"
 #include <iostream>
+#include "tensor4.hpp"
 
 // Declare forward dependencies
 class Atom;
-class Tensor4;
 class Tensor6;
 
 //Begin class declaration
@@ -71,6 +71,7 @@ private:
   Matrix tints;
   Matrix naints;
   Vector sizes;
+  Tensor4 twoints;
 public:
   IntegralEngine(Molecule& m); //Constructor
 
@@ -81,7 +82,8 @@ public:
   double getNucAttract(int i, int j) const { return naints(i, j); }
 
   // Intrinsic routines
-  void printERI(std::ostream& output) const;
+  void printERI(std::ostream& output, int NSpher) const;
+  void formERI(bool tofile);
   Vector getVals(double a, double b, const Vector& A, const Vector& B) const;
   Vector overlapKinetic(const PBF& u, const PBF& v, const Vector& ucoords,
 			const Vector& vcoords) const;

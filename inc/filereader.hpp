@@ -30,8 +30,9 @@ private:
   std::ifstream& input;
   int charge, multiplicity, maxiter, natoms;
   int geomstart, geomend;
-  double precision, thrint;
-  std::string basis;
+  double precision, thrint, memory;
+  bool direct, twoprint;
+  std::string basis, intfile;
   std::string* geometry;
   int findToken(std::string t); // Find the command being issued
 public:
@@ -44,6 +45,10 @@ public:
   int getMaxIter() const { return maxiter; }
   int getNAtoms() const { return natoms; }
   std::string getBasis() const { return basis;}
+  std::string getIntFile() const { return intfile; }
+  bool getDirect() const { return direct; }
+  bool getTwoPrint() const { return twoprint; }
+  double getMemory() const { return memory; }
   double getPrecision() const { return precision; }
   double getThrint() const { return thrint; }
   std::string& getGeomLine(int i) { return geometry[i]; }

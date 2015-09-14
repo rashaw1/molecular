@@ -12,11 +12,12 @@
  *                    errstream - an ostream for logging all error messages - could be a file,
  *                                the console, any ostream
  *                    errs - an array of Error messages that have been thrown
+ *                    intfile - the file to print two electron integrals to if wanted
  *              data: nerr, natoms - the number of errors accumulated, and the num. of atoms
  *                    timer - a boost::timer::cpu_timer for keeping track of time elapsed, and the time
  *                            that the log was instantiated at
  *                    last_time - the last time that timer.elapsed was called
- *              input storage: charge, multiplicity, atoms, basisset
+ *              input storage: charge, multiplicity, atoms, basisset, direct, memory, twoprint
  *              user defined constants: 
  *                    PRECISION - the numerical precision to be used throughout the program
  *                    MAXITER - the maximum number of iterations that will be performed
@@ -87,7 +88,7 @@ class Logger
 {
 private:
   std::ifstream& infile;
-  std::ofstream& outfile;
+  std::ofstream& outfile, intfile;
   std::ostream& errstream;
   Error* errs;
   Atom* atoms;
@@ -96,8 +97,9 @@ private:
   boost::timer::nanosecond_type last_time;
   Basis basisset;
   // User defined constants
-  double PRECISION, THRINT;
+  double PRECISION, THRINT, memory;
   int MAXITER;
+  bool directing, twoprinting;
 public:
   // Conversion factors
   static const double RTOCM;
@@ -113,6 +115,10 @@ public:
   Basis& getBasis() { return basisset; }
   int getCharge() const { return charge; }
   int getMultiplicity() const { return multiplicity; }
+  bool direct() const { return directing; }
+  bool twoprint() const { return twoprinting; }
+  std::ofstream& getIntFile() { return intfile; }
+  double getMemory() const { return memory; }
   Atom getAtom(int i) const { return atoms[i]; }
   double precision() const { return PRECISION; }
   double thrint() const { return THRINT; }

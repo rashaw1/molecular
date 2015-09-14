@@ -41,13 +41,6 @@ int main (int argc, char* argv[])
   log.print("PRELIMINARIES FINISHED\n");
   log.localTime();
   IntegralEngine integral(mol);
-  log.print("1E INTEGRALS DONE\n");
-  log.localTime();
-  std::ofstream intout("twoints.out");
-    integral.printERI(intout);
-    log.print("2E INTEGRALS DONE\n");
-    log.localTime();
-    intout.close();
   //Vector tempi;
   //tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
   //tempi.print(); std::cout << "\n\n";

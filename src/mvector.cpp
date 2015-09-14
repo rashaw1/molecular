@@ -108,21 +108,21 @@ void Vector::swap(int i, int j)
 double& Vector::operator[](int i) // Return v[i]
 {
   // No bounds checking
-  return v.at(i);
+  return v[i];
 }
 
 
 double Vector::operator[](int i) const // Return by value
 {
   // No bounds checking
-  return v.at(i);
+  return v[i];
 }
 
 
 double Vector::operator()(int i) const // Return by value
 {
   // No bounds checking
-  return v.at(i);
+  return v[i];
 }
 
 

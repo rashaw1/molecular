@@ -55,9 +55,22 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   PRECISION = input.getPrecision();
   MAXITER = input.getMaxIter();
   THRINT = input.getThrint();
+  memory = input.getMemory();
+  twoprinting = input.getTwoPrint();
+  directing = input.getDirect();
+
+  if ((twoprinting)) { 
+    std::string intfilename = input.getIntFile();
+    intfile.open(intfilename);
+    if (!intfile.is_open()){
+      Error e1("FILEIO", "Unable to open integral file.");
+      error(e1);
+    }
+  }
 
   // Now we deal with the arrays
   natoms = input.getNAtoms(); // Get how many atoms there are
+  std::cout << natoms << "\n";
   if (natoms > 0){
     atoms = new Atom[natoms]; // Allocate memory for atoms array
  
@@ -134,15 +147,20 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
       Error e("NOATOMS", "Nothing to see here.");
     error(e);
   }
+  std::cout << natoms << "\n";
 }
 
 // Destructor - get rid of the atoms and errors arrays
+// and close intfile if necessary
 Logger::~Logger()
 {
   if (natoms > 0){
      delete[] atoms;
   }
   delete[] errs;
+  if (intfile.is_open()){
+    intfile.close();
+  }
 }
 
 // Overloaded print functions

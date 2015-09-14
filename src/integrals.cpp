@@ -33,6 +33,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <string>
 
 // Constructor
 IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
@@ -48,17 +49,37 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
   // Cartesian is easy - there are (N^2+N)/2
   // unique 1e integrals and ([(N^2+N)/2]^2 + (N^2+N)/2)/2
   // unique 2e integrals
-  int ones = (N*(N+1))/2;
+  int ones = (N*(N+1));
   sizes.resize(4);
   sizes[0] = ones;
-  sizes[1] = (ones*(ones+1))/2;
+  sizes[1] = (ones*(ones+1));
   
-  ones = (M*(M+1))/2;
+  ones = (M*(M+1));
   sizes[2] = ones;
-  sizes[3] = (ones*(ones+1))/2;
+  sizes[3] = (ones*(ones+1));
 
+  molecule.getLog().title("INTEGRAL GENERATION");
+  
+    molecule.getLog().print("Forming the one electron integrals\n");
   formOverlapKinetic();
   formNucAttract();
+    molecule.getLog().print("One electron integrals complete\n");
+    molecule.getLog().localTime();
+    
+    Vector ests = getEstimates();
+          
+    if (molecule.getLog().direct()){
+        molecule.getLog().print("Two electron integrals to be calculated on the fly.\n");
+    } else if(molecule.getLog().getMemory() > ests(3)){ // Check memory requirements
+        formERI(false); // Don't write to file
+        if (molecule.getLog().twoprint()) {
+            printERI(molecule.getLog().getIntFile(), M);
+        }
+    } else {
+        molecule.getLog().print("Writing the two electron integrals to file\n");
+        formERI(true); // Write to file without forming twoints
+    }
+        
 }
 
 // Accessors
@@ -78,189 +99,231 @@ Vector IntegralEngine::getEstimates() const
   return estimates;
 }
 
-// Print a sorted list of ERIs to ostream output
-void IntegralEngine::printERI(std::ostream& output) const
+// Form a tensor of the two-electron integrals (only call if there is
+// definitely enough memory!)
+void IntegralEngine::formERI(bool tofile)
 {
-  // Get the number of basis functions
-  // and the number of shells
-  int natoms = molecule.getNAtoms();
-  int N = 0; // No. of cartesian cgbfs
-  int NS = 0; // No. of shells
-  int NSpher = 0; // No. of spherical cgbfs
-  for (int i = 0; i < natoms; i++){
-    N += molecule.getAtom(i).getNbfs();
-    NS += molecule.getAtom(i).getNshells();
-    NSpher += molecule.getAtom(i).getNSpherical();
-  }
-  
-  // Form a list of basis functions, the atoms they're on,
-  // and the shells they are in.
-  Vector atoms(N); Vector bfs(N); Vector shells(N); 
-  int k = 0;
-  Vector temp; Vector temp2;
-  for (int i = 0; i < natoms; i++){
-    int nbfs = molecule.getAtom(i).getNbfs();
-    temp = molecule.getAtom(i).getShells();
-    for (int j = 0; j < nbfs; j++){
-      atoms[k] = i;
-      bfs[k] = j;
-      int sum = 0; int shell = 0;
-      while(sum < j+1){
-	sum += temp(shell);
-	if(sum < j+1){
-	  shell++;
-	}
-      }
-      shells[k] = shell;
-      k++;
+    // Get the number of basis functions
+    // and the number of shells
+    int natoms = molecule.getNAtoms();
+    int N = 0; // No. of cartesian cgbfs
+    int NS = 0; // No. of shells
+    int NSpher = 0; // No. of spherical cgbfs
+    for (int i = 0; i < natoms; i++){
+        N += molecule.getAtom(i).getNbfs();
+        NS += molecule.getAtom(i).getNshells();
+        NSpher += molecule.getAtom(i).getNSpherical();
     }
-  }
-  
-  // Counters to keep track of cart. bfs
-  int m = 0; int n = 0; int p = 0; int q = 0;
-  // Counters to keep track of spher. bfs
-  int a = 0; int b = 0; int c = 0; int d = 0;
-  
-  Atom ma; Atom na; Atom pa; Atom qa;
-  // Loop over shell quartets
-  Tensor4 tempInts;
-  Tensor4 twoints(NSpher, NSpher, NSpher, NSpher, 0.0);
-
-  // Do the "diagonal" elements for pre-screening purposes
-  Matrix prescreen(NS, NS, 0.0);
-  for (int r = 0; r < NS; r++) { 
-    ma = molecule.getAtom(atoms(m));
-    Vector mshells = ma.getShells();
-    int spherR = ma.getNSpherShellBF(shells(m));
-
-    n = m;
-    b = a;
-    for (int s = r; s < NS; s++) {
-      na = molecule.getAtom(atoms(n));
-      Vector nshells = na.getShells();
-      int spherS = na.getNSpherShellBF(shells(n));
-
-      // Get the integrals
-      tempInts = twoe(ma, na, ma, na, shells(m), shells(n), shells(m), shells(n));
-      
-      // Copy into two ints, and find maximum element
-      double maxval = 0.0;
-      double tempval;
-      for (int w = 0; w < spherR; w++){
-	for (int x = 0; x < spherS; x++){
-	  for (int y = 0; y < spherR; y++){
-	    for (int z = 0; z < spherS; z++){
-	      tempval = fabs(tempInts(w,x,y,z));
-	      maxval = (tempval > maxval ? tempval : maxval);
-	      twoints(a+w, b+x, a+y, b+z) = tempInts(w, x, y, z);
-	    }
-	  }
-	}
-      }
-      
-      // Put maxval in the prescreening matrx
-      prescreen(r, s) = std::sqrt(maxval);
-      prescreen(s, r) = prescreen(r, s);
-      
-      // Increment no. of bfs
-      n += nshells(shells(n));
-      b += spherS;
+    
+    // Form a list of basis functions, the atoms they're on,
+    // and the shells they are in.
+    Vector atoms(N); Vector bfs(N); Vector shells(N);
+    int k = 0;
+    Vector temp; Vector temp2;
+    for (int i = 0; i < natoms; i++){
+        int nbfs = molecule.getAtom(i).getNbfs();
+        temp = molecule.getAtom(i).getShells();
+        for (int j = 0; j < nbfs; j++){
+            atoms[k] = i;
+            bfs[k] = j;
+            int sum = 0; int shell = 0;
+            while(sum < j+1){
+                sum += temp(shell);
+                if(sum < j+1){
+                    shell++;
+                }
+            }
+            shells[k] = shell;
+            k++;
+        }
     }
+    
+    // Counters to keep track of cart. bfs
+    int m = 0; int n = 0; int p = 0; int q = 0;
+    // Counters to keep track of spher. bfs
+    int a = 0; int b = 0; int c = 0; int d = 0;
+    
+    Atom ma; Atom na; Atom pa; Atom qa;
+    // Loop over shell quartets
+    Tensor4 tempInts;
+    
+    if (!tofile){
+        twoints.assign(NSpher, NSpher, NSpher, NSpher, 0.0);
+    }
+    
+    std::ofstream& output = molecule.getLog().getIntFile();
+    // Do the "diagonal" elements for pre-screening purposes
+    Matrix prescreen(NS, NS, 0.0);
+    for (int r = 0; r < NS; r++) {
+        ma = molecule.getAtom(atoms(m));
+        Vector mshells = ma.getShells();
+        int spherR = ma.getNSpherShellBF(shells(m));
+        
+        n = m;
+        b = a;
+        for (int s = r; s < NS; s++) {
+            na = molecule.getAtom(atoms(n));
+            Vector nshells = na.getShells();
+            int spherS = na.getNSpherShellBF(shells(n));
+            
+            // Get the integrals
+            tempInts = twoe(ma, na, ma, na, shells(m), shells(n), shells(m), shells(n));
+            
+            // Copy into two ints, and find maximum element
+            double maxval = 0.0;
+            double tempval;
+            for (int w = 0; w < spherR; w++){
+                for (int x = 0; x < spherS; x++){
+                    for (int y = 0; y < spherR; y++){
+                        for (int z = 0; z < spherS; z++){
+                            if (w==y && x==z){
+                                tempval = fabs(tempInts(w,x,y,z));
+                                maxval = (tempval > maxval ? tempval : maxval);
+                            }
+                            if (!tofile) {
+                                twoints(a+w, b+x, a+y, b+z) = tempInts(w, x, y, z);
+                            } else {
+                                output << std::setw(6) << a+w+1;
+                                output << std::setw(6) << b+x+1;
+                                output << std::setw(6) << a+y+1;
+                                output << std::setw(6) << b+z+1;
+                                output << std::setw(20) << tempInts(w, x, y, z);
+                                output << "\n";
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Put maxval in the prescreening matrx
+            prescreen(r, s) = std::sqrt(maxval);
+            prescreen(s, r) = prescreen(r, s);
+            
+            // Increment no. of bfs
+            n += nshells(shells(n));
+            b += spherS;
+        }
+        
+        m += mshells(shells(m));
+        a += spherR;
+    }
+    
+    // Update the log file
+    molecule.getLog().print("Forming the two electron repulsion integrals.\n");
+    molecule.getLog().print("PRESCREENING MATRIX:\n");
+    molecule.getLog().print(prescreen);
+    molecule.getLog().print("\n\n");
+    
+    m = n = a = b = 0;
+    for (int r = 0; r < NS; r++){
+        ma = molecule.getAtom(atoms(m));
+        Vector mshells = ma.getShells();
+        int spherR = ma.getNSpherShellBF(shells(m));
+        
+        n = m;
+        b = a;
+        for (int s = r; s < NS; s++){
+            na = molecule.getAtom(atoms(n));
+            Vector nshells = na.getShells();
+            int spherS = na.getNSpherShellBF(shells(n));
+            
+            p = m;
+            c = a;
+            for (int t = r; t < NS; t++){
+                pa = molecule.getAtom(atoms(p));
+                Vector pshells = pa.getShells();
+                int spherT = pa.getNSpherShellBF(shells(p));
+                
+                q = p;
+                d = c;
+                for (int u = t; u < NS; u++){
+                    qa = molecule.getAtom(atoms(q));
+                    Vector qshells = qa.getShells();
+                    int spherU = qa.getNSpherShellBF(shells(q));
+                    
+                    // Prescreen before doing the integrals - Cauchy-Schwarz
+                    if ( ((r!=t) || (s!=u)) && (prescreen(r, s)*prescreen(t, u) > molecule.getLog().thrint()) ) {
+                        // Get the integrals
+                        tempInts = twoe(ma, na, pa, qa, shells(m), shells(n),
+                                        shells(p), shells(q));
+                        
+                        // Copy them into two ints
+                        for (int w = 0; w < spherR; w++){
+                            for (int x = 0; x < spherS; x++){
+                                for (int y = 0; y < spherT; y++){
+                                    for (int z = 0; z < spherU; z++){
+                                        if (!tofile){
+                                            twoints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
+                                        } else {
+                                            output << std::setw(6) << a+w+1;
+                                            output << std::setw(6) << b+x+1;
+                                            output << std::setw(6) << c+y+1;
+                                            output << std::setw(6) << d+z+1;
+                                            output << std::setw(20) << tempInts(w, x, y, z);
+                                            output << "\n";
+                                        }
+                                    } // end z-loop
+                                } // end y-loop
+                            } // end x-loop
+                        } // end w-loop
+                    }
+                    
+                    q += qshells(shells(q));
+                    d += spherU;
+                } // end u-loop
+                
+                p += pshells(shells(p));
+                c += spherT;
+            } // end t-loop
+            
+            n += nshells(shells(n));
+            b += spherS;
+        } // end s-loop
+        
+        m += mshells(shells(m));
+        a += spherR;
+    } // end r-loop
+    
+    molecule.getLog().print("Two electron integrals completed.\n");
+    if(!tofile){
+        std::string mem = "Approximate memory usage = ";
+        mem += std::to_string(NSpher*NSpher*NSpher*NSpher*sizeof(double)/(1024.0*1024.0));
+        molecule.getLog().print(mem);
+    }
+    molecule.getLog().localTime();
+}
 
-    m += mshells(shells(m));
-    a += spherR;
-  }
-  std::cout << "PRESCREENING:\n"; prescreen.print(); std::cout << "\n\n";
-	
-  m = n = a = b = 0;
-  for (int r = 0; r < NS; r++){
-    ma = molecule.getAtom(atoms(m));
-    Vector mshells = ma.getShells();
-    int spherR = ma.getNSpherShellBF(shells(m));
-    
-    n = m;
-    b = a;
-    for (int s = r; s < NS; s++){
-      na = molecule.getAtom(atoms(n));
-      Vector nshells = na.getShells();
-      int spherS = na.getNSpherShellBF(shells(n));
-      
-      p = m;
-      c = a;
-      for (int t = r; t < NS; t++){
-	pa = molecule.getAtom(atoms(p));
-	Vector pshells = pa.getShells();
-	int spherT = pa.getNSpherShellBF(shells(p));
-  	
-	q = p;
-	d = c;
-	for (int u = t; u < NS; u++){
-	  qa = molecule.getAtom(atoms(q));
-	  Vector qshells = qa.getShells();
-	  int spherU = qa.getNSpherShellBF(shells(q));
-	  
-	  // Prescreen before doing the integrals - Cauchy-Schwarz
-	  if ( ((r!=t) || (s!=u)) && (prescreen(r, s)*prescreen(t, u) > molecule.getLog().thrint()) ) {
-	    // Get the integrals
-	    tempInts = twoe(ma, na, pa, qa, shells(m), shells(n),
-			    shells(p), shells(q));
-	    
-	    // Copy them into two ints
-	    for (int w = 0; w < spherR; w++){
-	      for (int x = 0; x < spherS; x++){
-		for (int y = 0; y < spherT; y++){
-		  for (int z = 0; z < spherU; z++){
-		    twoints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
-		  } // end z-loop
-		} // end y-loop
-	      } // end x-loop
-	    } // end w-loop
-	  }
-	  
-	  q += qshells(shells(q));
-	  d += spherU;
-	} // end u-loop
-	
-	p += pshells(shells(p));
-	c += spherT;
-      } // end t-loop
-      
-      n += nshells(shells(n));
-      b += spherS;
-    } // end s-loop
-    
-    m += mshells(shells(m));
-    a += spherR;
-  } // end r-loop
-  
-  std::cout << "2e MEMORY: " << NSpher*NSpher*NSpher*NSpher*sizeof(twoints)/(1024.0*1024.0) << "\n";
+// Print a sorted list of ERIs to ostream output
+void IntegralEngine::printERI(std::ostream& output, int NSpher) const
+{
   output << " TWO ELECTRON INTEGRALS: \n";
   // print them out
-  int icount = 0; 
+  int icount = 0;
+  int scount = 0;
   for (int c1 = 0; c1 < NSpher; c1++){
     for (int c2 = 0; c2 < c1+1; c2++){
       for (int c3 = 0; c3 < c1+1; c3++){
-	for(int c4 = 0; c4 < (c2 < c3 ? c2+1 : c3+1); c4++){
-	  icount++;
-	  double multiplier = 0.125;
-	  if (c1!=c2) { multiplier *= 2.0; }
-	  if (c3!=c4) { multiplier *= 2.0; }
-	  if ((c1+c2)!=(c3+c4)) { multiplier *= 2.0; }
-	  else if ((c1!=c3) && (c1 != c4)) { multiplier *=2.0; }
-	  else if ((c2!=c3) && (c2 != c4)) { multiplier *=2.0; }
-	  if (fabs(twoints(c4, c3, c2, c1)) < 1e-14 ) { multiplier = 0; }
-	  output << std::setw(6) << c1+1;
-	  output << std::setw(6) << c2+1;
-	  output << std::setw(6) << c3+1;
-	  output << std::setw(6) << c4+1;
-	  output << std::setw(20) << multiplier*twoints(c4, c3, c2, c1);
-	  output << "\n";	
-	}
+        for(int c4 = 0; c4 < (c2 < c3 ? c2+1 : c3+1); c4++){
+            icount++;
+            double multiplier = 0.125;
+            if (c1!=c2) { multiplier *= 2.0; }
+            if (c3!=c4) { multiplier *= 2.0; }
+            if ((c1!=c3) && (c1 != c4)) { multiplier *=2.0; }
+            else if ((c2!=c3) && (c2 != c4)) { multiplier *=2.0; }
+            if (fabs(twoints(c4, c3, c2, c1)) < molecule.getLog().thrint()) { scount++; multiplier = 0; }
+            output << std::setw(6) << c1+1;
+            output << std::setw(6) << c2+1;
+            output << std::setw(6) << c3+1;
+            output << std::setw(6) << c4+1;
+            output << std::setw(20) << multiplier*twoints(c4, c3, c2, c1);
+            output << "\n";
+        }
       }
     }
   }			
-  std::cout << "N 2e Ints: " << icount << "\n";
-} 	
+  output << "N 2e Ints: " << icount << "\n";
+  output << "N insig. Ints: " << scount << "\n";
+}
 
 // Utility functions needed to calculate integrals
 

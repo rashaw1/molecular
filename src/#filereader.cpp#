@@ -40,10 +40,10 @@ int FileReader::findToken(std::string t)
   else if (t == "maxiter") { rval = 3; }
   else if (t == "precision") { rval = 4; }
   else if (t == "basis") { rval = 5; }
-  else if (t == "geom") { rval = 6; }
+  else if (t == "geom") { rval = 6; std::cout << "Found geom.\n";}
   else if (t == "thrint") { rval = 7; }
-  else if (t == "memory") { rval = 8; }
-  else if (t == "integral") { rval = 9; }  
+  else if (t == "integral") { rval = 8; std::cout << "Found integral\n"; }
+  else if (t == "memory") { rval = 9; }  
   else if (t == "print") { rval = 10; }
   else if (t == "direct") { rval = 11; }
   return rval;
@@ -108,9 +108,11 @@ void FileReader::readParameters()
 	geomstart = linecount + 1;
 	geomend = geomstart-1;
 	while(line != "geomend"){
-	  std::getline(input, line);
+
+	  std::cout << "Incrementing\n";
 	  geomend++;
 	}
+	std::cout << geomend << "\n";
 	break;
       }
       case 7: { // Thrint
@@ -130,6 +132,7 @@ void FileReader::readParameters()
 	  switch(findToken(token)){
 	  case 10: { // Print the integrals, file specified
 	    twoprint = true;
+	    line.erase(0, pos+1);
 	    line.erase(0, pos+1);
 	    // Get rid of excess spaces
 	    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
@@ -168,6 +171,7 @@ void FileReader::readParameters()
     linecount++;
   }
   natoms = geomend - geomstart;
+  std::cout << natoms << "\n";
 }
 
 void FileReader::readGeometry()

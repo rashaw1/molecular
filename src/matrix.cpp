@@ -219,7 +219,7 @@ void Matrix::swapCols(int i, int j, int start)
 double& Matrix::operator[](int i)
 {
   // No bounds checking
-  return arr.at(i)[0];
+  return arr[i][0];
 }
 
 // Return pointer to element ij
@@ -227,7 +227,7 @@ double& Matrix::operator[](int i)
 double& Matrix::operator()(int i, int j)
 {
   // No bounds checking
-  return arr.at(i)[j];
+  return arr[i][j];
 }
 
 // Return by value
@@ -235,7 +235,7 @@ double& Matrix::operator()(int i, int j)
 double Matrix::operator()(int i, int j) const
 {
   // No bounds checking
-  return arr.at(i)(j);
+  return arr[i](j);
 }
 
 // Overload assignment operator
