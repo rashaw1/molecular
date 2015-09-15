@@ -31,7 +31,7 @@ private:
   int charge, multiplicity, maxiter, natoms;
   int geomstart, geomend;
   double precision, thrint, memory;
-  bool direct, twoprint;
+  bool direct, twoprint, diis;
   std::string basis, intfile;
   std::string* geometry;
   int findToken(std::string t); // Find the command being issued
@@ -48,6 +48,7 @@ public:
   std::string getIntFile() const { return intfile; }
   bool getDirect() const { return direct; }
   bool getTwoPrint() const { return twoprint; }
+  bool getDIIS() const { return diis; }
   double getMemory() const { return memory; }
   double getPrecision() const { return precision; }
   double getThrint() const { return thrint; }

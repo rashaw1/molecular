@@ -92,12 +92,32 @@ Vector IntegralEngine::getEstimates() const
   Vector estimates(4);
   // The amount of memory is roughly the number of integrals times the size
   // of a double in memory
-  estimates[0] = sizeof(double)*sizes(0);
-  estimates[1] = sizeof(double)*sizes(1);
-  estimates[2] = sizeof(double)*sizes(2);
-  estimates[3] = sizeof(double)*sizes(3);
+  double TOMB = 1.0/(1024.0 * 1024.0);
+  estimates[0] = TOMB*sizeof(double)*sizes(0);
+  estimates[1] = TOMB*sizeof(double)*sizes(1);
+  estimates[2] = TOMB*sizeof(double)*sizes(2);
+  estimates[3] = TOMB*sizeof(double)*sizes(3);
   return estimates;
 }
+
+// Return a particular integral from twoints (taking into account symmetries)
+double IntegralEngine::getERI(int i, int j, int k, int l) const
+{
+  int u, v, w, x;
+  u = (i < j ? i : j);
+  v = (i < j ? j : i);
+  w = (k < l ? k : l);
+  x = (k < l ? l : k);
+  
+  double rval;
+  if (u <= w){
+    rval = twoints(u, v, w, x);
+  } else {
+    rval = twoints(w, x, u, v);
+  }
+  
+  return rval;
+} 
 
 // Form a tensor of the two-electron integrals (only call if there is
 // definitely enough memory!)

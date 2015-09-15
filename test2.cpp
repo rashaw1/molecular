@@ -10,6 +10,7 @@
 #include "error.hpp"
 #include "integrals.hpp"
 #include <stdexcept>
+#include "fock.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -41,6 +42,7 @@ int main (int argc, char* argv[])
   log.print("PRELIMINARIES FINISHED\n");
   log.localTime();
   IntegralEngine integral(mol);
+  Fock focker(integral, mol);
   //Vector tempi;
   //tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
   //tempi.print(); std::cout << "\n\n";
@@ -57,9 +59,6 @@ int main (int argc, char* argv[])
   //log.print(mol.getAtom(2).getBF(24));
   //log.print("\n");
   */
-  Vector ests;
-  ests = (1.0/(1024.0*1024.0))*integral.getEstimates();
-  log.print("\n");log.print(ests);log.print("\n");
   log.finalise();
   } catch (Error e) {
     log.error(e);

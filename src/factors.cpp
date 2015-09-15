@@ -317,12 +317,13 @@ bool hessenberg(const Matrix& x, Matrix& y, Matrix& v)
     v.assign(dim, dim, 0.0); // Make all zeroes 
     // Begin main loop
     for (int k = 0; k < dim-2; k++){
+    if(fabs(y(k+2,k)) > 1e-15) {  
       // Declare temporary vectors
       Vector xk(dim-k-1); 
       Vector vk(dim-k-1);
       // Copy in the values needed
       for (int i = k+1; i < dim; i++){
-	xk[i-k-1] = y(i, k);
+		xk[i-k-1] = y(i, k);
       }
       // Compute the reflector
       // Choose the sign that maxmises distance of reflected vector
@@ -367,6 +368,7 @@ bool hessenberg(const Matrix& x, Matrix& y, Matrix& v)
       for (int i = k+1; i < dim; i++){
 	v(i, k+1) = vk(i-k-1);
       }
+    }
     }
   } else {
     rval = false; // Algorithm failed

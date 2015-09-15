@@ -58,6 +58,7 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   memory = input.getMemory();
   twoprinting = input.getTwoPrint();
   directing = input.getDirect();
+  diising = input.getDIIS();
 
   if ((twoprinting)) { 
     std::string intfilename = input.getIntFile();
@@ -70,7 +71,6 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
 
   // Now we deal with the arrays
   natoms = input.getNAtoms(); // Get how many atoms there are
-  std::cout << natoms << "\n";
   if (natoms > 0){
     atoms = new Atom[natoms]; // Allocate memory for atoms array
  
@@ -147,7 +147,6 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
       Error e("NOATOMS", "Nothing to see here.");
     error(e);
   }
-  std::cout << natoms << "\n";
 }
 
 // Destructor - get rid of the atoms and errors arrays

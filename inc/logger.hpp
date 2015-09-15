@@ -99,7 +99,7 @@ private:
   // User defined constants
   double PRECISION, THRINT, memory;
   int MAXITER;
-  bool directing, twoprinting;
+  bool directing, twoprinting, diising;
 public:
   // Conversion factors
   static const double RTOCM;
@@ -117,6 +117,7 @@ public:
   int getMultiplicity() const { return multiplicity; }
   bool direct() const { return directing; }
   bool twoprint() const { return twoprinting; }
+  bool diis() const { return diising; }
   std::ofstream& getIntFile() { return intfile; }
   double getMemory() const { return memory; }
   Atom getAtom(int i) const { return atoms[i]; }

@@ -62,6 +62,7 @@ void FileReader::readParameters()
   memory = 100;
   direct = false;
   twoprint = false;
+  diis = true;
 
   // Read line by line and parse
   std::string line, token;

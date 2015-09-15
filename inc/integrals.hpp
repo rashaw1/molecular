@@ -78,8 +78,13 @@ public:
   // Accessors
   Vector getEstimates() const;
   double getOverlap(int i, int j) const { return sints(i, j); }
+  Matrix getOverlap() const { return sints; }
   double getKinetic(int i, int j) const { return tints(i, j); }
+  Matrix getKinetic() const { return tints; }
   double getNucAttract(int i, int j) const { return naints(i, j); }
+  Matrix getNucAttract() const { return naints; }
+  double getERI(int i, int j, int k, int l) const;
+  Tensor4 getERI() const { return twoints; }
 
   // Intrinsic routines
   void printERI(std::ostream& output, int NSpher) const;

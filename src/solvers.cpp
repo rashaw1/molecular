@@ -403,6 +403,7 @@ bool qrshift(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION, int 
 // as in the following implementation:
 bool symqr(const Matrix& A, Vector& vals, double PRECISION)
 {
+
   bool rval = true;
   int dim = A.nrows(); // It's square
   vals.resize(dim);
