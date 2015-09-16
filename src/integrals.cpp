@@ -103,24 +103,16 @@ Vector IntegralEngine::getEstimates() const
 // Return a particular integral from twoints (taking into account symmetries)
 double IntegralEngine::getERI(int i, int j, int k, int l) const
 {
-  int u, v, w, x;
-  if (i > j) {
-    u = j; v = i;
-  } else {
-    u = i; v = j;
-  }
-
-  if (k > l){
-    w = l; x = k;
-  } else {
-    w = k; x = l;
-  }
-
-  if (v > x){
-    return twoints(w, x, u, v);
-  } else {
-    return twoints(u, v, w, x);
-  }
+  double rval = 0.0;
+  if (twoints(i, j, k, l) != 0.0 ){ rval = twoints(i, j, k, l); }
+  else if (twoints(i, j, l, k) != 0.0){ rval = twoints(i, j, l, k); }
+  else if (twoints(j, i, k, l) != 0.0){ rval = twoints(j, i, k, l); }
+  else if (twoints(j, i, l, k) != 0.0){ rval = twoints(j, i, l, k); }
+  else if (twoints(k, l, i, j) != 0.0){ rval = twoints(k, l, i, j); }
+  else if (twoints(k, l, j, i) != 0.0){ rval = twoints(k, l, j, i); }
+  else if (twoints(l, k, i, j) != 0.0){ rval = twoints(l, k, i, j); }
+  else { rval = twoints(l, k, j, i); }
+  return rval;
 } 
 
 // Form a tensor of the two-electron integrals (only call if there is
@@ -278,7 +270,6 @@ void IntegralEngine::formERI(bool tofile)
                                     for (int z = 0; z < spherU; z++){
                                         if (!tofile){
                                             twoints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
-					    std::cout << a+w << " " << b+x << " " << c+y << " " << d+z << "\n";
                                         } else {
                                             output << std::setw(6) << a+w+1;
                                             output << std::setw(6) << b+x+1;
