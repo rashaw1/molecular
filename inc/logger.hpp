@@ -97,7 +97,7 @@ private:
   boost::timer::nanosecond_type last_time;
   Basis basisset;
   // User defined constants
-  double PRECISION, THRINT, memory;
+  double PRECISION, THRINT, CONVERGE,  memory;
   int MAXITER;
   bool directing, twoprinting, diising;
 public:
@@ -123,6 +123,7 @@ public:
   Atom getAtom(int i) const { return atoms[i]; }
   double precision() const { return PRECISION; }
   double thrint() const { return THRINT; }
+  double converge() const { return CONVERGE; }
   int maxiter() const { return MAXITER; }
   int getNatoms() const { return natoms; }
   // Overloaded print functions
@@ -136,6 +137,9 @@ public:
   void print(Molecule& mol, bool inertia = false) const; 
   void print(BF& bf) const; // Basis function - coeffs and each pbf
   void print(const PBF& pbf) const; // Primitive gaussian - exponent, norm, ang. momenta
+  // Print out an iteration
+  void iteration(int iter, double energy, double delta);
+  void initIteration();
   // Specific logging formats
   void title(const std::string& msg) const;
   void result(const std::string& msg) const;

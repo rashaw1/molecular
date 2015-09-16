@@ -12,10 +12,10 @@ OPTIM = -O3 -Wall -stdlib=libc++
 COMPILE_OPTIONS = $(OPTIM)
 
 # Header include directories
-HEADERS = -I./inc -I/usr/local/Cellar/boost/1.58.0/include
+HEADERS = -I./inc -I/usr/local/Cellar/boost/1.58.0/include -I/usr/local/Cellar/eigen/3.2.4/include/eigen3
 
 # Libraries for linking
-LIBS =  -lboost_system -lboost_timer  -stdlib=libc++
+LIBS =  -lboost_system -lboost_timer  -stdlib=libc++ 
 
 # Dependency options
 DEPENDENCY_OPTIONS = -MM

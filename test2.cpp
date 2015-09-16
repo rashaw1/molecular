@@ -11,6 +11,7 @@
 #include "integrals.hpp"
 #include <stdexcept>
 #include "fock.hpp"
+#include "scf.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -43,6 +44,8 @@ int main (int argc, char* argv[])
   log.localTime();
   IntegralEngine integral(mol);
   Fock focker(integral, mol);
+  SCF hf(mol, focker);
+  hf.rhf();
   //Vector tempi;
   //tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
   //tempi.print(); std::cout << "\n\n";

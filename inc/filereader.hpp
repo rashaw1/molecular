@@ -30,7 +30,7 @@ private:
   std::ifstream& input;
   int charge, multiplicity, maxiter, natoms;
   int geomstart, geomend;
-  double precision, thrint, memory;
+  double precision, thrint, memory, converge;
   bool direct, twoprint, diis;
   std::string basis, intfile;
   std::string* geometry;
@@ -52,6 +52,7 @@ public:
   double getMemory() const { return memory; }
   double getPrecision() const { return precision; }
   double getThrint() const { return thrint; }
+  double getConverge() const { return converge; }
   std::string& getGeomLine(int i) { return geometry[i]; }
 };
 

@@ -104,19 +104,23 @@ Vector IntegralEngine::getEstimates() const
 double IntegralEngine::getERI(int i, int j, int k, int l) const
 {
   int u, v, w, x;
-  u = (i < j ? i : j);
-  v = (i < j ? j : i);
-  w = (k < l ? k : l);
-  x = (k < l ? l : k);
-  
-  double rval;
-  if (u <= w){
-    rval = twoints(u, v, w, x);
+  if (i > j) {
+    u = j; v = i;
   } else {
-    rval = twoints(w, x, u, v);
+    u = i; v = j;
   }
-  
-  return rval;
+
+  if (k > l){
+    w = l; x = k;
+  } else {
+    w = k; x = l;
+  }
+
+  if (v > x){
+    return twoints(w, x, u, v);
+  } else {
+    return twoints(u, v, w, x);
+  }
 } 
 
 // Form a tensor of the two-electron integrals (only call if there is
@@ -274,6 +278,7 @@ void IntegralEngine::formERI(bool tofile)
                                     for (int z = 0; z < spherU; z++){
                                         if (!tofile){
                                             twoints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
+					    std::cout << a+w << " " << b+x << " " << c+y << " " << d+z << "\n";
                                         } else {
                                             output << std::setw(6) << a+w+1;
                                             output << std::setw(6) << b+x+1;
@@ -323,7 +328,7 @@ void IntegralEngine::printERI(std::ostream& output, int NSpher) const
   for (int c1 = 0; c1 < NSpher; c1++){
     for (int c2 = 0; c2 < c1+1; c2++){
       for (int c3 = 0; c3 < c1+1; c3++){
-        for(int c4 = 0; c4 < (c2 < c3 ? c2+1 : c3+1); c4++){
+        for(int c4 = 0; c4 < c3+1; c4++){
             icount++;
             double multiplier = 0.125;
             if (c1!=c2) { multiplier *= 2.0; }
@@ -1005,17 +1010,15 @@ void IntegralEngine::formNucAttract()
 	    ncoeff = na.getBF(bfs(n+j)).getCoeffs();
 	    
 	    // Form the vector of appropriate prim integrals
-	    Vector ints(mplist.size()*nplist.size());
+	    Vector ints(mplist.size()*nplist.size(), 0.0);
 	    for (int x = 0; x < mplist.size(); x++){
 	      for (int y = 0; y < nplist.size(); y++){
 		ints[x*nplist.size() + y] = prims(mplist(x), nplist(y));
 	      }
 	    }
-	    
 	    // Contract cartesian integrals into the nuclear attraction
 	    // matrix, weighting by the atomic charge of centre C
 	    naints(m+i, n+j) += -1.0*Z*makeContracted(mcoeff, ncoeff, ints);
-	    naints(n+j, m+i) = naints(m+i, n+j);
 	  }
 	} // End contraction loops
       } // End loop over centres
@@ -1027,9 +1030,15 @@ void IntegralEngine::formNucAttract()
     m += mshells(shells(m));
   } // End r-loop over shells
   
+  // Symmetrise
+  for (int i = 0; i < N; i++){
+    for (int j = i+1; j < N; j++){
+      naints(j, i) = naints(i, j);
+    }
+  }
+  
   // Transform the integrals to the spherical harmonic basis
   naints = makeSpherical(naints, lnums);
-
 }
 
 // Calculate the nuclear attraction integral between two gaussian primitives

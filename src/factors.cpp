@@ -317,7 +317,10 @@ bool hessenberg(const Matrix& x, Matrix& y, Matrix& v)
     v.assign(dim, dim, 0.0); // Make all zeroes 
     // Begin main loop
     for (int k = 0; k < dim-2; k++){
-    if(fabs(y(k+2,k)) > 1e-15) {  
+      bool reduce = false;
+      int check = k+2;
+      while(check < dim && !reduce){ reduce = (fabs(y(check, k)) > 1e-14 ? true : false); check++; }
+      if(reduce){
       // Declare temporary vectors
       Vector xk(dim-k-1); 
       Vector vk(dim-k-1);

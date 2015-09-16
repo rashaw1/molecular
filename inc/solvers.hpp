@@ -48,6 +48,10 @@ Vector lusolve(const Matrix& B, const Vector& p, const Vector& b);
 Vector choleskysolve(const Matrix& A, const Vector& b);
 Vector choleskysolve(const Vector& b, const Matrix& R);
 
+
+// Use the Penrose-Moore pseudo-inverse to solve a singular system
+Vector stableSolve(const Matrix& A, const Vector& b);
+
 // Use the power iteration algorithm to find an eigenvalue -
 // specifically the eigenvalue with largest absolute value -
 // of A given a (normalised) vector, v. The eigenvector is
@@ -77,7 +81,7 @@ Matrix implicitshift(Matrix& T, double PRECISION);
 // The QR algorithm for a real-symmetric matrix using implicit shifts is more efficient
 // than the above alternative
 bool symqr(const Matrix& A, Vector& vals, double PRECISION = 1e-12);
-bool symqr(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION);
+bool symqr(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION, bool HESS = false);
 
 
 // Utility functions for symeig that pack and unpack matrices              

@@ -11,11 +11,11 @@
 
 #include "fock.hpp"
 #include "error.hpp"
-#include "factors.hpp"
-#include "solvers.hpp"
 #include "tensor4.hpp"
 #include <iostream>
 #include <cmath>
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 #include "logger.hpp"
 
 // Constructor
@@ -36,8 +36,8 @@ Fock::Fock(IntegralEngine& ints, Molecule& m) : integrals(ints), molecule(m)
   // read from file.
   direct = molecule.getLog().direct();
   diis = molecule.getLog().diis();
-  iter = 0;
-  MAX = 5;
+  iter = -1;
+  MAX = 10;
   twoints = false;
   if (!direct){
     Vector ests = integrals.getEstimates();
@@ -63,30 +63,38 @@ void Fock::formHCore()
 
 void Fock::formOrthog()
 {
-  Matrix U; Vector lambda;
+  Matrix S = integrals.getOverlap();
+  Eigen::MatrixXd temp(S.nrows(), S.nrows());
+  for (int i = 0; i < S.nrows(); i++){
+    for (int j = 0; j < S.nrows(); j++){
+      temp(i, j) = S(i, j);
+    }
+  }
+  Matrix U(S.nrows(), S.nrows(), 0.0); Vector lambda(S.nrows(), 0.0);
   // Diagonalise the overlap matrix into lambda and U,
   // so that U(T)SU = lambda
-  if (symqr(integrals.getOverlap(), lambda, U, molecule.getLog().precision())) {
-    // We can now form S^(-1/2) - the orthogonalising matrix
-    
-    orthog.assign(nbfs, nbfs, 0.0);
-    for (int i = 0; i < nbfs; i++)
-      lambda[i] = 1.0/(std::sqrt(lambda(i)));
-
-    // S^-1/2  = U(lambda^-1/2)U(T)
-    for (int i = 0; i < nbfs; i++){
-      for (int j = 0; j < nbfs; j++){
-	for (int k = 0; k < nbfs; k++){
-	  orthog(i, j) += U(i, k)*lambda(k)*U(j, k);
-	}
-      }
+  // We can now form S^(-1/2) - the orthogonalising matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(temp);
+  temp = es.eigenvectors();
+  for (int i = 0; i < S.nrows(); i++){
+    for (int j = 0; j < S.nrows(); j++){
+      U(i, j) = temp(i, j);
     }
-  } else { // Throw error if didn't work
-    Error e("ORTHOG", "Failed to diagonalise overlap matrix.");
-    throw(e);
+  }
+  temp = es.eigenvalues().asDiagonal();
+  for (int i = 0; i < S.nrows(); i++)
+    lambda[i] = temp(i, i);
+  
+  orthog.assign(nbfs, nbfs, 0.0);
+  for (int i = 0; i < nbfs; i++) {
+    orthog(i, i) = 1.0/(std::sqrt(lambda(i)));
   }
   
+  // S^-1/2  = U(lambda^-1/2)U(T)
+  orthog = U * orthog * U.transpose();
 }
+  
+
 
 // Construct the density matrix - first => initial guess from hcore
 void Fock::makeDens(int nocc, bool first)
@@ -100,46 +108,61 @@ void Fock::makeDens(int nocc, bool first)
 	// Form the orthogonalised fock matrix
   	fockm = orthog.transpose() * (fockm * orthog);
   }
-  
-  // Diagonalise the initial fock matrix
-  if (symqr(fockm, eps, CP, molecule.getLog().precision())) {
-    // Sort the eigenvalues and eigenvectors
-    // using a selection sort
-    int k;
-    for (int i = 0; i < nbfs; i++){
-      k=i;
-      // Find the smallest element
-      for (int j = i+1; j < nbfs; j++)
-	if (eps(j) < eps(k)) { k=j; }
-      
-      // Swap rows of eps and columns of CP
-      eps.swap(i, k);
-      CP.swapCols(i, k);
-    }
 
-    // Form the initial SCF eigenvector matrix
-    CP = orthog*CP;
+  // Diagonalise the initial fock matrix
+  Eigen::MatrixXd temp(fockm.nrows(), fockm.nrows());
+  for (int i = 0; i < fockm.nrows(); i++){
+    for (int j = 0; j < fockm.nrows(); j++){
+      temp(i, j) = fockm(i, j);
+    }
+  }
+
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(temp);
+  temp = es.eigenvectors();
+  CP.assign(fockm.nrows(), fockm.nrows(), 0.0); eps.assign(fockm.nrows(), 0.0);
+  for(int i = 0; i < fockm.nrows(); i++){
+    for (int j = 0; j < fockm.nrows(); j++){
+      CP(i, j) = temp(i, j);
+    }
+  }
+  
+  temp = es.eigenvalues().asDiagonal();
+  for (int i = 0; i < fockm.nrows(); i++)
+    eps[i] = temp(i, i);
+
+  // Sort the eigenvalues and eigenvectors
+  // using a selection sort
+  int k;
+  for (int i = 0; i < nbfs; i++){
+    k=i;
+    // Find the smallest element
+    for (int j = i+1; j < nbfs; j++)
+      if (eps(j) < eps(k)) { k=j; }
     
-    // Form the density matrix
-    dens.assign(nbfs, nbfs, 0.0);
-    for (int u = 0; u < nbfs; u++){
-      for (int v = 0; v < nbfs; v++){
-	for (int t = 0; t < nocc; t++){
-	  dens(u, v) += CP(u, t)*CP(v, t);
-	}
+    // Swap rows of eps and columns of CP
+    eps.swap(i, k);
+    CP.swapCols(i, k);
+  }
+
+  // Form the initial SCF eigenvector matrix
+  CP = orthog*CP;
+  
+  // Form the density matrix
+  dens.assign(nbfs, nbfs, 0.0);
+  for (int u = 0; u < nbfs; u++){
+    for (int v = 0; v < nbfs; v++){
+      for (int t = 0; t < nocc; t++){
+	dens(u, v) += CP(u, t)*CP(v,t);
       }
     }
-    dens = 2.0*dens;
-    
-  } else { // Throw error
-    Error e("DENS", "Unable to diagonalise initial Fock matrix.");
   }
+  dens = 2.0*dens;
 }
 
 // Make the JK matrix, depending on how two electron integrals are stored/needed
 void Fock::makeJK()
 {
-	if (twoints){
+  if (twoints){
     formJK(); 
   } else if (direct) {
     formJKdirect();
@@ -157,18 +180,16 @@ void Fock::formJK()
 {
   jkints.assign(nbfs, nbfs, 0.0);
   for (int u = 0; u < nbfs; u++){
-    for (int v = 0; v < nbfs; v++){
-      for (int p = 0; p < nbfs; p++){
-	for (int s = 0; s < nbfs; s++){
-	  jkints(u, v) += dens(p, s)*(integrals.getERI(u, v, p, s) 
-	  	- 0.5*integrals.getERI(u, s, p, v));
+    for (int v = 0; v < nbfs ; v++){
+      for (int s = 0; s < nbfs; s++){
+	for (int l = 0; l < nbfs; l++){
+	  jkints(u, v) += dens(s, l)*(integrals.getERI(u, v, l, s) - 0.5*integrals.getERI(u, s, l, v));
 	}
       }
     }
   }
-  		
+  
 }
-
 // Form JK using integral direct methods
 void Fock::formJKdirect()
 {
@@ -182,23 +203,23 @@ void Fock::formJKfile()
 // Add an error vector
 void Fock::addErr(Vector e)
 {
-	if (iter+1 > MAX) {
+	if (iter > MAX) {
 		errs.erase(errs.begin()); // Remove first element
 	}
 	errs.push_back(e); // Push e onto the end of errs
+	iter++;
 }	
 		
 
 void Fock::makeFock()
 {
-	fockm = hcore + jkints;
-	if (diis) { // Archive for averaging
-		if (iter+1 > MAX) {
-			focks.erase(focks.begin());
-		}
-		focks.push_back(fockm);
-	}		
-	iter++;
+  fockm = hcore + jkints;
+  if (diis) { // Archive for averaging
+    if (iter > MAX) {
+      focks.erase(focks.begin());
+    }
+    focks.push_back(fockm);
+  }		
 }
 
 // Perform DIIS averaging
@@ -207,28 +228,48 @@ void Fock::makeFock()
 // of the scf iterations.
 void Fock::DIIS()
 {
-	if (iter > 1) {
-		int lim = (iter+1 < MAX ? iter+1 : MAX);
-		Matrix B(lim+1, lim+1, -1.0); // Error norm matrix
-		B(lim, lim) = 0.0;
-		
-		// The elements of B are <e_i | e_j >
-		for (int i = 0; i < lim; i++){
-			for (int j = i; j < lim; j++){
-				B(i, j) = inner(errs[i], errs[j]);
-				B(j, i) = B(i, j);
-			}
-		}
-		
-		// Solve the linear system of equations for the weights
-		Vector w(lim+1, 0.0); w[lim] = -1.0;
-		w = choleskysolve(B, w);
-		
-		// Average the fock matrices according to the weights
-		fockm.assign(nbfs, nbfs, 0.0);
-		for (int i = 0; i < lim; i++)
-			fockm = fockm + w(i)*focks[i];
-			
-	}
+  if (iter > 1) {
+    int lim = (iter < MAX ? iter : MAX);
+    Matrix B(lim+1, lim+1, -1.0); // Error norm matrix
+    B(lim, lim) = 0.0;
+    
+    // The elements of B are <e_i | e_j >
+    for (int i = 0; i < lim; i++){
+      for (int j = i; j < lim; j++){
+	B(i, j) = inner(errs[i], errs[j]);
+	B(j, i) = B(i, j);
+      }
+    }
+
+    // Solve the linear system of equations for the weights
+    Vector w(lim+1, 0.0); w[lim] = -1.0;
+    
+    Eigen::MatrixXd temp(lim+1, lim+1);
+    for (int i = 0; i < lim+1; i++){
+      for (int j = 0; j < lim+1; j++){
+	temp(i, j) = B(i, j);
+      }
+    }
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(temp, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    temp = svd.singularValues().asDiagonal();
+    for (int i = 0; i < lim+1; i++){
+      if (fabs(temp(i, i)) > molecule.getLog().precision())
+	temp(i, i) = 1.0/temp(i, i);
+    }
+    temp = svd.matrixV() * temp * svd.matrixU().transpose();
+    
+    for (int i = 0; i < lim+1; i++){
+      for (int j = 0; j < lim+1; j++){
+	B(i, j) = temp(i, j);
+      }
+    }
+
+    w = B*w;
+    // Average the fock matrices according to the weights
+    fockm.assign(nbfs, nbfs, 0.0);
+    for (int i = 0; i < lim; i++)
+      fockm = fockm + w(i)*focks[i];   
+  }
 }
 

@@ -55,6 +55,7 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   PRECISION = input.getPrecision();
   MAXITER = input.getMaxIter();
   THRINT = input.getThrint();
+  CONVERGE = input.getConverge();
   memory = input.getMemory();
   twoprinting = input.getTwoPrint();
   directing = input.getDirect();
@@ -356,6 +357,7 @@ void Logger::print(const Atom& a) const
 // MOLECULE
 // ========
 // No. of e- = nel,  charge = q,  singlet/doublet/triplet etc.
+// Enuc = nuclear energy
 // (if inertia = true then also prints the section:
 // ............................
 // Principal Moments of Inertia
@@ -379,7 +381,6 @@ void Logger::print(Molecule& mol, bool inertia) const
   // Print out basic details
   outfile << "# electrons = " << mol.getNel() << ",  ";
   outfile << "charge = " << mol.getCharge() << ",  ";
- 
   std::string temp;
   // Get the state type
   switch (mol.getMultiplicity()) {
@@ -391,6 +392,7 @@ void Logger::print(Molecule& mol, bool inertia) const
   default: { temp = "Spintacular"; break; } // Are hextets even a thing?!
   }
   outfile << temp << "\n";
+  outfile << "ENUC = " << mol.getEnuc() << " Hartree\n";
   
   // Print inertial details if needed, and rotate
   // into the inertial coordinate system
@@ -556,6 +558,28 @@ void Logger::error(Error& e)
   errTime();
 }
 
+
+// Print out an iteration table
+// Initialise table header first
+void Logger::initIteration()
+{
+  outfile << "\n";
+  outfile << std::setw(12) << "Iteration";
+  outfile << std::setw(15) << "Energy";
+  outfile << std::setw(15) << "Delta E";
+  outfile << std::setw(15) << "Time elapsed\n";
+  outfile << std::string(47, '-') << "\n";
+}
+
+// Print a single iteration
+void Logger::iteration(int iter, double energy, double delta)
+{
+  outfile << std::setw(12) << iter;
+  outfile << std::setw(15) << energy;
+  outfile << std::setw(15) << delta;
+  outfile << std::setw(15) << getLocalTime();
+  outfile << "\n";
+}
 // Timing functions
 
 // Print time elapsed since last call

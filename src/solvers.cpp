@@ -169,6 +169,7 @@ Vector choleskysolve(const Matrix& A, const Vector& b)
   Vector x(dim); // Solution vector
   Matrix R;
   R = cholesky(A); // Get the upper triangular matrix R
+
   // Do the forward substitution for y
   x = b; // Initialise x
   for (int i = 0; i < dim; i++){
@@ -202,6 +203,12 @@ Vector choleskysolve(const Vector& b, const Matrix& R)
   }
   // Now do the back substitution                                         
   x = backsub(R, x);
+  return x;
+}
+
+Vector stableSolve(const Matrix& A, const Vector& b)
+{
+  Vector x(b.size());
   return x;
 }
 
@@ -472,17 +479,41 @@ bool symqr(const Matrix& A, Vector& vals, double PRECISION)
 }
 
 // Same as above, but computes eigenvectors as well
-bool symqr(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION)
+bool symqr(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION, bool HESS)
 {
+  
   bool rval = true;
   int dim = A.nrows(); // It's square
   vals.resize(dim);
-  vecs.resize(dim, dim);
+  vecs.assign(dim, dim, 0.0);
+  if (dim == 1) { vals[0] = A(0, 0); vecs(0, 0) = 1.0; }
+  else if (dim == 2) { 
+    // Calculate analytically
+    double b = A(0, 0) + A(1, 1);
+    double ac = A(0, 0)*A(1,1) - A(0, 1)*A(1, 0);
+    double b24ac = std::sqrt(b*b - 4*ac);
+    vals[0] = 0.5*(b - b24ac);
+    vals[1] = 0.5*(b + b24ac);
+    double mult = A(0, 1)/(vals(0) - A(0,0));
+    vecs(1, 0) = 1/(std::sqrt(1+mult*mult));
+    vecs(0, 0) = mult*vecs(1, 0);
+    mult = A(0, 1)/(vals(1) - A(0, 0));
+    vecs(1, 1) = 1/(std::sqrt(1+mult*mult));
+    vecs(0, 1) = mult*vecs(1, 1);
+  } else {
   Matrix B; Matrix q;
-  // Tridiagonalise
-  if(hessenberg(A, B, q)){
-    // Form the Q matrix
+  // Tridiagonalise 
+  if (HESS) {
+    B = A; 
+    A.print();
+    B.print();
+    for (int i = 0; i < dim; i++) vecs(i, i) = 1.0;
+  } else {
+    rval = hessenberg(A, B, q);
     vecs = explicitq(q);
+  }
+  if(rval){
+    
     int flag = 0;
     while (flag < dim-1){
       // Reduce B
@@ -522,27 +553,80 @@ bool symqr(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION)
 	  D(i-p+1, i-p) = D(i-p, i-p+1) = B(i, i+1);
 	}
 	D(q-p, q-p) = B(q-p, q-p);
-	// Do the implicit shift step, getting the transformation matrix Z
-	Matrix Z;
-	Z = implicitshift(D, PRECISION);
-	// Recompute B
-	for (int i = p; i < q; i++){
-	  B(i, i) = D(i-p, i-p);
-	  B(i, i+1) = B(i+1, i) = D(i-p+1, i-p);
-	}
-	B(q-p, q-p) = D(q-p, q-p);
-	// Recompute Q
-	D.assign(dim, dim, 0.0);
-	for (int i = 0; i < p; i++) { D(i, i) = 1.0; }
-	for (int i = q+1; i < dim; i++) { D(i, i) = 1.0;}
-	for (int i = p; i < q+1; i++){
-	  for (int j = p; j < q+1; j++){
-	    D(i, j) = Z(i-p, j-p);
+
+	// Check for more zeroes on superdiagonal
+	int flag2 = 0;
+	int bpoint = 0;
+	while (flag2 < q-p) {
+	  if(D(flag2, flag2+1) == 0 ){
+	    bpoint = flag2;
+	    flag2 = q-p;
+	  } else {
+	    flag2++;
 	  }
-	}
-	vecs = vecs*D;
+	}    
+	 
+	// If block diagonal, break it up and call recursively
+	if (bpoint != 0){
+	  D.print();
+	  Matrix D1(bpoint+1, bpoint+1, 0.0);
+	  Matrix D2(q-p-bpoint, q-p-bpoint, 0.0);
+	  // Copy values in
+	  for (int i = 0; i < bpoint; i++){
+	    D1(i, i) = D(i, i);
+	    D1(i, i+1) = D1(i+1, i) = D(i, i+1);
+	  }
+	  D1(bpoint, bpoint) = D(bpoint, bpoint);
+	  for (int i = bpoint+1; i < q-p; i++){
+	    D2(i-bpoint-1, i-bpoint-1) = D(i, i);
+	    D2(i-bpoint-1, i-bpoint) = D2(i-bpoint, i-bpoint-1) = D(i, i+1);
+	  }
+	  D2(q-p-bpoint-1, q-p-bpoint-1) = D(q-p, q-p);
+	  D1.print(); D2.print();
+	  // Call symqr recursively
+	  Vector vals1; Vector vals2;
+	  Matrix D1P; Matrix D2P;
+	  rval = symqr(D1, vals1, D1P, PRECISION, true) && rval;
+	  rval = symqr(D2, vals2, D2P, PRECISION, true) && rval;
+	  
+	  // Construct the solution
+	  for (int i = 0; i < bpoint+1; i++) {
+	    B(i+p, i+p) = vals1(i);
+	    for (int j = 0; j < bpoint+1; j++)
+	      vecs(i+p, j+p) = D1P(i, j);
+	  }
+	  for (int i = bpoint+1; i < q-p+1; i++){
+	    B(i+p, i+p) = vals2(i-bpoint-1);
+	    for (int j = bpoint+1; j < q-p+1; j++)
+	      vecs(i+p, j+p) = D2P(i-bpoint-1, j-bpoint-1);
+	  }
+	  flag = dim;
+	} else {
+	  // Do the implicit shift step, getting the transformation matrix Z
+	  Matrix Z;
+	  Z = implicitshift(D, PRECISION);
+	  // Recompute B
+	  for (int i = p; i < q; i++){
+	    B(i, i) = D(i-p, i-p);
+	    B(i, i+1) = B(i+1, i) = D(i-p+1, i-p);
+	  }
+	  B(q-p, q-p) = D(q-p, q-p);
+	  // Recompute Q
+	  D.assign(dim, dim, 0.0);
+	  for (int i = 0; i < p; i++) { D(i, i) = 1.0; }
+	  for (int i = q+1; i < dim; i++) { D(i, i) = 1.0;}
+	  for (int i = p; i < q+1; i++){
+	    for (int j = p; j < q+1; j++){
+	      D(i, j) = Z(i-p, j-p);
+	    }
+	  }
+	  vecs = vecs*D;
+	  flag = p;
+	} 
+      } else {
+	flag = p;
       }
-      flag = p;
+      
     }
     // Copy eigenvalues from diagonal of B
     for (int i = 0; i < dim; i++){
@@ -550,6 +634,7 @@ bool symqr(const Matrix& A, Vector& vals, Matrix& vecs, double PRECISION)
     }
   } else { // Hessenberg failed
     rval = false;
+  }
   }
   return rval;
 }

@@ -52,7 +52,7 @@ private:
 public:
   Fock(IntegralEngine& ints, Molecule& m);
   Matrix& getHCore() { return hcore; }
-  Matrix& getFockM() { return fockm; }
+  Matrix& getFock() { return fockm; }
   Matrix& getCP() { return CP; }
   Vector& getEps() { return eps; }
   Matrix& getJK() { return jkints; }

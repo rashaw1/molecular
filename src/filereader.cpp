@@ -46,6 +46,9 @@ int FileReader::findToken(std::string t)
   else if (t == "integral") { rval = 9; }  
   else if (t == "print") { rval = 10; }
   else if (t == "direct") { rval = 11; }
+  else if (t == "scf") { rval = 12; }
+  else if (t == "nodiis") { rval = 13; }
+  else if (t == "converge") { rval = 14; }
   return rval;
 }
 
@@ -59,6 +62,7 @@ void FileReader::readParameters()
   precision = 1e-12;
   geomstart = 0; geomend = 0;
   thrint = 1e-12;
+  converge = 1e-5;
   memory = 100;
   direct = false;
   twoprint = false;
@@ -152,6 +156,35 @@ void FileReader::readParameters()
 	  }
 	  case 11: { // Direct
 	    direct = true;
+	    break;
+	  }
+	  default: {
+	    throw(Error("READIN", "Command " + line + " not found."));
+	  }
+	  }
+	}
+	break;
+      }
+      case 12: { // SCF directive
+	line.erase(0, pos+1);
+	// Tokenise the next bit
+	pos = line.find(',');
+	if (pos != std::string::npos) {
+	  token = line.substr(0, pos);
+          switch(findToken(token)){
+          case 14: { // Convergence criterion specified
+            converge = std::stod(line.substr(pos+1, line.length()));
+            break;
+          }
+          default: {
+            throw(Error("READIN", "Command " + token + " not found."));
+          }
+          }
+	} else {
+	  line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+	  switch(findToken(line)){
+	  case 13: { // No DIIS wanted
+	    diis = false;
 	    break;
 	  }
 	  default: {
