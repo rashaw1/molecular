@@ -36,7 +36,7 @@ Fock::Fock(IntegralEngine& ints, Molecule& m) : integrals(ints), molecule(m)
   // read from file.
   direct = molecule.getLog().direct();
   diis = molecule.getLog().diis();
-  iter = -1;
+  iter = 0;
   MAX = 10;
   twoints = false;
   if (!direct){
@@ -96,20 +96,22 @@ void Fock::formOrthog()
   
 
 
-// Construct the density matrix - first => initial guess from hcore
-void Fock::makeDens(int nocc, bool first)
+// Transform the AO fock matrix to the MO basis 
+void Fock::transform(bool first)
 {
-  if (diis) DIIS(); // Do diis averaging if required
-  
   if (first) { 
-  	// Form the core Fock matrix as (S^-1/2)(T)H(S^-1/2)
-  	fockm = (orthog.transpose()) * ( hcore * orthog);
+    // Form the core Fock matrix as (S^-1/2)(T)H(S^-1/2)
+    fockm = (orthog.transpose()) * ( hcore * orthog);
   } else {
-	// Form the orthogonalised fock matrix
-  	fockm = orthog.transpose() * (fockm * orthog);
+    // Form the orthogonalised fock matrix
+    if (diis) DIIS();
+   fockm = orthog.transpose() * (focka * orthog);
   }
+}
 
-  // Diagonalise the initial fock matrix
+// Diagonalise the MO fock matrix to get CP and eps
+void Fock::diagonalise() 
+{
   Eigen::MatrixXd temp(fockm.nrows(), fockm.nrows());
   for (int i = 0; i < fockm.nrows(); i++){
     for (int j = 0; j < fockm.nrows(); j++){
@@ -146,7 +148,12 @@ void Fock::makeDens(int nocc, bool first)
 
   // Form the initial SCF eigenvector matrix
   CP = orthog*CP;
-  
+}
+
+// Construct the density matrix from CP, 
+// for nocc number of occupied orbitals
+void Fock::makeDens(int nocc)
+{
   // Form the density matrix
   dens.assign(nbfs, nbfs, 0.0);
   for (int u = 0; u < nbfs; u++){
@@ -178,17 +185,19 @@ void Fock::makeJK()
 // Form the 2J-K matrix, given that twoints is stored in memory
 void Fock::formJK()
 {
-  jkints.assign(nbfs, nbfs, 0.0);
+  jints.assign(nbfs, nbfs, 0.0);
+  kints.assign(nbfs, nbfs, 0.0);
   for (int u = 0; u < nbfs; u++){
     for (int v = 0; v < nbfs ; v++){
       for (int s = 0; s < nbfs; s++){
 	for (int l = 0; l < nbfs; l++){
-	  jkints(u, v) += dens(s, l)*(integrals.getERI(u, v, l, s) - 0.5*integrals.getERI(u, s, l, v));
+	  jints(u, v) += dens(s, l)*integrals.getERI(u, v, l, s);
+	  kints(u, v) += dens(s, l)*integrals.getERI(u, s, l, v);
 	}
       }
     }
   }
-  
+  jkints = jints - 0.5*kints;
 }
 // Form JK using integral direct methods
 void Fock::formJKdirect()
@@ -203,23 +212,28 @@ void Fock::formJKfile()
 // Add an error vector
 void Fock::addErr(Vector e)
 {
-	if (iter > MAX) {
-		errs.erase(errs.begin()); // Remove first element
-	}
-	errs.push_back(e); // Push e onto the end of errs
-	iter++;
+  if (iter > MAX) {
+    errs.erase(errs.begin()); // Remove first element
+  }
+  errs.push_back(e); // Push e onto the end of errs
+  iter++;
 }	
 		
 
 void Fock::makeFock()
 {
-  fockm = hcore + jkints;
+  focka = hcore + jkints;
   if (diis) { // Archive for averaging
     if (iter > MAX) {
       focks.erase(focks.begin());
     }
-    focks.push_back(fockm);
+    focks.push_back(focka);
   }		
+}
+
+void Fock::makeFock(Matrix& jbints)
+{
+  focka = hcore + 0.5*(jints + jbints - kints);
 }
 
 // Perform DIIS averaging
@@ -266,10 +280,16 @@ void Fock::DIIS()
     }
 
     w = B*w;
+
     // Average the fock matrices according to the weights
-    fockm.assign(nbfs, nbfs, 0.0);
-    for (int i = 0; i < lim; i++)
-      fockm = fockm + w(i)*focks[i];   
+    focka.assign(nbfs, nbfs, 0.0);
+    for (int i = 0; i < lim; i++) {
+      focka = focka + w(i)*focks[i];   
+    } 
   }
 }
 
+void Fock::simpleAverage(Matrix& D0, double weight)
+{
+  dens = weight*dens + (1.0-weight)*D0;
+}

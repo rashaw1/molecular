@@ -568,7 +568,7 @@ void Logger::initIteration()
   outfile << std::setw(15) << "Energy";
   outfile << std::setw(15) << "Delta E";
   outfile << std::setw(15) << "Time elapsed\n";
-  outfile << std::string(47, '-') << "\n";
+  outfile << std::string(57, '-') << "\n";
 }
 
 // Print a single iteration

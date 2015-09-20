@@ -165,8 +165,8 @@ BF BasisReader::readBF(int q, int i)
 	  }
 	  case 3: { // p type
 	    switch(sublmult){
-	    case 1: { //pz 
-	      l3 = 1; l2 = l1 = 0;
+	    case 1: { //px 
+	      l1 = 1; l2 = l3 = 0;
 	      break;
 	    }
 	    case 2: { //py
@@ -174,8 +174,8 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index < ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
-	    case 3: { //px
-	      l3 = l2 = 0; l1 = 1;
+	    case 3: { //pz
+	      l1 = l2 = 0; l3 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
@@ -188,8 +188,8 @@ BF BasisReader::readBF(int q, int i)
 	      l1 = l2 = l3 = 0;
 	      break;
 	    }
-	    case 2:{ // pz
-	      l3 = 1; l2 = l1 = 0;
+	    case 2:{ // px
+	      l1 = 1; l2 = l3 = 0;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
 	      break;
 	    }
@@ -198,8 +198,8 @@ BF BasisReader::readBF(int q, int i)
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
 	      break;
 	    }
-	    case 4:{ //px
-	      l3 = l2 = 0; l1 = 1;
+	    case 4:{ //pz
+	      l1 = l2 = 0; l3 = 1;
 	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
 	      break;
 	    }

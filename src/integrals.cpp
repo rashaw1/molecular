@@ -28,6 +28,7 @@
 #include "logger.hpp"
 #include "tensor4.hpp"
 #include "tensor6.hpp"
+#include "tensor7.hpp"
 #include "ten4ten6.hpp"
 #include "ten4ten4.hpp"
 #include <cmath>
@@ -79,7 +80,11 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
         molecule.getLog().print("Writing the two electron integrals to file\n");
         formERI(true); // Write to file without forming twoints
     }
-        
+    //std::cout << "\n\n";
+    //sints.print();
+    //std::cout << "\n\n";
+	//tints.print(); std::cout << "\n";
+    //naints.print(); std::cout << "\n";
 }
 
 // Accessors
@@ -324,14 +329,15 @@ void IntegralEngine::printERI(std::ostream& output, int NSpher) const
             double multiplier = 0.125;
             if (c1!=c2) { multiplier *= 2.0; }
             if (c3!=c4) { multiplier *= 2.0; }
-            if ((c1!=c3) && (c1 != c4)) { multiplier *=2.0; }
+            if ((c1+c2) != (c3+c4)) { multiplier*=2.0; }
+	    else if ((c1!=c3) && (c1 != c4)) { multiplier *=2.0; }
             else if ((c2!=c3) && (c2 != c4)) { multiplier *=2.0; }
-            if (fabs(twoints(c4, c3, c2, c1)) < molecule.getLog().thrint()) { scount++; multiplier = 0; }
+            if (fabs(getERI(c4, c3, c2, c1)) < molecule.getLog().thrint()) { scount++; multiplier = 0; }
             output << std::setw(6) << c1+1;
             output << std::setw(6) << c2+1;
             output << std::setw(6) << c3+1;
             output << std::setw(6) << c4+1;
-            output << std::setw(20) << multiplier*twoints(c4, c3, c2, c1);
+            output << std::setw(20) << multiplier*getERI(c4, c3, c2, c1);
             output << "\n";
         }
       }
@@ -416,18 +422,18 @@ Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) co
   while(j < N){
     switch((int)(lnums(j))){
     case 1: { // p-type 
-      slnums[k] = 1; smnums[k] = 0;
+      slnums[k] = 1; smnums[k] = 1;
       slnums[++k] = 1; smnums[k] = -1;
-      slnums[++k] = 1; smnums[k++] = 1; 
+      slnums[++k] = 1; smnums[k++] = 0; 
       j += 3;
       break;
     } 
     case 2: { // d-type
       slnums[k] = 2; smnums[k] = 0;
-      slnums[++k] = 2; smnums[k] = -1;
-      slnums[++k] = 2; smnums[k] = 1;
       slnums[++k] = 2; smnums[k] = -2;
-      slnums[++k] = 2; smnums[k++] = 2;
+      slnums[++k] = 2; smnums[k] = 1;
+      slnums[++k] = 2; smnums[k] = 2;
+      slnums[++k] = 2; smnums[k++] = -1;
       j += 6;
       break;
     }
@@ -454,17 +460,19 @@ Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) co
   // Loop through all the slnums, looking up the coefficients
   // as needed. 
   j = 0; // Column counter
+  int m = 0; // m-counter
   for(int i = 0; i < M; i++){
     // Get the coefficients
     formTransMat(trans, i, j, (int)(slnums(i)), (int)(smnums(i)));
-    if (slnums(i) - smnums(i) == 0){ // Increment j by a suitable amount
+    if (m == 2*slnums(i)){ // Increment j by a suitable amount
       switch((int)(slnums(i))){
       case 1: { j+=3; break;}
       case 2: { j+=6; break;}
       case 3: { j+=10; break;}
       default: { j+=1; }
       }
-    }
+      m = 0;
+    } else { m++; }
   }
 
   // Now transform the integral matrix
@@ -961,7 +969,7 @@ void IntegralEngine::formNucAttract()
       int nP = na.getNShellPrims(shells(n));
 
       // Store the primitive integrals
-      Matrix prims(mP, nP);
+      Matrix prims(mP, nP, 0.0);
       
       // Get shell sizes                                                                                                                                                           
       int msize = mshells(shells(m));
@@ -982,10 +990,9 @@ void IntegralEngine::formNucAttract()
 	    
 	    // Calculate the nuclear attraction integrals
 	    prims(u, v) = nucAttract(mpbf, npbf, mcoords, ncoords, ccoords);
-	    	    	  
 	  } // End v-loop over prims
 	} // End u-loop over prims
-      
+
 	// Now we need to contract all the integrals
 	Vector mplist; Vector nplist;
 	Vector mcoeff; Vector ncoeff;
@@ -1008,7 +1015,7 @@ void IntegralEngine::formNucAttract()
 	      }
 	    }
 	    // Contract cartesian integrals into the nuclear attraction
-	    // matrix, weighting by the atomic charge of centre C
+	    // matrix, weighting by the atomic charge of centre Cf 	
 	    naints(m+i, n+j) += -1.0*Z*makeContracted(mcoeff, ncoeff, ints);
 	  }
 	} // End contraction loops
@@ -1023,7 +1030,7 @@ void IntegralEngine::formNucAttract()
   
   // Symmetrise
   for (int i = 0; i < N; i++){
-    for (int j = i+1; j < N; j++){
+    for (int j = i; j < N; j++){
       naints(j, i) = naints(i, j);
     }
   }
@@ -1072,8 +1079,8 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   double ZPA = vals(4) - ucoords(2); double ZPC = vals(4) - ccoords(2); 
 
   // Store the auxiliary integrals
-  Matrix aux(N+1, Nx+1, 0.0);
-    
+  Tensor7 Aux(N+1, Nx+1, Nx+1, Ny+1, Ny+1, Nz+1, Nz+1, 0.0);
+  
   // Calculate the 000000 integral for N, 
   // via the boys function
   double p = vals(0); double pionep = 2.0*M_PI/p; double one2p = 1.0/(2.0*p);
@@ -1081,7 +1088,7 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   double pRPC2 = p*(XPC*XPC + YPC*YPC + ZPC*ZPC);
   Vector boysval; boysval = boys(pRPC2, N, 0);
   for (int n = 0; n < N+1; n++){ 
-    aux(n,0) = pionep*K*boysval(n);
+  	Aux(n, 0, 0, 0, 0, 0, 0) = pionep*K*boysval(n);
   }
 
   // Increment the first cartesian index  by the recurrence relation:
@@ -1090,34 +1097,32 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   if ( Nx > 0) {
   for (int n = N-1; n > -1 ; n--){
     // Calculate first increment
-    aux(n, 1) = XPA*aux(n, 0) - XPC*aux(n+1, 0); 
+    Aux(n, 1, 0, 0, 0, 0, 0) = XPA*Aux(n, 0, 0, 0, 0, 0, 0) - XPC*Aux(n+1, 0, 0, 0, 0, 0, 0);
     int Nmax = (N-n+1 > Nx+1 ? Nx+1 : N-n+1);
     for (int k = 2; k < Nmax; k++){
-      aux(n, k) = XPA*aux(n, k-1) - XPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
+      Aux(n, k, 0, 0, 0, 0, 0) = XPA*Aux(n, k-1, 0, 0, 0, 0, 0) - XPC*Aux(n+1, k-1, 0, 0, 0, 0, 0)
+      	+(k-1)*one2p*(Aux(n, k-2, 0, 0, 0, 0, 0) - Aux(n+1, k-2, 0, 0, 0, 0, 0));
     }
   }
   }
-
+  
   // Increment the second index by the horizontal recursion relation if necessary
   for (int n = N-Nx; n > -1; n--){
     for (int j = 1; j < vlx+1; j++){
-      for (int i = Nx-1; i > -1; i--){
-	aux(n, i) = aux(n, i+1) + XAB*aux(n, i);
+      for (int i = Nx-j; i > -1; i--){
+		Aux(n, i, j, 0, 0, 0, 0) = Aux(n, i+1, j-1, 0, 0, 0, 0) + XAB*Aux(n, i, j-1, 0, 0, 0, 0);
       }
     }
   }
-
-  Vector temp; temp = aux.colAsVector(ulx);
-  aux.assign(N-Nx+1, Ny+1, 0.0); // Resize, and repeat procedure for next two indices
-  aux.setCol(0, temp);
-
+  
   if( Ny > 0 ) {
   for (int n = N-Nx-1; n > -1; n--){
     // Calculate first increment
-    aux(n, 1) = YPA*aux(n, 0) - YPC*aux(n+1, 0);
+    Aux(n, ulx, vlx, 1, 0, 0, 0) = YPA*Aux(n, ulx, vlx, 0, 0, 0, 0) - YPC*Aux(n+1, ulx, vlx, 0, 0, 0, 0);
     int Nmax = (N-Nx-n+1 > Ny+1 ? Ny+1 : N-Nx-n+1);
     for (int k = 2; k < Nmax; k++){
-      aux(n, k) = YPA*aux(n, k-1) - YPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
+      Aux(n, ulx, vlx, k, 0, 0, 0) = YPA*Aux(n, ulx, vlx, k-1, 0, 0, 0) - YPC*Aux(n+1, ulx, vlx, k-1, 0, 0, 0)
+      	+(k-1)*one2p*(Aux(n, ulx, vlx, k-2, 0, 0, 0) - Aux(n+1, ulx, vlx, k-2, 0, 0, 0));
     }
   }
   }
@@ -1125,36 +1130,294 @@ double IntegralEngine::nucAttract(const PBF& u, const PBF& v, const Vector& ucoo
   // Increment the second index by the horizontal recursion relation if necessary
   for (int n = N-Nx-Ny; n > -1; n--){
     for (int j = 1; j < vly+1; j++){
-      for (int i = Ny-1; i > -1; i--){
-	aux(n, i) = aux(n, i+1) + YAB*aux(n, i);
+      for (int i = Ny-j; i > -1; i--){
+      	Aux(n, ulx, vlx, i, j, 0, 0) = Aux(n, ulx, vlx, i+1, j-1, 0, 0) + YAB*Aux(n, ulx, vlx, i, j-1, 0, 0);
       }
     }
   }
 
-  temp = aux.colAsVector(uly);
-  aux.assign(Nz+1, Nz+1, 0.0);
-  aux.setCol(0, temp);
-
   for (int n = Nz-1; n > -1; n--){
     // Calculate first increment
-    aux(n, 1) = ZPA*aux(n, 0) - ZPC*aux(n+1, 0);
+    Aux(n, ulx, vlx, uly, vly, 1, 0) = ZPA*Aux(n, ulx, vlx, uly, vly, 0, 0) - ZPC*Aux(n+1, ulx, vlx, uly, vly, 0, 0);
     
     for (int k = 2; k < Nz-n+1; k++){
-      aux(n, k) = ZPA*aux(n, k-1) - ZPC*aux(n+1, k-1) + (k-1)*one2p*(aux(n, k-2) - aux(n+1, k-2));
+      Aux(n, ulx, vlx, uly, vly, k, 0) = ZPA*Aux(n, ulx, vlx, uly, vly, k-1, 0)
+      	-ZPC*Aux(n+1, ulx, vlx, uly, vly, k-1, 0) + (k-1)*one2p*(Aux(n, ulx, vlx, uly, vly, k-2, 0) - Aux(n+1, ulx, vlx, uly, vly, k-2, 0));
     }
   }
 
   // Increment the second index by the horizontal recursion relation if necessary
   for (int j = 1; j < vlz+1; j++){
-    for (int i = Nz-1; i > -1; i--){
-      aux(0, i) = aux(0, i+1) + ZAB*aux(0, i);
+    for (int i = Nz-j; i > -1; i--){
+	  Aux(0, ulx, vlx, uly, vly, i, j) = Aux(0, ulx, vlx, uly, vly, i+1, j-1) + ZAB*Aux(0, ulx, vlx, uly, vly, i, j-1);
     }
   }
 
   // The final integral is now stored in aux(0, ulz)
-  integral = unorm*vnorm*aux(0, ulz);
+  integral = unorm*vnorm*Aux(0, ulx, vlx, uly, vly, ulz, vlz);
   return integral;
 }
+
+Tensor4 IntegralEngine::makeE(int u, int v, double K, double p, double PA, double PB) const
+{
+	int N = u+v;
+	Tensor4 E(N+1, N+1, N+1, 1, 0.0);
+	
+	// Set initial values
+	E(0, 0, 0, 0) = K;
+	
+	double one2p = 1.0/(2.0*p);
+	
+	if (N > 0) {
+		E(0, 1, 0, 0) = PA*E(0, 0, 0, 0);
+		E(0, 0, 1, 0) = PB*E(0, 0, 0, 0);
+		E(1, 1, 0, 0) = one2p*E(0, 0, 0, 0);
+		E(1, 0, 1, 0) = one2p*E(0, 0, 0, 0);
+		E(1, 1, 1, 0) = one2p*(E(0, 0, 1, 0) + E(0, 1, 0, 0));
+		E(0, 1, 1, 0) = PB*E(0, 1, 0, 0) + E(1, 1, 0, 0);
+	}
+	
+	if (N > 1) {
+		E(0, 2, 0, 0) = PA*E(0, 1, 0, 0) + E(1, 1, 0, 0);
+		E(0, 0, 2, 0) = PB*E(0, 0, 1, 0) + E(1, 0, 1, 0);
+		E(1, 2, 0, 0) = one2p*2*E(0, 1, 0, 0);
+		E(1, 0, 2, 0) = one2p*2*E(0, 0, 1, 0);
+		E(1, 2, 1, 0) = one2p*(2*E(0, 1, 1, 0) + E(0, 2, 0, 0));
+		E(1, 1, 2, 0) = one2p*(E(0, 0, 2, 0) + 2*E(0, 1, 1, 0));
+		E(0, 2, 1, 0) = PA*E(0, 1, 1, 0) + E(1, 1, 1, 0);
+		E(0, 1, 2, 0) = PB*E(0, 1, 1, 0) + E(1, 1, 1, 0);
+		E(0, 2, 2, 0) = PA*E(0, 1, 2, 0) + E(1, 1, 2, 0);
+		E(1, 2, 2, 0) = one2p*2*(E(0, 1, 2, 0) + E(0, 2, 1, 0));
+		E(2, 2, 0, 0) = one2p*E(1, 1, 0, 0);
+		E(2, 0, 2, 0) = one2p*E(1, 0, 1, 0);
+		E(2, 1, 1, 0) = (one2p/2.0)*(E(1, 0, 1, 0) + E(1, 1, 0, 0));
+		E(2, 2, 1, 0) = (one2p/2.0)*(2*E(1, 1, 1, 0) + E(1, 2, 0, 0));
+		E(2, 1, 2, 0) = (one2p/2.0)*(E(1, 0, 2, 0) + 2*E(1, 1, 1, 0));
+		E(2, 2, 2, 0) = one2p*(E(1, 1, 2, 0) + E(1, 2, 1, 0));
+	}	
+	
+	if (N > 2) {
+		E(0, 3, 0, 0) = PA*E(0, 2, 0, 0) + E(1, 2, 0, 0);
+		E(0, 0, 3, 0) = PB*E(0, 0, 2, 0) + E(1, 0, 2, 0);
+		E(1, 3, 0, 0) = one2p*2*E(0, 2, 0, 0);
+		E(1, 0, 3, 0) = one2p*2*E(0, 0, 2, 0);
+		E(1, 3, 1, 0) = one2p*(3*E(0, 2, 1, 0) + E(0, 3, 0, 0));
+		E(1, 1, 3, 0) = one2p*(E(0, 0, 3, 0) + E(0, 1, 2, 0));
+		E(0, 3, 1, 0) = PA*E(0, 2, 1, 0) + E(1, 2, 1, 0);
+		E(0, 1, 3, 0) = PB*E(0, 1, 2, 0) + E(1, 1, 2, 0);
+		E(1, 3, 2, 0) = one2p*(3*E(0, 2, 2, 0) + 2*E(0, 3, 1, 0));
+		E(1, 2, 3, 0) = one2p*(2*E(0, 1, 3, 0) + 3*E(0, 2, 2, 0));
+		E(0, 3, 2, 0) = PA*E(0, 2, 2, 0) + E(1, 2, 2, 0);
+		E(0, 2, 3, 0) = PB*E(0, 2, 2, 0) + E(1, 2, 2, 0);
+		E(1, 3, 3, 0) = one2p*3*(E(0, 2, 3, 0)  + E(0, 3, 2, 0));
+		E(0, 3, 3, 0) = PA*E(0, 2, 3, 0) + E(1, 2, 3, 0);
+		E(2, 3, 0, 0) = (one2p/2.0)*3*E(1, 2, 0, 0);
+		E(2, 0, 3, 0) = (one2p/2.0)*3*E(1, 0, 2, 0);
+		E(2, 3, 1, 0) = (one2p/2.0)*(3*E(1, 2, 1, 0) + E(1, 3, 0, 0));
+		E(2, 1, 3, 0) = (one2p/2.0)*(E(1, 0, 3, 0) + 3*E(1, 1, 2, 0));
+		E(2, 2, 3, 0) = (one2p/2.0)*(2*E(1, 1, 3, 0) + 3*E(1, 2, 2, 0));
+		E(2, 3, 2, 0) = (one2p/2.0)*(3*E(1, 2, 2, 0) + 2*E(1, 3, 1, 0));
+		E(2, 3, 3, 0) = (one2p/2.0)*3*(E(1, 2, 3, 0) + E(1, 3, 2, 0));
+		E(3, 3, 0, 0) = one2p*E(2, 2, 0, 0);
+		E(3, 0, 3, 0) = one2p*E(2, 0, 2, 0);
+		E(3, 3, 1, 0) = (one2p/3.0)*(3*E(2, 2, 1, 0) + E(2, 3, 0, 0));
+		E(3, 1, 3, 0) = (one2p/3.0)*(E(2, 0, 3, 0) + 3*E(2, 1, 2, 0));
+		E(3, 3, 2, 0) = (one2p/3.0)*(3*E(2, 2, 2, 0) + 2*E(2, 3, 1, 0));
+		E(3, 2, 3, 0) = (one2p/3.0)*(2*E(2, 1, 3, 0) + 3*E(2, 2, 2, 0));
+		E(3, 3, 3, 0) = one2p*(E(2, 2, 3, 0) + E(2, 3, 2, 0));
+	}
+	
+	if (N>3) {
+		E(0, 4, 0, 0) = PA*E(0, 3, 0, 0) + E(1, 3, 0, 0);
+		E(0, 0, 4, 0) = PB*E(0, 0, 3, 0) + E(1, 0, 3, 0);
+		E(1, 4, 0, 0) = one2p*4*E(0, 3, 0, 0);
+		E(1, 0, 4, 0) = one2p*4*E(0, 0, 3, 0);
+		E(1, 4, 1, 0) = one2p*(4*E(0, 3, 1, 0) + E(0, 4, 0, 0));
+		E(1, 1, 4, 0) = one2p*(E(0, 0, 4, 0) + 4*E(0, 1, 3, 0));
+		E(0, 4, 1, 0) = PA*E(0, 3, 1, 0) + E(1, 3, 1, 0);
+		E(0, 1, 4, 0) = PB*E(0, 1, 3, 0) + E(1, 1, 3, 0);
+		E(0, 4, 2, 0) = PA*E(0, 3, 2, 0) + E(1, 3, 2, 0);
+		E(0, 2, 4, 0) = PB*E(0, 2, 3, 0) + E(1, 2, 3, 0);
+		E(1, 4, 2, 0) = one2p*2*(2*E(0, 3, 2, 0) + E(0, 4, 1, 0));
+		E(1, 2, 4, 0) = one2p*2*(E(0, 1, 4, 0) + 2*E(0, 2, 3, 0));
+		E(1, 4, 3, 0) = one2p*(4*E(0, 3, 3, 0) + 3*E(0, 4, 2, 0));
+		E(1, 3, 4, 0) = one2p*(3*E(0, 2, 4, 0) + 4*E(0, 3, 3, 0));
+		E(0, 4, 3, 0) = PA*E(0, 3, 3, 0) + E(1, 3, 3, 0);
+		E(0, 3, 4, 0) = PB*E(0, 3, 3, 0) + E(1, 3, 3, 0);
+		E(1, 4, 4, 0) = one2p*4*(E(0, 3, 4, 0) + E(0, 4, 3, 0));
+		E(0, 4, 4, 0) = PA*E(0, 3, 4, 0) + E(1, 3, 4, 0);
+		E(2, 4, 0, 0) = one2p*2*E(1, 3, 0, 0);
+		E(2, 0, 4, 0) = one2p*2*E(1, 0, 3, 0);
+		E(2, 4, 1, 0) = (one2p/2.0)*(4*E(1, 3, 1, 0) + E(1, 4, 0, 0));
+		E(2, 1, 4, 0) = (one2p/2.0)*(E(1, 0, 4, 0) + 4*E(1, 1, 3, 0));
+		E(2, 4, 2, 0) = one2p*(2*E(1, 3, 2, 0) + E(1, 4, 1, 0));
+		E(2, 2, 4, 0) = one2p*(E(1, 1, 4, 0) + 2*E(1, 2, 3, 0));
+		E(2, 4, 3, 0) = (one2p/2.0)*(4*E(1, 3, 3, 0) + 3*E(1, 4, 2, 0));
+		E(2, 3, 4, 0) = (one2p/2.0)*(3*E(1, 2, 4, 0) + 4*E(1, 3, 3, 0));
+		E(2, 4, 4, 0) = one2p*2*(E(1, 3, 4, 0) + E(1, 4, 3, 0));
+		E(3, 4, 0, 0) = (one2p/3.0)*4*E(2, 3, 0, 0);
+		E(3, 0, 4, 0) = (one2p/3.0)*4*E(2, 0, 3, 0);
+		E(3, 4, 1, 0) = (one2p/3.0)*(4*E(2, 3, 1, 0) + E(2, 4, 0, 0));
+		E(3, 1, 4, 0) = (one2p/3.0)*(E(2, 0, 4, 0) + E(2, 1, 3, 0));
+		E(3, 4, 2, 0) = (one2p/3.0)*2*(2*E(2, 3, 2, 0) + E(2, 4, 1, 0));
+		E(3, 2, 4, 0) = (one2p/3.0)*2*(E(2, 1, 4, 0) + 2*E(2, 2, 3, 0));
+		E(3, 4, 3, 0) = (one2p/3.0)*(4*E(2, 3, 3, 0) + 3*E(2, 4, 2, 0));
+		E(3, 3, 4, 0) = (one2p/3.0)*(3*E(2, 2, 4, 0) + 4*E(2, 3, 3, 0));
+		E(3, 4, 4, 0) = (one2p/3.0)*4*(E(2, 3, 4, 0) + E(2, 4, 3, 0));
+		E(4, 4, 0, 0) = one2p*E(3, 3, 0, 0);
+		E(4, 0, 4, 0) = one2p*E(3, 0, 3, 0);
+		E(4, 4, 1, 0) = (one2p/4.0)*(4*E(3, 3, 1, 0) + E(3, 4, 0, 0));
+		E(4, 1, 4, 0) = (one2p/4.0)*(E(3, 0, 4, 0) + 4*E(3, 1, 3, 0));
+		E(4, 4, 2, 0) = (one2p/2.0)*(2*E(3, 3, 2, 0) + E(3, 4, 1, 0));
+		E(4, 2, 4, 0) = (one2p/2.0)*(E(3, 1, 4, 0) + 2*E(3, 2, 3, 0));
+		E(4, 4, 3, 0) = (one2p/4.0)*(4*E(3, 3, 3, 0) + 3*E(3, 4, 2, 0));
+		E(4, 3, 4, 0) = (one2p/4.0)*(3*E(3, 2, 4, 0) + 4*E(3, 3, 3, 0));
+		E(4, 4, 4, 0) = one2p*(E(3, 3, 4, 0) + E(3, 4, 3, 0));
+	}	
+	
+	return E;
+}	
+
+// Calculate the nuclear attraction between two primitives
+// and a centre c, using the McMurchie Davidson scheme
+double IntegralEngine::mmNucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
+				  const Vector& vcoords, const Vector& ccoords) const
+{
+  double integral = 0.0; // To return the answer in
+
+  // Get exponents, norms, and angular momenta
+  int ulx = u.getLx(); int uly = u.getLy(); int ulz = u.getLz();
+  int vlx = v.getLx(); int vly = v.getLy(); int vlz = v.getLz();
+  double unorm = u.getNorm(); double uexp = u.getExponent();
+  double vnorm = v.getNorm(); double vexp = v.getExponent();
+
+  // Determine the maximum N needed for the auxiliary integrals
+  // in each cartesian direction
+  int Nx = ulx + vlx; int Ny = uly + vly; int Nz = ulz + vlz;
+  int N = Nx + Ny + Nz;
+  
+  // Get the necessary values from getVals
+  Vector vals;
+  vals = getVals(uexp, vexp, ucoords, vcoords);
+  
+  // Calculate/retrieve the needed atomic separations
+  double XPA = vals(2) - ucoords(0); double XPC = vals(2) - ccoords(0);
+  double YPA = vals(3) - ucoords(1); double YPC = vals(3) - ccoords(1);
+  double ZPA = vals(4) - ucoords(2); double ZPC = vals(4) - ccoords(2);
+  double XPB = vals(2) - vcoords(0); double YPB = vals(3) - vcoords(1);
+  double ZPB = vals(4) - vcoords(2); double p = vals(0);
+  
+  // Generate the expansion coefficients
+  Tensor4 EX(N+1, N+1, N+1, 1);
+  Tensor4 EY(N+1, N+1, N+1, 1);
+  Tensor4 EZ(N+1, N+1, N+1, 1);
+  
+  EX = makeE(ulx+uly+ulz, vlx+vly+vlz, vals(8), p, XPA, XPB);
+  EY = makeE(ulx+uly+ulz, vlx+vly+vlz, vals(9), p, YPA, YPB);
+  EZ = makeE(ulx+uly+ulz, vlx+vly+vlz, vals(10), p, ZPA, ZPB);
+  
+  // Evaluate the Hermite integrals
+  Tensor4 R(N+1, N+1, N+1, N+1, 0.0);
+
+  double m2pn = -2.0*p; 
+  double pRPC2 = p*(XPC*XPC + YPC*YPC + ZPC*ZPC);
+  
+  // Get the initial values from the Boys function
+  Vector boysvals = boys(pRPC2, N, 0);
+  for (int i = 0; i < N+1; i++)
+  	R(i, 0, 0, 0) = std::pow(m2pn, i)*boysvals(i);
+  	
+  // Make the integrals, avoiding recursion
+  if (N > 0){
+  	R(N-1, 1, 0, 0) = XPC*R(N, 0, 0, 0);
+  	R(N-1, 0, 1, 0) = YPC*R(N, 0, 0, 0);
+  	R(N-1, 0, 0, 1) = ZPC*R(N, 0, 0, 0);
+  }
+  
+  if (N > 1){
+  	R(N-2, 1, 0, 0) = XPC*R(N-1, 0, 0, 0);
+  	R(N-2, 0, 1, 0) = YPC*R(N-1, 0, 0, 0);
+  	R(N-2, 0, 0, 1) = ZPC*R(N-1, 0, 0, 0);
+  	R(N-2, 1, 1, 0) = YPC*R(N-1, 1, 0, 0);
+  	R(N-2, 0, 1, 1) = ZPC*R(N-1, 0, 1, 0);
+  	R(N-2, 1, 0, 1) = XPC*R(N-1, 0, 0, 1);
+  	R(N-2, 2, 0, 0) = R(N-1, 0, 0, 0) + XPC*R(N-1, 1, 0, 0);
+  	R(N-2, 0, 2, 0) = R(N-1, 0, 0, 0) + YPC*R(N-1, 0, 1, 0);
+  	R(N-2, 0, 0, 2) = R(N-1, 0, 0, 0) + ZPC*R(N-1, 0, 0, 1);
+  }
+  
+  if (N>2) {
+  	R(N-3, 1, 0, 0) = XPC*R(N-2, 0, 0, 0);
+  	R(N-3, 0, 1, 0) = YPC*R(N-2, 0, 0, 0);
+  	R(N-3, 0, 0, 1) = ZPC*R(N-2, 0, 0, 0);
+  	R(N-3, 1, 1, 0) = YPC*R(N-2, 1, 0, 0);
+  	R(N-3, 0, 1, 1) = ZPC*R(N-2, 0, 1, 0);
+  	R(N-3, 1, 0, 1) = XPC*R(N-2, 0, 0, 1);
+  	R(N-3, 2, 0, 0) = R(N-2, 0, 0, 0) + XPC*R(N-2, 1, 0, 0);
+  	R(N-3, 0, 2, 0) = R(N-2, 0, 0, 0) + YPC*R(N-2, 0, 1, 0);
+  	R(N-3, 0, 0, 2) = R(N-2, 0, 0, 0) + ZPC*R(N-2, 0, 0, 1);
+  	R(N-3, 1, 1, 1) = ZPC*R(N-2, 1, 1, 0);
+  	R(N-3, 2, 1, 0) = R(N-2, 0, 1, 0) + XPC*R(N-2, 1, 1, 0);
+  	R(N-3, 1, 2, 0) = R(N-2, 1, 0, 0) + YPC*R(N-2, 1, 1, 0);
+  	R(N-3, 0, 2, 1) = R(N-2, 0, 0, 1) + YPC*R(N-2, 0, 1, 1);
+  	R(N-3, 0, 1, 2) = R(N-2, 0, 1, 0) + ZPC*R(N-2, 0, 1, 1);
+  	R(N-3, 2, 0, 1) = R(N-2, 0, 0, 1) + XPC*R(N-2, 1, 0, 1);
+  	R(N-3, 1, 0, 2) = R(N-2, 1, 0, 0) + ZPC*R(N-2, 1, 0, 1);
+  	R(N-3, 3, 0, 0) = 2*R(N-2, 1, 0, 0) + XPC*R(N-2, 2, 0, 0);
+  	R(N-3, 0, 3, 0) = 2*R(N-2, 0, 1, 0) + YPC*R(N-2, 0, 2, 0);
+  	R(N-3, 0, 0, 3) = 2*R(N-2, 0, 0, 1) + ZPC*R(N-2, 0, 0, 2);
+  }
+  
+  if (N>3) {
+  	R(N-4, 1, 0, 0) = XPC*R(N-3, 0, 0, 0);
+  	R(N-4, 0, 1, 0) = YPC*R(N-3, 0, 0, 0);
+  	R(N-4, 0, 0, 1) = ZPC*R(N-3, 0, 0, 0);
+  	R(N-4, 1, 1, 0) = YPC*R(N-3, 1, 0, 0);
+  	R(N-4, 0, 1, 1) = ZPC*R(N-3, 0, 1, 0);
+  	R(N-4, 1, 0, 1) = XPC*R(N-3, 0, 0, 1);
+  	R(N-4, 2, 0, 0) = R(N-3, 0, 0, 0) + XPC*R(N-3, 1, 0, 0);
+  	R(N-4, 0, 2, 0) = R(N-3, 0, 0, 0) + YPC*R(N-3, 0, 1, 0);
+  	R(N-4, 0, 0, 2) = R(N-3, 0, 0, 0) + ZPC*R(N-3, 0, 0, 1);
+  	R(N-4, 1, 1, 1) = ZPC*R(N-3, 1, 1, 0);
+  	R(N-4, 2, 1, 0) = R(N-3, 0, 1, 0) + XPC*R(N-3, 1, 1, 0);
+  	R(N-4, 1, 2, 0) = R(N-3, 1, 0, 0) + YPC*R(N-3, 1, 1, 0);
+  	R(N-4, 0, 2, 1) = R(N-3, 0, 0, 1) + YPC*R(N-3, 0, 1, 1);
+  	R(N-4, 0, 1, 2) = R(N-3, 0, 1, 0) + ZPC*R(N-3, 0, 1, 1);
+  	R(N-4, 2, 0, 1) = R(N-3, 0, 0, 1) + XPC*R(N-3, 1, 0, 1);
+  	R(N-4, 1, 0, 2) = R(N-3, 1, 0, 0) + ZPC*R(N-3, 1, 0, 1);
+  	R(N-4, 3, 0, 0) = 2*R(N-3, 1, 0, 0) + XPC*R(N-3, 2, 0, 0);
+  	R(N-4, 0, 3, 0) = 2*R(N-3, 0, 1, 0) + YPC*R(N-3, 0, 2, 0);
+  	R(N-4, 0, 0, 3) = 2*R(N-3, 0, 0, 1) + ZPC*R(N-3, 0, 0, 2);
+  	R(N-4, 2, 1, 1) = R(N-3, 0, 1, 1) + XPC*R(N-3, 1, 1, 1);
+  	R(N-4, 1, 2, 1) = R(N-3, 1, 0, 1) + YPC*R(N-3, 1, 1, 1);
+  	R(N-4, 1, 1, 2) = R(N-3, 1, 1, 0) + ZPC*R(N-3, 1, 1, 1);
+  	R(N-4, 2, 2, 0) = R(N-3, 0, 2, 0) + XPC*R(N-3, 1, 2, 0);
+  	R(N-4, 0, 2, 2) = R(N-3, 0, 0, 2) + YPC*R(N-3, 0, 1, 2);
+  	R(N-4, 2, 0, 2) = R(N-3, 2, 0, 0) + ZPC*R(N-3, 2, 0, 1);
+  	R(N-4, 3, 1, 0) = 2*R(N-3, 1, 1, 0) + XPC*R(N-3, 2, 1, 0);
+  	R(N-4, 3, 0, 1) = 2*R(N-3, 1, 0, 1) + XPC*R(N-3, 2, 0, 1);
+  	R(N-4, 1, 3, 0) = 2*R(N-3, 1, 1, 0) + YPC*R(N-3, 1, 2, 0);
+  	R(N-4, 1, 0, 3) = 2*R(N-3, 1, 0, 1) + ZPC*R(N-3, 1, 0, 2);
+  	R(N-4, 0, 3, 1) = 2*R(N-3, 0, 1, 1) + YPC*R(N-3, 0, 2, 1);
+  	R(N-4, 0, 1, 3) = 2*R(N-3, 0, 1, 1) + ZPC*R(N-3, 0, 1, 2);
+  	R(N-4, 4, 0, 0) = 3*R(N-3, 2, 0, 0) + XPC*R(N-3, 3, 0, 0);
+  	R(N-4, 0, 4, 0) = 3*R(N-3, 0, 2, 0) + YPC*R(N-3, 0, 3, 0);
+  	R(N-4, 0, 0, 4) = 3*R(N-3, 0, 0, 2) + ZPC*R(N-3, 0, 0, 3);
+  }	
+  				
+  // Sum these into the Cartesian integral
+  for (int t = 0; t < N+1; t++){
+  	for (int u = 0; u < N+1-t; u++){
+  		for (int v = 0; v < N+1-t-u; v++){
+  			integral += EX(t, ulx, vlx, 0)*EY(u, uly, vly, 0)*EZ(v, ulz, vlz, 0)*R(0, t, u, v);
+  		}
+  	}		
+  }
+  
+  integral = ((2.0*M_PI)/p)*integral;
+  return unorm*vnorm*integral;  
+}				  
+
 
 // Calculate the two-electron integrals over a shell
 // quartet of basis functions, using the Obara-Saika
@@ -1218,46 +1481,46 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 
   // Contract prims into contr
   for (int a = 0; a < ncA; a++){
-	Vector aplist; Vector acoeffs;
-	aplist = A.getShellBF(shellA, a).getPrimList();
-	acoeffs = A.getShellBF(shellA, a).getCoeffs();
+    Vector aplist; Vector acoeffs;
+    aplist = A.getShellBF(shellA, a).getPrimList();
+    acoeffs = A.getShellBF(shellA, a).getCoeffs();
+    
+    for (int b = 0; b < ncB; b++){
+      Vector bplist; Vector bcoeffs;
+      bplist = B.getShellBF(shellB, b).getPrimList();
+      bcoeffs = B.getShellBF(shellB, b).getCoeffs();
+      int blx = B.getShellBF(shellB, b).getLx();
+      int bly = B.getShellBF(shellB, b).getLy();
+      int blz = B.getShellBF(shellB, b).getLz();	
+      
+      for (int c = 0; c < ncC; c++){
+	Vector cplist; Vector ccoeffs;
+	cplist = C.getShellBF(shellC, c).getPrimList();
+	ccoeffs = C.getShellBF(shellC, c).getCoeffs();
 	
-  	for (int b = 0; b < ncB; b++){
-  		Vector bplist; Vector bcoeffs;
-		bplist = B.getShellBF(shellB, b).getPrimList();
-		bcoeffs = B.getShellBF(shellB, b).getCoeffs();
-		int blx = B.getShellBF(shellB, b).getLx();
-		int bly = B.getShellBF(shellB, b).getLy();
-		int blz = B.getShellBF(shellB, b).getLz();	
-		
-  		for (int c = 0; c < ncC; c++){
-  			Vector cplist; Vector ccoeffs;
-			cplist = C.getShellBF(shellC, c).getPrimList();
-			ccoeffs = C.getShellBF(shellC, c).getCoeffs();
-			
-  			for (int d = 0; d < ncD; d++){
-  				Vector dplist; Vector dcoeffs;
-				dplist = D.getShellBF(shellD, d).getPrimList();
-				dcoeffs = D.getShellBF(shellD, d).getCoeffs();
-				int dlx = D.getShellBF(shellD, d).getLx();
-				int dly = D.getShellBF(shellD, d).getLy();
-				int dlz = D.getShellBF(shellD, d).getLz();
-				
-				contr(a, b, c, d).assign(blx+1, bly+1, blz+1, dlx+1, dly+1, dlz+1, 0.0);
-				for (int u = 0; u < aplist.size(); u++){
-					for (int v = 0; v < bplist.size(); v++){
-						for (int w = 0; w < cplist.size(); w++){
-							for (int x = 0; x < dplist.size(); x++){
-								double cmult = acoeffs(u)*bcoeffs(v)*ccoeffs(w)*dcoeffs(x);
-								contr(a, b, c, d) = contr(a, b, c, d) + 
-									cmult*prims(aplist(u), bplist(v), cplist(w), dplist(x));
-							}
-						}
-					}
-				}
-			} // End of d-loop
-		} // End of c-loop
-	} // End of b-loop
+	for (int d = 0; d < ncD; d++){
+	  Vector dplist; Vector dcoeffs;
+	  dplist = D.getShellBF(shellD, d).getPrimList();
+	  dcoeffs = D.getShellBF(shellD, d).getCoeffs();
+	  int dlx = D.getShellBF(shellD, d).getLx();
+	  int dly = D.getShellBF(shellD, d).getLy();
+	  int dlz = D.getShellBF(shellD, d).getLz();
+	  
+	  contr(a, b, c, d).assign(blx+1, bly+1, blz+1, dlx+1, dly+1, dlz+1, 0.0);
+	  for (int u = 0; u < aplist.size(); u++){
+	    for (int v = 0; v < bplist.size(); v++){
+	      for (int w = 0; w < cplist.size(); w++){
+		for (int x = 0; x < dplist.size(); x++){
+		  double cmult = acoeffs(u)*bcoeffs(v)*ccoeffs(w)*dcoeffs(x);
+		  contr(a, b, c, d) = contr(a, b, c, d) + 
+		    cmult*prims(aplist(u), bplist(v), cplist(w), dplist(x));
+		}
+	      }
+	    }
+	  }
+	} // End of d-loop
+      } // End of c-loop
+    } // End of b-loop
   } // End of a-loop									
   
   // Done with prims
@@ -1267,7 +1530,7 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   double XAB, YAB, ZAB, XCD, YCD, ZCD;
   XAB = cA(0)-cB(0); YAB = cA(1)-cB(1); ZAB = cA(2)-cB(2);
   XCD = cC(0)-cD(0); YCD = cC(1)-cD(1); ZCD = cC(2)-cD(2);
-
+  
   // We now have contracted integrals of the form (m0|p0) sitting in 
   // the contr ten4ten6. First we transform these to (m0|pq) by the
   // horizontal recursion relation.
@@ -1278,7 +1541,7 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
       nlx = B.getShellBF(shellB, n).getLx();
       nly = B.getShellBF(shellB, n).getLy();
       nlz = B.getShellBF(shellB, n).getLz();
-
+      
       for (int p = 0; p < ncC; p++){
 	for (int q = 0; q < ncD; q++){
 	  // Get angular momenta
@@ -1287,41 +1550,41 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  qlz = D.getShellBF(shellD, q).getLz();
 	  // Increment q
   	  for (int vx = 0; vx < nlx+1; vx++){
-	  	 for (int vy = 0; vy < nly+1; vy++){
-	  		for (int vz = 0; vz < nlz+1; vz++){
-	  		  for (int inc = 1; inc < qlx+1; inc++){		
-	  			// Start with the x-coordinate
-	  			for (int xy = 0; xy < qly+1; xy++){
-	  				for (int xz = 0; xz < qlz+1; xz++){
-	  					for (int xx = 0; xx < qlx-inc+1; xx++){
-	  						contr(m, n, p, q)(vx, vy, vz, xx, xy, xz) = 
-	  							contr(m, n, p, q)(vx, vy, vz, xx+1, xy, xz) 
-	  							+ XCD*contr(m, n, p, q)(vx, vy, vz, xx, xy, xz);
-	  					}
-	  			  	}
-	  			 }
-	  		   }
-	  		   
-	  		// Then the y-coordinate
-	  		for (int inc = 1; inc < qly+1; inc++){
-	  			for (int xz = 0; xz < qlz+1; xz++){
-	  				for (int xy = 0; xy < qly-inc+1; xy++){
-	  					contr(m, n, p, q)(vx, vy, vz, 0, xy, xz) = 
-	  						contr(m, n, p, q)(vx, vy, vz, 0, xy+1, xz) 
-	  						+ YCD*contr(m, n, p, q)(vx, vy, vz, 0, xy, xz);
-	  				}
-	  			}
-	  		}
-	  
-	  		// And finally the z-coordinate	 
-	  		for (int inc = 1; inc < qlz+1; inc++){
-	  			for (int xz = 0; xz < qlz-inc+1; xz++){
-	  				contr(m, n, p, q)(vx, vy, vz, 0, 0, xz) = 
-	  					contr(m,n,p,q)(vx,vy,vz,0,0, xz+1) + ZCD*contr(m,n,p,q)(vx,vy,vz,0,0,xz);
-	  			}
-	  		}
-	  	} // End of vz-loop
-	   } // End of vy-loop					
+	    for (int vy = 0; vy < nly+1; vy++){
+	      for (int vz = 0; vz < nlz+1; vz++){
+		for (int inc = 1; inc < qlx+1; inc++){		
+		  // Start with the x-coordinate
+		  for (int xy = 0; xy < qly+1; xy++){
+		    for (int xz = 0; xz < qlz+1; xz++){
+		      for (int xx = 0; xx < qlx-inc+1; xx++){
+			contr(m, n, p, q)(vx, vy, vz, xx, xy, xz) = 
+			  contr(m, n, p, q)(vx, vy, vz, xx+1, xy, xz) 
+			  + XCD*contr(m, n, p, q)(vx, vy, vz, xx, xy, xz);
+		      }
+		    }
+		  }
+		}
+	  	
+		// Then the y-coordinate
+		for (int inc = 1; inc < qly+1; inc++){
+		  for (int xz = 0; xz < qlz+1; xz++){
+		    for (int xy = 0; xy < qly-inc+1; xy++){
+		      contr(m, n, p, q)(vx, vy, vz, 0, xy, xz) = 
+			contr(m, n, p, q)(vx, vy, vz, 0, xy+1, xz) 
+			+ YCD*contr(m, n, p, q)(vx, vy, vz, 0, xy, xz);
+		    }
+		  }
+		}
+		
+		// And finally the z-coordinate	 
+		for (int inc = 1; inc < qlz+1; inc++){
+		  for (int xz = 0; xz < qlz-inc+1; xz++){
+		    contr(m, n, p, q)(vx, vy, vz, 0, 0, xz) = 
+		      contr(m,n,p,q)(vx,vy,vz,0,0, xz+1) + ZCD*contr(m,n,p,q)(vx,vy,vz,0,0,xz);
+		  }
+		}
+	      } // End of vz-loop
+	    } // End of vy-loop					
 	  } // End of vx-loop 
 	} // End of q-loop
       } // End of p-loop
@@ -1334,14 +1597,14 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   // Get the number of transformed basis functions on C/D
   int spherC; int spherD;
   switch(LC){
-  	case 2: { spherC = 5*(sC(shellC)/6); break; }
-  	case 3: { spherC = 7*(sC(shellC)/10); break; }
-  	default: spherC = ncC;
+  case 2: { spherC = 5*(sC(shellC)/6); break; }
+  case 3: { spherC = 7*(sC(shellC)/10); break; }
+  default: spherC = ncC;
   }
   switch(LD){
-  	case 2: { spherD = 5*(sD(shellD)/6); break; }
-  	case 3: { spherD = 7*(sD(shellD)/10); break; }
-  	default: spherD = ncD;
+  case 2: { spherD = 5*(sD(shellD)/6); break; }
+  case 3: { spherD = 7*(sD(shellD)/10); break; }
+  default: spherD = ncD;
   }
   
   // Make a list of mnums for each
@@ -1349,11 +1612,19 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   
   // Maps 0 -> 0, 1 -> -1, 2 -> 1, 3 -> -2, 4 -> 2, and so on.
   for (int cm = 0; cm < cmnums.size(); cm++)
-  	cmnums[cm] = (1-2*(cm%2))*((cm+1)/2);
-  
+    cmnums[cm] = (1-2*(cm%2))*((cm+1)/2);
+
+  if (LC == 2) { 
+    cmnums[1] = -2; cmnums[3] = 2; cmnums[4] = -1;
+  } else if (LC == 1){ cmnums[0] = 1; cmnums[2] = 0; }
+
   for (int dm = 0; dm < dmnums.size(); dm++)
   	dmnums[dm] = (1-2*(dm%2))*((dm+1)/2);	
   
+  if (LD == 2){
+    dmnums[1] = -2; dmnums[3] = 2; dmnums[4] = -1;
+  } else if (LD== 1){ dmnums[0] = 1; dmnums[2] = 0; }
+
   // Declare appropriately sized C and D transformation matrix
   Matrix tMat1(spherC, ncC, 0.0); Matrix tMat2(spherD, ncD, 0.0);
   
@@ -1367,29 +1638,31 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   }
   int j = 0; // Column counter
   int mod = 2*LC+1;
+  int mcount = 0;
   for(int i = 0; i < spherC; i++){  	
     // Get the coefficients
     formTransMat(tMat1, i, j, LC, cmnums(i%mod));
-    if (LC - cmnums(i%mod) == 0){ // Increment j by a suitable amount
-   		j+=jinc;
-    }
+    if (mcount == 2*LC){ // Increment j by a suitable amount
+      j+=jinc; mcount = 0;
+    } else { mcount++; }
   }
   
   // Build the D trans matrix
-   switch(LD){
-  	case 1: { jinc = 3; break; }
-  	case 2: { jinc = 6; break; }
-  	case 3: { jinc = 10; break; }
-  	default: jinc = 1;
+  mcount = 0;
+  switch(LD){
+  case 1: { jinc = 3; break; }
+  case 2: { jinc = 6; break; }
+  case 3: { jinc = 10; break; }
+  default: jinc = 1;
   }
   j = 0; mod = 2*LD+1;
 
   for(int i = 0; i < spherD; i++){  	
     // Get the coefficients
     formTransMat(tMat2, i, j, LD, dmnums(i%mod));
-    if (LD - dmnums(i%mod) == 0){ // Increment j by a suitable amount
-      j+=jinc;
-    }
+    if (mcount == 2*LD){ // Increment j by a suitable amount
+      j+=jinc; mcount = 0;
+    } else { mcount++; }
   }
   
   // Transform contr into halfspher
@@ -1408,29 +1681,29 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
       }
       // Construct and transform all the pmats
       for (int x = 0; x < nlx+1; x++){
-		for (int y = 0; y < nly+1; y++){
-	  	  for (int z = 0; z < nlz+1; z++){
-	  	    Matrix temp(ncC, ncD, 0.0);
-		    for (int p = 0; p < ncC; p++){
-		      for (int q = 0; q < ncD; q++) {
-		    	  temp(p, q) = contr(m, n, p, q)(x, y, z, 0, 0, 0);
-		      }
-			}
-			
-	    	// Transform and copy into halfsher
-	    	for (int c = 0; c < spherC; c++){
-	      		for (int d = 0; d < spherD; d++){
-					for (int p = 0; p < ncC; p++){
-						for (int q = 0; q < ncD; q++){
-							halfspher(m, n, c, d)(x, y, z, 0) += tMat1(c, p)*temp(p, q)*tMat2(d, q);
-						}
-					}		
-	      		}
-	   		} // End of copy
-	  	  } // End of z-loop
-		} // End of y-loop
+	for (int y = 0; y < nly+1; y++){
+	  for (int z = 0; z < nlz+1; z++){
+	    Matrix temp(ncC, ncD, 0.0);
+	    for (int p = 0; p < ncC; p++){
+	      for (int q = 0; q < ncD; q++) {
+		temp(p, q) = contr(m, n, p, q)(x, y, z, 0, 0, 0);
+	      }
+	    }
+	    
+	    // Transform and copy into halfsher
+	    for (int c = 0; c < spherC; c++){
+	      for (int d = 0; d < spherD; d++){
+		for (int p = 0; p < ncC; p++){
+		  for (int q = 0; q < ncD; q++){
+		    halfspher(m, n, c, d)(x, y, z, 0) += tMat1(c, p)*temp(p, q)*tMat2(d, q);
+		  }
+		}		
+	      }
+	    } // End of copy
+	  } // End of z-loop
+	} // End of y-loop
       } // End of x-loop
-
+      
     } // End of n-loop
   } // End of m-loop
   
@@ -1450,31 +1723,31 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
 	  
 	  // Increment in the x-index
 	  for (int inc = 1; inc < nlx+1; inc++){
-		for (int ny = 0; ny < nly+1; ny++){
-			for (int nz = 0; nz < nlz+1; nz++){
-				for (int nx = 0; nx < nlx-inc+1; nx++){
-					halfspher(m,n,c,d)(nx,ny,nz,0) = halfspher(m,n,c,d)(nx+1,ny,nz,0)
-						+XAB*halfspher(m,n,c,d)(nx,ny,nz,0);
-				}
-			}
+	    for (int ny = 0; ny < nly+1; ny++){
+	      for (int nz = 0; nz < nlz+1; nz++){
+		for (int nx = 0; nx < nlx-inc+1; nx++){
+		  halfspher(m,n,c,d)(nx,ny,nz,0) = halfspher(m,n,c,d)(nx+1,ny,nz,0)
+		    +XAB*halfspher(m,n,c,d)(nx,ny,nz,0);
 		}
+	      }
+	    }
 	  }					
 	  
 	  // Increment in the y-index
 	  for (int inc = 1; inc < nly+1; inc++){
 	    for (int nz = 0; nz < nlz+1; nz++){
-	    	for (int ny = 0; ny < nly-inc+1; ny++){
-	    		halfspher(m,n,c,d)(0, ny, nz, 0) = halfspher(m,n,c,d)(0,ny+1,nz,0)
-	    			+YAB*halfspher(m,n,c,d)(0,ny,nz,0);
-	    	}
+	      for (int ny = 0; ny < nly-inc+1; ny++){
+		halfspher(m,n,c,d)(0, ny, nz, 0) = halfspher(m,n,c,d)(0,ny+1,nz,0)
+		  +YAB*halfspher(m,n,c,d)(0,ny,nz,0);
+	      }
 	    }			
 	  }
 	  
 	  // Finally, increment in the z-index
 	  for (int inc = 1; inc < nlz+1; inc++){
 	    for (int nz = 0; nz < nlz-inc+1; nz++){
-			halfspher(m,n,c,d)(0, 0, nz, 0) = halfspher(m,n,c,d)(0,0,nz+1,0)
-				+ ZAB*halfspher(m,n,c,d)(0,0,nz,0);
+	      halfspher(m,n,c,d)(0, 0, nz, 0) = halfspher(m,n,c,d)(0,0,nz+1,0)
+		+ ZAB*halfspher(m,n,c,d)(0,0,nz,0);
 	    }		
 	  }
 	} // End of d-loop
@@ -1485,17 +1758,17 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   // All integrals are now (mn|cd), stored in the first element of each tensor
   // Only thing left to	do is to sphericalise the first electron
   
-    // Get the number of transformed basis functions on A/B
+  // Get the number of transformed basis functions on A/B
   int spherA; int spherB;
   switch(LA){
-  	case 2: { spherA = 5*(sA(shellA)/6); break; }
-  	case 3: { spherA = 7*(sA(shellA)/10); break; }
-  	default: spherA = ncA;
+  case 2: { spherA = 5*(sA(shellA)/6); break; }
+  case 3: { spherA = 7*(sA(shellA)/10); break; }
+  default: spherA = ncA;
   }
   switch(LB){
-  	case 2: { spherB = 5*(sB(shellB)/6); break; }
-  	case 3: { spherB = 7*(sB(shellB)/10); break; }
-  	default: spherB = ncB;
+  case 2: { spherB = 5*(sB(shellB)/6); break; }
+  case 3: { spherB = 7*(sB(shellB)/10); break; }
+  default: spherB = ncB;
   }
   
   // Make a list of mnums for each
@@ -1505,9 +1778,15 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   for (int cm = 0; cm < cmnums.size(); cm++)
     cmnums[cm] = (1-2*(cm%2))*((cm+1)/2);
   
+  if (LA == 2) { cmnums[1] = -2; cmnums[3] = 2; cmnums[4] = -1; }
+  else if (LA== 1){ cmnums[0] = 1; cmnums[2] = 0; }
+
   for (int dm = 0; dm < dmnums.size(); dm++)
     dmnums[dm] = (1-2*(dm%2))*((dm+1)/2);	
   
+  if (LB == 2) { dmnums[1] = -2; dmnums[3] = 2; dmnums[4] = -1; }
+  else if (LB== 1){ dmnums[0] = 1; dmnums[2] = 0; }
+
   // Resize the tMats
   tMat1.assign(spherA, ncA, 0.0); tMat2.assign(spherB, ncB, 0.0);
   
@@ -1520,15 +1799,17 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   }
   j = 0; // Column counter
   mod = 2*LA+1;
+  mcount = 0;
   for(int i = 0; i < spherA; i++){  	
     // Get the coefficients
     formTransMat(tMat1, i, j, LA, cmnums(i%mod));
-    if (LA - cmnums(i%mod) == 0){ // Increment j by a suitable amount
-      j+=jinc;
-    }
+    if (mcount == 2*LA){ // Increment j by a suitable amount
+      j+=jinc; mcount = 0;
+    } else { mcount++; }
   }
   
   // Build the B trans matrix
+  mcount = 0;
   switch(LB){
   case 1: { jinc = 3; break; }
   case 2: { jinc = 6; break; }
@@ -1539,9 +1820,9 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   for(int i = 0; i < spherB; i++){  	
     // Get the coefficients
     formTransMat(tMat2, i, j, LB, dmnums(i%mod));
-    if (LB - dmnums(i%mod) == 0){ // Increment j by a suitable amount
-      j+=jinc;
-    }
+    if (mcount == 2*LB){ // Increment j by a suitable amount
+      j+=jinc; mcount = 0;
+    } else { mcount++; }
   }
   
   // Transform the integrals into the return vector retInts
@@ -1552,19 +1833,19 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
       Matrix temp(ncA, ncB, 0.0);
       // Construct temp and transform
       for (int m = 0; m < ncA; m++){
-		for (int n = 0; n < ncB; n++){
-	  		temp(m, n) = halfspher(m, n, c, d)(0, 0, 0, 0);
-		}
+	for (int n = 0; n < ncB; n++){
+	  temp(m, n) = halfspher(m, n, c, d)(0, 0, 0, 0);
+	}
       }		 
       
       // Copy into retInts
       for (int a = 0; a < spherA; a++){
 	for (int b = 0; b < spherB; b++){
-		for (int m = 0; m < ncA; m++){
-			for (int n = 0; n < ncB; n++){
-	  			retInts(a,b,c,d) += tMat1(a, m)*temp(m, n)*tMat2(b, n);
-	  		}
-	  	}		
+	  for (int m = 0; m < ncA; m++){
+	    for (int n = 0; n < ncB; n++){
+	      retInts(a,b,c,d) += tMat1(a, m)*temp(m, n)*tMat2(b, n);
+	    }
+	  }		
 	}
       } // End of retInts copy
       

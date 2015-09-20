@@ -110,14 +110,15 @@ void Molecule::translate(double x, double y, double z)
 // (spin up/spin down) electrons
 int Molecule::nalpha() const
 {
-  // multiplicity = 2s+1; each alpha electron contributes
-  // s = 1/2, therefore s = nalpha*(1/2), so
-  return multiplicity - 1;
+  // multiplicity = 2s+1; each unpaired alpha electron contributes
+  // s = 1/2, therefore s = nunpairedalpha*(1/2), so
+  
+  return (nel-multiplicity+1)/2 + multiplicity -1;
 }
 
 int Molecule::nbeta() const
 {
-  // The number of beta electrons is (nel - nalpha)/2
+  // The number of beta electrons is (nel - nunpairedalpha)/2
   return (nel - multiplicity + 1)/2;
 }
 

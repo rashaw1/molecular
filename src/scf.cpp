@@ -15,7 +15,7 @@
 #include "mvector.hpp"
 
 // Constructor
-SCF::SCF(Molecule& m, Fock& f) : molecule(m), focker(f), energy(0.0), last_energy(0.0)
+SCF::SCF(Molecule& m, Fock& f) : molecule(m), focker(f), energy(0.0), last_energy(0.0), error(0.0), last_err(0.0)
 {
 }
 
@@ -25,49 +25,48 @@ SCF::SCF(Molecule& m, Fock& f) : molecule(m), focker(f), energy(0.0), last_energ
 void SCF::calcE()
 {
   // Get the necessary matrices
-  Matrix& fock = focker.getFock();
   Matrix& dens = focker.getDens();
   Matrix& hcore = focker.getHCore();
-  Matrix& jkints = focker.getJK();
-
+  Matrix& fock = focker.getFockAO();
+  
   // Calculate the energy
   last_energy = energy;
-  energy = 0.0;
-  double e1 = 0.0;
-  double e2 = 0.0;
-  for (int u = 0; u < dens.nrows(); u++){
-    for (int v = 0; v < dens.ncols(); v++){
-      e1 += 2*dens(v, u)*hcore(u,v);
-      e2 += dens(v, u)*jkints(u, v);
-    }
-  }  
-  std::cout << "E1/E2: " << e1 << " " << e2 << "\n";
-  energy = 0.5*(e1+e2) + molecule.getEnuc();
+  energy = calcE(hcore, dens, fock) + molecule.getEnuc();
+}
+
+// Do the same but as an external function, where matrices are given as arguments
+double SCF::calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock) const
+{
+  double e1 = (dens*hcore).trace();
+  double e2 = (dens*fock).trace();
+  return 0.5*(e1+e2);
 }
 
 // Calculate the error vector from the difference between
 // the diagonalised MO fock matrix and the previous one
-Vector SCF::calcErr() const
+Vector SCF::calcErr()
 {
-  Matrix& CP = focker.getCP();
-
-  Vector err(CP.nrows());
-  for (int i =0; i< CP.nrows(); i++)
-    err[i] = CP(i, i) - last_CP(i, i);
+  Matrix& F = focker.getFockAO();
+  Matrix& D = focker.getDens();
+  Matrix S = focker.getIntegrals().getOverlap();
   
+  S = (F*(D*S) - S*(D*F));
+  error = fnorm(S);
+  Vector err(S.nrows()*S.nrows(), 0.0);
+  for (int u = 0; u < S.nrows(); u++){
+    for (int v = 0; v < S.nrows(); v++){
+      err[u*S.nrows() + v] = S(u, v);
+    }
+  } 
   return err;
 }
 
 // Determine the distance between the current and previous density
 // matrices for convergence testing
-bool SCF::testConvergence() const
+bool SCF::testConvergence()
 {
-  Matrix& dens = focker.getDens();
-  
-  // Calculate the Frobenius norm of the difference
-  Matrix test = dens - last_dens;
-  double dist = fnorm(test);
-  bool result = (dist < molecule.getLog().converge() ? true : false);
+  bool result = (fabs(error-last_err) < molecule.getLog().converge() ? true : false);
+  last_err = error;
   return result;
 }
 
@@ -98,23 +97,30 @@ void SCF::rhf()
     molecule.getLog().initIteration();
     bool converged = false;
     // Get initial guess
-    focker.makeDens(nel/2, true);
+    focker.transform(true); // Get guess of fock from hcore
+    focker.diagonalise();
+    focker.makeDens(nel/2);
+    focker.makeJK();
+    focker.makeFock();
+    focker.addErr(calcErr());
+    calcE();
+    molecule.getLog().iteration(0, energy, 0.0);
+    focker.transform(false);
     int iter = 1;
+    double delta;
     while (!converged && iter < molecule.getLog().maxiter()) {
-      // Set the previous density and coeff matrices
-      last_dens = focker.getDens();
-      last_CP = focker.getCP();
-
       // Recalculate
+      focker.diagonalise();
+      focker.makeDens(nel/2);
       focker.makeJK();
       focker.makeFock();
-      calcE();
-      double delta = fabs(energy - last_energy);
-      molecule.getLog().iteration(iter, energy, delta);
-      focker.makeDens(nel/2);
       focker.addErr(calcErr());
+      calcE();
+      delta = fabs(energy-last_energy);
+      molecule.getLog().iteration(iter, energy, delta);
+      focker.transform(false);
       converged = testConvergence();
-      if ( delta > molecule.getLog().converge()/10.0 ) { converged = false; }
+      if ( delta > molecule.getLog().converge()/100.0 ) { converged = false; }
       iter++;
     }
     
@@ -130,4 +136,56 @@ void SCF::rhf()
 // UHF
 void SCF::uhf()
 {
+  // Make a second focker instance
+  Fock focker2(focker.getIntegrals(), molecule);
+  
+  // Get number of alpha/beta electrons
+  int nalpha = molecule.nalpha();
+  int nbeta = molecule.nbeta();
+
+  // Start logging
+  molecule.getLog().title("UHF SCF Calculation");
+  molecule.getLog().print("# alpha = " + std::to_string(nalpha));
+  molecule.getLog().print("# beta = " + std::to_string(nbeta));
+  molecule.getLog().print("\n");
+  molecule.getLog().initIteration();
+  bool converged = false;
+  
+  // Get initial guess                                                                                                                                                                      
+  focker.transform(true); focker2.transform(true);
+  focker.diagonalise(); focker2.diagonalise();
+  int iter = 1;
+  double delta, ea, eb, dist;
+  Matrix DA; Matrix DB;
+  bool average = molecule.getLog().diis();
+  while (!converged && iter < molecule.getLog().maxiter()) {
+    focker.makeDens(nalpha); focker2.makeDens(nbeta);
+    if (iter != 1 && average ) { 
+      focker.simpleAverage(DA, 0.5); 
+      focker2.simpleAverage(DB, 0.5);
+    }
+    DA = focker.getDens(); DB = focker2.getDens();
+    
+    focker.makeJK(); focker2.makeJK();
+    focker.makeFock(focker2.getJ()); focker2.makeFock(focker.getJ());
+    ea = calcE(focker.getHCore(), focker.getDens(), focker.getFockAO());
+    eb = calcE(focker2.getHCore(), focker2.getDens(), focker2.getFockAO());
+
+    focker.transform(); focker2.transform();
+    focker.diagonalise(); focker2.diagonalise();
+    
+    last_energy = energy;
+    energy = (ea + eb)/2.0 + molecule.getEnuc();
+    delta = fabs(energy - last_energy);
+    molecule.getLog().iteration(iter, energy, delta);
+
+    dist = fnorm((focker.getDens() + focker2.getDens()) - (DA + DB));
+    if (delta < molecule.getLog().converge()/100.0 && dist < molecule.getLog().converge()) { converged = true; }
+    iter++;
+  }
+  if (converged) {
+    molecule.getLog().result("UHF Energy = " + std::to_string(energy));
+  } else {
+    molecule.getLog().result("UHF failed to converge");
+  }
 }

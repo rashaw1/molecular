@@ -147,8 +147,8 @@ void formTransMat(Matrix& mat, int row, int col, int l, int m){
   case 1: { // p-type, one of 3 identity 3-vectors
     switch(m){
     case -1: { mat(row, col+1) = 1.0; break; } // py
-    case 0: { mat(row, col) = 1.0; break; }  // pz
-    default: { mat(row, col+2) = 1.0;} // px
+    case 0: { mat(row, col+2) = 1.0; break; }  // pz
+    default: { mat(row, col) = 1.0;} // px
     }
     break;
   }

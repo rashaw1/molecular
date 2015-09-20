@@ -1,15 +1,13 @@
-basis, 6-311G
+basis, 6-311gdp
 charge, 0
-multiplicity, 1
-maxiter, 50
+multiplicity, 2
+maxiter, 5000
 precision, 1e-12
 thrint, 1e-10
 memory, 500
-!scf, nodiis
 scf, converge, 1e-5
 integral, print
 geom,
-H, 0.0, 2.706724148, -1.816103138
-H, 0.0, -2.706724148, -1.816103138
-O, 0.0, 0.0, 0.454025789
+N, 0.0, 0.0, 0.0
+O, 0.0, 0.0, 2.12955
 geomend

@@ -94,6 +94,9 @@ public:
 			const Vector& vcoords) const;
   double nucAttract(const PBF& u, const PBF& v, const Vector& ucoords, 
 		    const Vector& vcoords, const Vector& ccoords) const;
+  double mmNucAttract(const PBF& u, const PBF& v, const Vector& ucoords,
+  			const Vector& vcoords, const Vector& ccoords) const;
+  Tensor4 makeE(int u, int v, double K, double p, double PA, double PB) const;
   Tensor4 twoe(Atom& A, Atom& B, Atom& C, Atom& D, int shellA, int shellB,
 	      int shellC, int shellD) const;
   Tensor6 twoe(const PBF& u, const PBF& v, const PBF& w, const PBF& x, 
