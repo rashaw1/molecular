@@ -106,6 +106,7 @@ public:
   static const double RTOGHZ;
   static const double TOKCAL;
   static const double TOKJ;
+  static const double TOEV;
   static const double TOBOHR;
   static const double TOANG;
   // Constructor/destructor
@@ -138,8 +139,9 @@ public:
   void print(BF& bf) const; // Basis function - coeffs and each pbf
   void print(const PBF& pbf) const; // Primitive gaussian - exponent, norm, ang. momenta
   // Print out an iteration
-  void iteration(int iter, double energy, double delta);
+  void iteration(int iter, double energy, double delta, double dd);
   void initIteration();
+  void orbitals(const Vector& eps, int nel, bool one = false);
   // Specific logging formats
   void title(const std::string& msg) const;
   void result(const std::string& msg) const;

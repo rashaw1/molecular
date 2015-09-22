@@ -45,7 +45,7 @@ int main (int argc, char* argv[])
   IntegralEngine integral(mol);
   Fock focker(integral, mol);
   SCF hf(mol, focker);
-  hf.uhf();
+  hf.rhf();
   //Vector tempi;
   //tempi = integral.twoe(mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), mol.getAtom(0), 0, 0, 0, 1);
   //tempi.print(); std::cout << "\n\n";

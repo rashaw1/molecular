@@ -3,7 +3,7 @@ charge, 0
 multiplicity, 1
 maxiter, 100
 precision, 1e-13
-thrint, 1e-8
+thrint, 1e-10
 geom,
 C, 0.0, 2.8, 0.0
 C, 2.4, 1.4, 0.0

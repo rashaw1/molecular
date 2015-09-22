@@ -234,6 +234,12 @@ void Fock::makeFock()
 void Fock::makeFock(Matrix& jbints)
 {
   focka = hcore + 0.5*(jints + jbints - kints);
+  if (diis) { // Archive for averaging
+    if (iter > MAX) {
+      focks.erase(focks.begin());
+    }
+    focks.push_back(focka);
+  }
 }
 
 // Perform DIIS averaging
@@ -280,7 +286,7 @@ void Fock::DIIS()
     }
 
     w = B*w;
-
+    
     // Average the fock matrices according to the weights
     focka.assign(nbfs, nbfs, 0.0);
     for (int i = 0; i < lim; i++) {

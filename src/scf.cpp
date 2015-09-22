@@ -15,7 +15,7 @@
 #include "mvector.hpp"
 
 // Constructor
-SCF::SCF(Molecule& m, Fock& f) : molecule(m), focker(f), energy(0.0), last_energy(0.0), error(0.0), last_err(0.0)
+SCF::SCF(Molecule& m, Fock& f) : molecule(m), focker(f), energy(0.0), last_energy(0.0), one_E(0.0), two_E(0.0), error(0.0), last_err(0.0)
 {
 }
 
@@ -35,29 +35,35 @@ void SCF::calcE()
 }
 
 // Do the same but as an external function, where matrices are given as arguments
-double SCF::calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock) const
+double SCF::calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock) 
 {
-  double e1 = (dens*hcore).trace();
-  double e2 = (dens*fock).trace();
-  return 0.5*(e1+e2);
+  one_E = (dens*hcore).trace();
+  two_E = (dens*fock).trace();
+  return 0.5*(one_E+two_E);
 }
 
 // Calculate the error vector from the difference between
 // the diagonalised MO fock matrix and the previous one
+Vector SCF::calcErr(const Matrix& F, const Matrix& D, Matrix S)
+{
+  Matrix temp = (F*(D*S) - S*(D*F));
+  error = fnorm(temp);
+  Vector err(temp.nrows()*temp.nrows(), 0.0);
+  for (int u = 0; u < temp.nrows(); u++){
+    for (int v = 0; v < temp.nrows(); v++){
+      err[u*temp.nrows() + v] = temp(u, v);
+    }
+  } 
+  return err;
+}
+
 Vector SCF::calcErr()
 {
   Matrix& F = focker.getFockAO();
   Matrix& D = focker.getDens();
   Matrix S = focker.getIntegrals().getOverlap();
-  
-  S = (F*(D*S) - S*(D*F));
-  error = fnorm(S);
-  Vector err(S.nrows()*S.nrows(), 0.0);
-  for (int u = 0; u < S.nrows(); u++){
-    for (int v = 0; v < S.nrows(); v++){
-      err[u*S.nrows() + v] = S(u, v);
-    }
-  } 
+
+  Vector err = calcErr(F, D, S);
   return err;
 }
 
@@ -100,24 +106,28 @@ void SCF::rhf()
     focker.transform(true); // Get guess of fock from hcore
     focker.diagonalise();
     focker.makeDens(nel/2);
+    Matrix old_dens = focker.getDens();
     focker.makeJK();
     focker.makeFock();
     focker.addErr(calcErr());
     calcE();
-    molecule.getLog().iteration(0, energy, 0.0);
+    molecule.getLog().iteration(0, energy, 0.0, 0.0);
     focker.transform(false);
     int iter = 1;
-    double delta;
+    double delta, dd;
+    
     while (!converged && iter < molecule.getLog().maxiter()) {
       // Recalculate
       focker.diagonalise();
       focker.makeDens(nel/2);
+      dd = fnorm(focker.getDens() - old_dens);
+      old_dens = focker.getDens();
       focker.makeJK();
       focker.makeFock();
       focker.addErr(calcErr());
       calcE();
       delta = fabs(energy-last_energy);
-      molecule.getLog().iteration(iter, energy, delta);
+      molecule.getLog().iteration(iter, energy, delta, dd);
       focker.transform(false);
       converged = testConvergence();
       if ( delta > molecule.getLog().converge()/100.0 ) { converged = false; }
@@ -127,8 +137,11 @@ void SCF::rhf()
     if (!converged) { 
       molecule.getLog().result("SCF failed to converge.");
     } else {
+      molecule.getLog().print("\nOne electron energy (Hartree) = " + std::to_string(one_E));
+      molecule.getLog().print("\nTwo electron energy (Hartree) = " + std::to_string(two_E));
+      molecule.getLog().print("\n");
+      molecule.getLog().orbitals(focker.getEps(), nel, false);
       molecule.getLog().result("RHF Energy = " + std::to_string(energy) + " Hartree");
-      focker.getEps().print();
    }
   }
 }
@@ -157,17 +170,27 @@ void SCF::uhf()
   int iter = 1;
   double delta, ea, eb, dist;
   Matrix DA; Matrix DB;
-  bool average = molecule.getLog().diis();
+  //bool average = molecule.getLog().diis();
+  Vector err; double err1 = 0.0, err2 = 0.0, err1_last = 0.0, err2_last = 0.0;
   while (!converged && iter < molecule.getLog().maxiter()) {
     focker.makeDens(nalpha); focker2.makeDens(nbeta);
-    if (iter != 1 && average ) { 
+    /*if (iter != 1 && average ) { 
       focker.simpleAverage(DA, 0.5); 
       focker2.simpleAverage(DB, 0.5);
-    }
+    }*/
     DA = focker.getDens(); DB = focker2.getDens();
-    
     focker.makeJK(); focker2.makeJK();
-    focker.makeFock(focker2.getJ()); focker2.makeFock(focker.getJ());
+    focker.makeFock(focker2.getJ()); focker2.makeFock(focker.getJ());    
+
+    err = calcErr(focker.getFockAO(), focker.getDens(), focker.getIntegrals().getOverlap());
+    err1_last = err1;
+    err1 = error;
+    focker.addErr(err);
+    err = calcErr(focker2.getFockAO(), focker2.getDens(), focker2.getIntegrals().getOverlap());
+    err2_last = err2;
+    err2 = error;
+    focker2.addErr(err);
+
     ea = calcE(focker.getHCore(), focker.getDens(), focker.getFockAO());
     eb = calcE(focker2.getHCore(), focker2.getDens(), focker2.getFockAO());
 
@@ -177,13 +200,21 @@ void SCF::uhf()
     last_energy = energy;
     energy = (ea + eb)/2.0 + molecule.getEnuc();
     delta = fabs(energy - last_energy);
-    molecule.getLog().iteration(iter, energy, delta);
-
+    
     dist = fnorm((focker.getDens() + focker2.getDens()) - (DA + DB));
+    //dist = 0.5*(err1+err2-err1_last-err2_last);
+    
+    molecule.getLog().iteration(iter, energy, delta, dist);
+
     if (delta < molecule.getLog().converge()/100.0 && dist < molecule.getLog().converge()) { converged = true; }
     iter++;
   }
   if (converged) {
+    // Construct the orbital energies
+    molecule.getLog().print("ALPHA ORBITALS");
+    molecule.getLog().orbitals(focker.getEps(), nalpha, true);
+    molecule.getLog().print("BETA ORBITALS");
+    molecule.getLog().orbitals(focker2.getEps(), nbeta, true);
     molecule.getLog().result("UHF Energy = " + std::to_string(energy));
   } else {
     molecule.getLog().result("UHF failed to converge");

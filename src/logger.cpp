@@ -26,6 +26,7 @@
 const double Logger::RTOCM = 60.19969093279;
 const double Logger::RTOGHZ = 1804.74133155814269;
 const double Logger::TOKCAL = 627.509469;
+const double Logger::TOEV = 27.21138505;
 const double Logger::TOKJ = 2625.49962;
 const double Logger::TOBOHR = 0.52917721092;
 const double Logger::TOANG = 1.889726124565;
@@ -567,18 +568,48 @@ void Logger::initIteration()
   outfile << std::setw(12) << "Iteration";
   outfile << std::setw(15) << "Energy";
   outfile << std::setw(15) << "Delta E";
-  outfile << std::setw(15) << "Time elapsed\n";
-  outfile << std::string(57, '-') << "\n";
+  outfile << std::setw(15) << "Delta D";
+  outfile << std::setw(20) << "Time elapsed\n";
+  outfile << std::string(77, '-') << "\n";
 }
 
 // Print a single iteration
-void Logger::iteration(int iter, double energy, double delta)
+void Logger::iteration(int iter, double energy, double delta, double dd)
 {
   outfile << std::setw(12) << iter;
   outfile << std::setw(15) << energy;
   outfile << std::setw(15) << delta;
-  outfile << std::setw(15) << getLocalTime();
+  outfile << std::setw(15) << dd;
+  outfile << std::setw(20) << getLocalTime();
   outfile << "\n";
+}
+
+// Print out the orbitals from an SCF calculation
+void Logger::orbitals(const Vector& eps, int nel, bool one)
+{
+   if (!one) {
+   	outfile << "ORBITALS (Energies in Hartree)\n\n";
+   }
+   int nlines = (eps.size()+1)/2;
+   int i = 0;
+   while (i < nlines){
+   	outfile << std::setw(12) << i+1;
+   	outfile << std::setw(15) << eps(i);
+   	outfile <<  std::setw(12) << nlines+i+1;
+   	outfile << std::setw(15) << eps(nlines+i);
+   	outfile << "\n";
+   	i++;
+   }
+   outfile << "\n";
+   if (nel > 0) {
+   	i = (one ? nel : nel/2);
+   	outfile << std::setw(12) <<"HOMO:";
+   	outfile << std::setw(12) <<  i;
+   	outfile << std::setw(15) << eps(i-1)*TOEV << " eV\n";   	 
+	outfile << std::setw(12) << "LUMO:";
+	outfile << std::setw(12) << i+1;
+	outfile << std::setw(15) << eps(i)*TOEV << " eV\n";
+   }	
 }
 // Timing functions
 

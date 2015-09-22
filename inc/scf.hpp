@@ -36,13 +36,14 @@ class SCF
 private:
   Molecule& molecule;
   Fock& focker;
-  double energy, last_energy, error, last_err;
+  double energy, last_energy, one_E, two_E, error, last_err;
 public:
   // Constructor
   SCF(Molecule& m, Fock& f);
   // Routines
   void calcE();
-  double calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock) const; 
+  double calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock); 
+  Vector calcErr(const Matrix& F, const Matrix& D, Matrix S);
   Vector calcErr();
   bool testConvergence();
   void rhf();
