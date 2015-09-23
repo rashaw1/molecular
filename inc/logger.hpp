@@ -74,6 +74,7 @@
 #include <iostream>
 #include "basis.hpp"
 #include "atom.hpp"
+#include <vector>
 
 // Declare forward dependencies
 class Molecule;
@@ -91,15 +92,16 @@ private:
   std::ofstream& outfile, intfile;
   std::ostream& errstream;
   Error* errs;
-  Atom* atoms;
-  int nerr, charge, multiplicity, natoms;
+  std::vector<Atom> atoms;
+  std::vector<std::string> cmds;
+  int nerr, ncmd, charge, multiplicity, natoms;
   boost::timer::cpu_timer timer;
   boost::timer::nanosecond_type last_time;
   Basis basisset;
   // User defined constants
   double PRECISION, THRINT, CONVERGE,  memory;
   int MAXITER;
-  bool directing, twoprinting, diising;
+  bool directing, twoprinting, diising, basisprint;
 public:
   // Conversion factors
   static const double RTOCM;
@@ -119,9 +121,11 @@ public:
   bool direct() const { return directing; }
   bool twoprint() const { return twoprinting; }
   bool diis() const { return diising; }
+  bool bprint() const { return basisprint; }
   std::ofstream& getIntFile() { return intfile; }
   double getMemory() const { return memory; }
   Atom getAtom(int i) const { return atoms[i]; }
+  int nextCmd(); // Return next directive 
   double precision() const { return PRECISION; }
   double thrint() const { return THRINT; }
   double converge() const { return CONVERGE; }
@@ -151,6 +155,7 @@ public:
   void errTime();
   double getLocalTime();
   double getGlobalTime();
+  void init();
   void finalise();
 };
  

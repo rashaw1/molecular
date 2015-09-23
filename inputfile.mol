@@ -7,6 +7,7 @@ thrint, 1e-10
 memory, 500
 !scf, nodiis
 scf, converge, 1e-5
+rhf,
 integral, print
 geom,
 H, 0.0, 0.0, 0.0

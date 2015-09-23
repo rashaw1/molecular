@@ -21,6 +21,7 @@
 // includes
 #include <fstream>
 #include <string>
+#include <vector>
  
  // Forward dependencies
  
@@ -31,9 +32,10 @@ private:
   int charge, multiplicity, maxiter, natoms;
   int geomstart, geomend;
   double precision, thrint, memory, converge;
-  bool direct, twoprint, diis;
+  bool direct, twoprint, diis, bprint;
   std::string basis, intfile;
-  std::string* geometry;
+  std::vector<std::string> geometry;
+  std::vector<std::string> commands; 
   int findToken(std::string t); // Find the command being issued
 public:
   FileReader(std::ifstream& in) : input(in), natoms(0) {} // Constructor
@@ -46,9 +48,11 @@ public:
   int getNAtoms() const { return natoms; }
   std::string getBasis() const { return basis;}
   std::string getIntFile() const { return intfile; }
+  std::vector<std::string> getCmds() const { return commands; }
   bool getDirect() const { return direct; }
   bool getTwoPrint() const { return twoprint; }
   bool getDIIS() const { return diis; }
+  bool getBPrint() const { return bprint; }
   double getMemory() const { return memory; }
   double getPrecision() const { return precision; }
   double getThrint() const { return thrint; }

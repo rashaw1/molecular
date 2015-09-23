@@ -19,9 +19,6 @@
 // Destructor
 FileReader::~FileReader()
 {
-  if ( natoms!= 0 ) {
-    delete[] geometry;
-  }
 }
 
 // Match a token to a particular command
@@ -49,6 +46,9 @@ int FileReader::findToken(std::string t)
   else if (t == "scf") { rval = 12; }
   else if (t == "nodiis") { rval = 13; }
   else if (t == "converge") { rval = 14; }
+  else if (t == "hf") { rval = 15; }
+  else if (t == "rhf") { rval = 16; }
+  else if (t == "uhf") { rval = 17; }
   return rval;
 }
 
@@ -66,6 +66,7 @@ void FileReader::readParameters()
   memory = 100;
   direct = false;
   twoprint = false;
+  bprint = false;
   diis = true;
 
   // Read line by line and parse
@@ -158,6 +159,10 @@ void FileReader::readParameters()
 	    direct = true;
 	    break;
 	  }
+	  case 5: { // print basis details
+	    bprint = true;
+	    break;
+	  }
 	  default: {
 	    throw(Error("READIN", "Command " + line + " not found."));
 	  }
@@ -194,6 +199,18 @@ void FileReader::readParameters()
 	}
 	break;
       }
+      case 15: { // HF directive
+	commands.push_back("HF");
+	break;
+      }
+      case 16: { // RHF directive
+	commands.push_back("RHF");
+	break;
+      }
+      case 17: { // UHF directive
+	commands.push_back("UHF");
+	break;
+      }
       default: { // Unkown command issued
 	throw(Error("READIN", "Command " + token + " not found."));
       }
@@ -208,8 +225,6 @@ void FileReader::readGeometry()
 {
   // The array size will be geomend-geomstart
   if (natoms != 0){
-    geometry = new std::string[natoms];
-   
     // Rewind to beginning of file
     input.clear();
     input.seekg(0, std::ios::beg);
@@ -218,7 +233,7 @@ void FileReader::readGeometry()
     for (int l = 0; l < geomend; l++){
       std::getline(input, line);
       if (l > geomstart - 1){
-	geometry[l - geomstart] = line;
+	geometry.push_back(line);
       }
     }
   } else {

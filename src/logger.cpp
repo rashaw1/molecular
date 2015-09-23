@@ -12,6 +12,7 @@
 // Includes
 #include <algorithm>
 #include <iomanip>
+#include <ctime>
 #include "logger.hpp"
 #include "molecule.hpp"
 #include "bf.hpp"
@@ -32,7 +33,7 @@ const double Logger::TOBOHR = 0.52917721092;
 const double Logger::TOANG = 1.889726124565;
 
 // Constructor
-Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(in), outfile(out), errstream(e)
+Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(in), outfile(out), errstream(e), ncmd(0)
 {
   // Timer is started on initialisation of logger.
   last_time = 0;
@@ -59,8 +60,10 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   CONVERGE = input.getConverge();
   memory = input.getMemory();
   twoprinting = input.getTwoPrint();
+  basisprint = input.getBPrint();
   directing = input.getDirect();
   diising = input.getDIIS();
+  cmds = input.getCmds();
 
   if ((twoprinting)) { 
     std::string intfilename = input.getIntFile();
@@ -74,8 +77,6 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   // Now we deal with the arrays
   natoms = input.getNAtoms(); // Get how many atoms there are
   if (natoms > 0){
-    atoms = new Atom[natoms]; // Allocate memory for atoms array
- 
     // Now loop to get all the atoms 
     std::string temp, token;
 
@@ -104,25 +105,40 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
       // Move on to next token
       temp.erase(0, position+delimiter.length());
       position = temp.find(delimiter);
-      token = temp.substr(0, position); 
+      if (position != std::string::npos){
+      	token = temp.substr(0, position); 
 
-      // This should now be the x coord
-      token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
-      coords[0] = std::stod(token);  // Convert it to double
+      	// This should now be the x coord
+      	token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
+      	coords[0] = std::stod(token);  // Convert it to double
 
-      // Repeat for y and z
-      temp.erase(0, position+delimiter.length());
-      position = temp.find(delimiter);
-      token = temp.substr(0, position);
-      token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
-      coords[1] = std::stod(token);
-      temp.erase(0, position+delimiter.length());
-      temp.erase(std::remove(temp.begin(), temp.end(), ' '), temp.end());
-      coords[2] = std::stod(temp);
-
-      // We can now initialise the atom and add to array
-      Atom a(coords, q, m);
-      atoms[i] = a;
+      	// Repeat for y and z
+      	temp.erase(0, position+delimiter.length());
+      	position = temp.find(delimiter);
+      	if (position != std::string::npos) {
+      		token = temp.substr(0, position);
+      		token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
+      		coords[1] = std::stod(token);
+      		temp.erase(0, position+delimiter.length());
+      		if (temp.length() > 0){
+      			temp.erase(std::remove(temp.begin(), temp.end(), ' '), temp.end());
+      			coords[2] = std::stod(temp);
+	
+    		  	// We can now initialise the atom and add to array
+      			Atom a(coords, q, m);
+      			atoms.push_back(a);
+      		} else {
+      			Error e2("INPUT", "Missing coordinate.");
+      			error(e2);
+      		}
+      	} else { 
+      		Error e3("INPUT", "Missing coordinate.");
+      		error(e3);
+      	} 
+      } else {
+      	Error e4("INPUT", "Missing coordinate.");
+		error(e4);
+      }					
     }
     
     // Next, the basis set
@@ -155,14 +171,28 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
 // and close intfile if necessary
 Logger::~Logger()
 {
-  if (natoms > 0){
-     delete[] atoms;
-  }
   delete[] errs;
   if (intfile.is_open()){
     intfile.close();
   }
 }
+
+int Logger::nextCmd()
+{
+	int rval = 0;
+	if (ncmd < cmds.size()){
+		std::string token = cmds[ncmd];
+		if (token == "HF") { 
+			rval = 1;
+		} else if (token == "RHF"){
+			rval = 2;
+		} else if (token == "UHF"){
+			rval = 3;
+		}
+		ncmd++;
+	}
+	return rval;
+}					
 
 // Overloaded print functions
 
@@ -650,6 +680,18 @@ double Logger::getGlobalTime()
   return ((double)(timer.elapsed().wall))/(1e9);
 }
 
+// Initialise the output
+void Logger::init()
+{
+	outfile << "MOLECULAR 2015  (alpha version)\n";
+	outfile << "A suite of ab initio quantum chemistry programs\n";
+	std::time_t t = time(0);
+	struct std::tm* now = std::localtime(&t);
+	char buf[80];
+	std::strftime(buf, sizeof(buf), "%d-%m-%Y %X", now);
+	outfile << "Program called at date/time: " << buf << "\n";
+}
+	  
 // Finalise the output
 // Currently just prints the time and the number of errors
 // that occurred
