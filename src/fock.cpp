@@ -216,7 +216,6 @@ void Fock::addErr(Vector e)
     errs.erase(errs.begin()); // Remove first element
   }
   errs.push_back(e); // Push e onto the end of errs
-  iter++;
 }	
 		
 
@@ -293,6 +292,7 @@ void Fock::DIIS()
       focka = focka + w(i)*focks[i];   
     } 
   }
+  iter++;
 }
 
 void Fock::simpleAverage(Matrix& D0, double weight)

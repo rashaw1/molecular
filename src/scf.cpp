@@ -169,16 +169,19 @@ void SCF::uhf()
   focker.diagonalise(); focker2.diagonalise();
   int iter = 1;
   double delta, ea, eb, dist;
-  Matrix DA; Matrix DB;
+  Matrix DA(focker.getFockMO().nrows(), focker.getFockMO().nrows(), 0.0); 
+  Matrix DB(focker2.getFockMO().nrows(), focker2.getFockMO().nrows(), 0.0);
   //bool average = molecule.getLog().diis();
   Vector err; double err1 = 0.0, err2 = 0.0, err1_last = 0.0, err2_last = 0.0;
   while (!converged && iter < molecule.getLog().maxiter()) {
+    if (iter!= 1) {
+      DA = focker.getDens(); DB = focker2.getDens();
+    }
     focker.makeDens(nalpha); focker2.makeDens(nbeta);
     /*if (iter != 1 && average ) { 
       focker.simpleAverage(DA, 0.5); 
       focker2.simpleAverage(DB, 0.5);
     }*/
-    DA = focker.getDens(); DB = focker2.getDens();
     focker.makeJK(); focker2.makeJK();
     focker.makeFock(focker2.getJ()); focker2.makeFock(focker.getJ());    
 
@@ -211,11 +214,11 @@ void SCF::uhf()
   }
   if (converged) {
     // Construct the orbital energies
-    molecule.getLog().print("ALPHA ORBITALS");
+    molecule.getLog().print("\nALPHA ORBITALS");
     molecule.getLog().orbitals(focker.getEps(), nalpha, true);
-    molecule.getLog().print("BETA ORBITALS");
+    molecule.getLog().print("\nBETA ORBITALS");
     molecule.getLog().orbitals(focker2.getEps(), nbeta, true);
-    molecule.getLog().result("UHF Energy = " + std::to_string(energy));
+    molecule.getLog().result("UHF Energy = " + std::to_string(energy) + " Hartree");
   } else {
     molecule.getLog().result("UHF failed to converge");
   }
