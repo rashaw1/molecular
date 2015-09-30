@@ -29,8 +29,8 @@ const double Logger::RTOGHZ = 1804.74133155814269;
 const double Logger::TOKCAL = 627.509469;
 const double Logger::TOEV = 27.21138505;
 const double Logger::TOKJ = 2625.49962;
-const double Logger::TOBOHR = 0.52917721092;
-const double Logger::TOANG = 1.889726124565;
+const double Logger::TOANG = 0.52917721092;
+const double Logger::TOBOHR = 1.889726124565;
 
 // Constructor
 Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(in), outfile(out), errstream(e), ncmd(0)
@@ -89,6 +89,7 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
     std::string delimiter = ","; // Define the separation delimiter
     std::size_t position; int q; Vector coords(3); double m;
     Vector qs(natoms); // Hold the qs of all the atoms, for finding unique qs laterv
+    double multiplier = (input.getAngstrom() ? TOBOHR : 1.0); // Convert to bohr from angstrom?
     for (int i = 0; i < natoms; i++){
       temp = input.getGeomLine(i); // Get a line from the geometry
       position = temp.find(delimiter); // Find first delimiter
@@ -105,12 +106,13 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
       // Move on to next token
       temp.erase(0, position+delimiter.length());
       position = temp.find(delimiter);
+
       if (position != std::string::npos){
       	token = temp.substr(0, position); 
 
       	// This should now be the x coord
       	token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
-      	coords[0] = std::stod(token);  // Convert it to double
+      	coords[0] = multiplier*std::stod(token);  // Convert it to double
 
       	// Repeat for y and z
       	temp.erase(0, position+delimiter.length());
@@ -118,11 +120,11 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
       	if (position != std::string::npos) {
       		token = temp.substr(0, position);
       		token.erase(std::remove(token.begin(), token.end(), ' '), token.end());
-      		coords[1] = std::stod(token);
+      		coords[1] = multiplier*std::stod(token);
       		temp.erase(0, position+delimiter.length());
       		if (temp.length() > 0){
       			temp.erase(std::remove(temp.begin(), temp.end(), ' '), temp.end());
-      			coords[2] = std::stod(temp);
+      			coords[2] = multiplier*std::stod(temp);
 	
     		  	// We can now initialise the atom and add to array
       			Atom a(coords, q, m);
@@ -607,8 +609,8 @@ void Logger::initIteration()
 void Logger::iteration(int iter, double energy, double delta, double dd)
 {
   outfile << std::setw(12) << iter;
-  outfile << std::setw(15) << energy;
-  outfile << std::setw(15) << delta;
+  outfile << std::setw(15) << std::setprecision(9) << energy;
+  outfile << std::setw(15) << std::setprecision(6) << delta;
   outfile << std::setw(15) << dd;
   outfile << std::setw(20) << getLocalTime();
   outfile << "\n";
@@ -622,7 +624,7 @@ void Logger::orbitals(const Vector& eps, int nel, bool one)
    }
    int nlines = (eps.size()+1)/2;
    int i = 0;
-   while (i < nlines){
+   while (i < nlines-1){
    	outfile << std::setw(12) << i+1;
    	outfile << std::setw(15) << eps(i);
    	outfile <<  std::setw(12) << nlines+i+1;
@@ -630,7 +632,13 @@ void Logger::orbitals(const Vector& eps, int nel, bool one)
    	outfile << "\n";
    	i++;
    }
-   outfile << "\n";
+   outfile << std::setw(12) << i+1;
+   outfile << std::setw(15) << eps(i);
+   if (eps.size()%2 == 0) { 
+     outfile << std::setw(12) << nlines+i+1;
+     outfile << std::setw(15) << eps(nlines+i);
+   }
+   outfile << "\n\n";
    if (nel > 0) {
    	i = (one ? nel : nel/2);
    	outfile << std::setw(12) <<"HOMO:";

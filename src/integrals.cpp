@@ -230,11 +230,13 @@ void IntegralEngine::formERI(bool tofile)
     }
     
     // Update the log file
-    molecule.getLog().print("Forming the two electron repulsion integrals.\n");
-    molecule.getLog().print("PRESCREENING MATRIX:\n");
-    molecule.getLog().print(prescreen);
-    molecule.getLog().print("\n\n");
-    
+    if (prescreen.nrows() < 10) { 
+      molecule.getLog().print("Forming the two electron repulsion integrals.\n");
+      molecule.getLog().print("PRESCREENING MATRIX:\n");
+      molecule.getLog().print(prescreen);
+      molecule.getLog().print("\n\n");
+    }
+
     m = n = a = b = 0;
     for (int r = 0; r < NS; r++){
         ma = molecule.getAtom(atoms(m));
@@ -397,18 +399,19 @@ double IntegralEngine::makeContracted(Vector& c1, Vector& c2, Vector& ints) cons
 Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) const
 {
   // Calculate the size of matrix needed
-  int scount = 0, pcount = 0, dcount = 0, fcount = 0; 
+  int scount = 0, pcount = 0, dcount = 0, fcount = 0, gcount = 0; 
   for (int i = 0; i < lnums.size(); i++){
     switch((int)(lnums(i))){
     case 1: { pcount++; break; } // p-type
     case 2: { dcount++; break; } // d-type
     case 3: { fcount++; break; } // f-type
+    case 4: { gcount++; break; } // g-type
     default: { scount++; } // Assume s-type
     }
   }
 
   // Number of spherical basis functions
-  int M = scount + pcount + 5*(dcount/6) + 7*(fcount/10); 
+  int M = scount + pcount + 5*(dcount/6) + 7*(fcount/10) + 9*(gcount/15); 
   // Number of cartesian basis functions.
   int N = lnums.size();
 
@@ -448,6 +451,19 @@ Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) co
       j+=10;
       break;
     }
+    case 4: { // g-type
+      slnums[k] = 4; smnums[k] = 0;
+      slnums[++k] = 4; smnums[k] = -1;
+      slnums[++k] = 4; smnums[k] = 1;
+      slnums[++k] = 4; smnums[k] = -2;
+      slnums[++k] = 4; smnums[k] = 2;
+      slnums[++k] = 4; smnums[k] = -3;
+      slnums[++k] = 4; smnums[k] = 3;
+      slnums[++k] = 4; smnums[k] = -4;
+      slnums[++k] = 4; smnums[k++] = 4;
+      j += 15;
+      break;
+    }
     default: { // assume s-type
       slnums[k] = 0; smnums[k++] = 0;
       j++;
@@ -469,6 +485,7 @@ Matrix IntegralEngine::makeSpherical(const Matrix& ints, const Vector& lnums) co
       case 1: { j+=3; break;}
       case 2: { j+=6; break;}
       case 3: { j+=10; break;}
+      case 4: { j+=15; break;}
       default: { j+=1; }
       }
       m = 0;
@@ -1599,11 +1616,13 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   switch(LC){
   case 2: { spherC = 5*(sC(shellC)/6); break; }
   case 3: { spherC = 7*(sC(shellC)/10); break; }
+  case 4: { spherC = 9*(sC(shellC)/15); break; }
   default: spherC = ncC;
   }
   switch(LD){
   case 2: { spherD = 5*(sD(shellD)/6); break; }
   case 3: { spherD = 7*(sD(shellD)/10); break; }
+  case 4: { spherD = 9*(sD(shellD)/15); break; }
   default: spherD = ncD;
   }
   
@@ -1631,10 +1650,11 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   // Build the C trans matrix
   int jinc; 
   switch(LC){
-  	case 1: { jinc = 3; break; }
-  	case 2: { jinc = 6; break; }
-  	case 3: { jinc = 10; break; }
-  	default: jinc = 1;
+  case 1: { jinc = 3; break; }
+  case 2: { jinc = 6; break; }
+  case 3: { jinc = 10; break; }
+  case 4: { jinc = 15; break; }
+  default: jinc = 1;
   }
   int j = 0; // Column counter
   int mod = 2*LC+1;
@@ -1653,6 +1673,7 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   case 1: { jinc = 3; break; }
   case 2: { jinc = 6; break; }
   case 3: { jinc = 10; break; }
+  case 4: { jinc = 15; break; }
   default: jinc = 1;
   }
   j = 0; mod = 2*LD+1;
@@ -1763,11 +1784,13 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   switch(LA){
   case 2: { spherA = 5*(sA(shellA)/6); break; }
   case 3: { spherA = 7*(sA(shellA)/10); break; }
+  case 4: { spherA = 9*(sA(shellA)/15); break; }
   default: spherA = ncA;
   }
   switch(LB){
   case 2: { spherB = 5*(sB(shellB)/6); break; }
   case 3: { spherB = 7*(sB(shellB)/10); break; }
+  case 4: { spherB = 9*(sB(shellB)/15); break; }
   default: spherB = ncB;
   }
   
@@ -1795,6 +1818,7 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   case 1: { jinc = 3; break; }
   case 2: { jinc = 6; break; }
   case 3: { jinc = 10; break; }
+  case 4: { jinc = 15; break; }
   default: jinc = 1;
   }
   j = 0; // Column counter
@@ -1814,6 +1838,7 @@ Tensor4 IntegralEngine::twoe(Atom& A, Atom& B, Atom& C, Atom& D,
   case 1: { jinc = 3; break; }
   case 2: { jinc = 6; break; }
   case 3: { jinc = 10; break; }
+  case 4: { jinc = 15; break; }
   default: jinc = 1;
   }
   j = 0; mod = 2*LB+1;

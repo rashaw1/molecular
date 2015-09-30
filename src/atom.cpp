@@ -168,7 +168,7 @@ PBF& Atom::getShellPrim(int shell, int i)
 
 int Atom::getNSpherical() const
 {
-  int scount=0, pcount=0, dcount=0, fcount=0; // Currently only cope with up to f-type bfs
+  int scount=0, pcount=0, dcount=0, fcount=0, gcount=0; // Currently only cope with up to g-type bfs
   // Loop over all bfs
   for (int i = 0; i < nbfs; i++){
     switch(bfs[i].getLnum()){
@@ -188,11 +188,15 @@ int Atom::getNSpherical() const
       fcount++;
       break;
     }
+    case 4: { // g type
+      gcount++;
+      break;
+    }
     default: scount++; // Assume s type
     }
   }
 
-  return scount+pcount+(5*dcount/6)+(7*fcount/10);
+  return scount+pcount+(5*dcount/6)+(7*fcount/10)+(9*gcount/15);
 }
 
 int Atom::getNSpherShellBF(int shell) const
@@ -206,9 +210,10 @@ int Atom::getNSpherShellBF(int shell) const
 	// Calculate the corresponding number of spherical bfs
 	int ns = 0;
 	switch(L){
-		case 2: { ns = 5*(nc/6); break; }
-		case 3: { ns = 7*(nc/10); break; }
-		default: ns = nc;
+	case 2: { ns = 5*(nc/6); break; }
+	case 3: { ns = 7*(nc/10); break; }
+	case 4: { ns = 9*(nc/15); break; } 
+	default: ns = nc;
 	}
 	
 	return ns;

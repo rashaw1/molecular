@@ -49,6 +49,7 @@ int FileReader::findToken(std::string t)
   else if (t == "hf") { rval = 15; }
   else if (t == "rhf") { rval = 16; }
   else if (t == "uhf") { rval = 17; }
+  else if (t == "angstrom") { rval = 18; }
   return rval;
 }
 
@@ -68,6 +69,7 @@ void FileReader::readParameters()
   twoprint = false;
   bprint = false;
   diis = true;
+  angstrom = false;
 
   // Read line by line and parse
   std::string line, token;
@@ -112,10 +114,22 @@ void FileReader::readParameters()
       }
       case 6: { // GeomStart
 	geomstart = linecount + 1;
+	line.erase(0, pos+1);
+        line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+	if (line.length() > 0) {
+	  switch(findToken(line)){
+	  case 18: { // Angstrom
+	    angstrom = true;
+	    break;
+	  }
+	  default: {
+	  }
+	  }
+	}
 	geomend = geomstart-1;
 	while(line != "geomend"){
-	  std::getline(input, line);
-	  geomend++;
+	  if (std::getline(input, line))
+	    geomend++;
 	}
 	break;
       }

@@ -110,6 +110,7 @@ BF BasisReader::readBF(int q, int i)
 	else if (shell == "sp") { lmult = 4; }
 	else if (shell == "d") { lmult = 6; }
 	else if (shell == "f") { lmult = 10; }
+	else if (shell == "g") { lmult = 15; }
 	
 	// Iterate through bfs to find right one
 	int sublmult;
@@ -294,6 +295,86 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    break;
 	  }
+	  case 15: { // g-type
+	    switch(sublmult) { 
+	    case 1: { 
+	      l3 = 4; l2 = l1 = 0;
+	      break;
+	    }
+	    case 2: { 
+	      l3 = 3; l2 = 1;  l1 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
+	      break;
+	    }
+            case 3: {
+              l3 = 3; l2 = 0;  l1 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
+              break;
+            }
+            case 4: {
+              l3 = 2; l2 = 2;  l1 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
+              break;
+            }
+            case 5: {
+              l3 = 2; l2 = 1;  l1 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
+              break;
+            }
+            case 6: {
+              l3 = 2; l2 = 0;  l1 = 2;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
+              break;
+            }
+            case 7: {
+              l3 = 1; l2 = 3;  l1 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*e.size(); }
+              break;
+            }
+            case 8: {
+              l3 = 1; l2 = 2;  l1 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*e.size(); }
+              break;
+            }
+            case 9: {
+              l3 = 1; l2 = 1;  l1 = 2;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*e.size(); }
+              break;
+            }
+            case 10: {
+              l3 = 1; l2 = 0;  l1 = 3;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*e.size(); }
+              break;
+            }
+            case 11: {
+              l3 = 0; l2 = 4;  l1 = 0;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 10*e.size(); }
+              break;
+            }
+            case 12: {
+              l3 = 0; l2 = 3;  l1 = 1;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 11*e.size(); }
+              break;
+            }
+            case 13: {
+              l3 = 0; l2 = 2;  l1 = 2;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 12*e.size(); }
+              break;
+            }
+            case 14: {
+              l3 = 0; l2 = 1;  l1 = 3;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 13*e.size(); }
+              break;
+            }
+            case 15: {
+              l3 = 0; l2 = 0;  l1 = 4;
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 14*e.size(); }
+              break;
+            }
+	    default: { l1 = l2 = l3 = 0; }
+	    }
+	    break;
+	  }
 	  default:{
 	    l1 = l2 = l3 = 0;
 	  }
@@ -344,6 +425,7 @@ Vector BasisReader::readShells(int q)
 	else if (temp == "p") { lmult = 3; }
 	else if (temp == "d") { lmult = 6; }
 	else if (temp == "f") { lmult = 10; }
+	else if (temp == "g") { lmult = 15; }
 
 	std::getline(input, line);
 	while (line.at(0) == 'c'){
@@ -399,6 +481,7 @@ Vector BasisReader::readLnums(int q)
 	else if (temp == "p") { lmult = 1; }
 	else if (temp == "d") { lmult = 2; }
 	else if (temp == "f") { lmult = 3; }
+	else if (temp == "g") { lmult = 4; }
 
 	lnums[counter] = lmult;
 	counter++;

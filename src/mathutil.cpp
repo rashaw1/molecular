@@ -210,6 +210,71 @@ void formTransMat(Matrix& mat, int row, int col, int l, int m){
     }
     break;
   }
+  case 4: { // g-type
+    switch(m) {
+    case -4:{
+      temp = std::sqrt(5.0/4.0);
+      mat(row, col+13) = temp;
+      mat(row, col+11) = -temp;
+      break;
+    }
+    case -3:{
+      mat(row, col+6) = -1.0*std::sqrt(10.0)/4.0;
+      mat(row, col+8) = 0.75*std::sqrt(2.0);
+      break;
+    }
+    case -2:{
+      temp = -1.0*std::sqrt(5.0/7.0)/2.0;
+      mat(row, col+4) = 3.0*std::sqrt(1.0/7.0);
+      mat(row, col+13) = temp;
+      mat(row, col+11) = temp;
+      break;
+    }
+    case -1:{
+      temp = std::sqrt(2.0/7.0);
+      mat(row, col+1) = temp*std::sqrt(5.0);
+      mat(row, col+6) = -0.75*temp*std::sqrt(5.0);
+      mat(row, col+8) = -0.75*temp;
+      break;
+    }
+    case 0:{
+      temp = -3.0*std::sqrt(3.0/35/0);
+      mat(row, col) = 1.0;
+      mat(row, col+14) = mat(row, col+10) = 3.0/8.0;
+      mat(row, col+5) = mat(row, col+3) = temp;
+      mat(row, col+12) = -0.25*temp;
+      break;
+    }
+    case 1:{ 
+      temp = std::sqrt(2.0/7.0);
+      mat(row, col+2) = std::sqrt(5.0)*temp;
+      mat(row, col+9) = -0.75*std::sqrt(5.0)*temp;
+      mat(row, col+7) = -0.75*temp;
+      break;
+    }
+    case 2:{
+      temp = 1.5*std::sqrt(3.0/7.0);
+      mat(row, col+5) = temp;
+      mat(row, col+3) = -temp;
+      temp = 0.25*std::sqrt(5.0);
+      mat(row, col+14) = -temp;
+      mat(row, col+10) = temp;
+      break;
+    }
+    case 3:{
+      temp = 0.25*std::sqrt(2.0);
+      mat(row, col+9) = temp*std::sqrt(5.0);
+      mat(row, col+7) = -3.0*temp;
+      break;
+    }
+    default:{
+      temp = std::sqrt(35.0)/8.0;
+      mat(row, col+14) = mat(row, col+10) = temp;
+      mat(row, col+12) = -0.75*std::sqrt(3.0);
+    }     
+    }
+    break;
+  }
   default: { // s-type
     mat(row, col) = 1.0;
   }
