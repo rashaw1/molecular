@@ -64,7 +64,8 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
     molecule.getLog().print("Forming the one electron integrals\n");
   formOverlapKinetic();
   formNucAttract();
-    molecule.getLog().print("One electron integrals complete\n");
+
+  molecule.getLog().print("One electron integrals complete\n");
     molecule.getLog().localTime();
     
     Vector ests = getEstimates();
@@ -72,10 +73,10 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
     if (molecule.getLog().direct()){
         molecule.getLog().print("Two electron integrals to be calculated on the fly.\n");
     } else if(molecule.getLog().getMemory() > ests(3)){ // Check memory requirements
-        formERI(false); // Don't write to file
-        if (molecule.getLog().twoprint()) {
-            printERI(molecule.getLog().getIntFile(), M);
-        }
+      formERI(false); // Don't write to file
+      if (molecule.getLog().twoprint()) {
+	printERI(molecule.getLog().getIntFile(), M);
+      }
     } else {
         molecule.getLog().print("Writing the two electron integrals to file\n");
         formERI(true); // Write to file without forming twoints

@@ -53,7 +53,7 @@ int main (int argc, char* argv[])
 	log.print(log.getBasis(), log.bprint());
 	log.print("\nPRELIMINARIES FINISHED");
 	log.localTime();
-	
+	output.flush();
 	// Make an integral engine
 	IntegralEngine integral(mol);
 

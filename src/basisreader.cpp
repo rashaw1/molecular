@@ -116,7 +116,7 @@ BF BasisReader::readBF(int q, int i)
 	int sublmult;
 	std::getline(input, line);
 	while (bfcount!=i && line.at(0) == 'c'){
-		sublmult = 1;
+	  sublmult = 1;
 	  while (bfcount != i && sublmult < lmult+1){
 	    bfcount++;
 	    sublmult++;
@@ -137,13 +137,13 @@ BF BasisReader::readBF(int q, int i)
 	  std::size_t p = temp2.find('.');
 	  int start = std::stoi(temp2.substr(0, p));
 	  int end = std::stoi(temp2.substr(p+1, temp2.length()));
-	  
+
 	  // Now resize e and ids, and copy in
 	  e.resize(end - start + 1);
 	  ids.resize(end - start + 1);
 	  for (int j = 0; j < end - start + 1; j++){
 	    e[j] = tempexps(start+j-1); // Take account of zero-indexing
-	    ids[j] = start*lmult + j - lmult;
+	    ids[j] = start + j - 1;
 	  }
 
 	  // Get the coeffs
@@ -172,12 +172,12 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2: { //py
 	      l1 = l3 = 0; l2 = 1;
-	      for (int index = 0; index < ids.size(); index++) { ids[index] += e.size(); }
+	      for (int index = 0; index < ids.size(); index++) { ids[index] += tempexps.size(); }
 	      break;
 	    }
 	    case 3: { //pz
 	      l1 = l2 = 0; l3 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*tempexps.size(); }
 	      break;
 	    }
 	    }
@@ -191,17 +191,17 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2:{ // px
 	      l1 = 1; l2 = l3 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += tempexps.size(); }
 	      break;
 	    }
 	    case 3:{ // py
 	      l1 = l3 = 0; l2 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*tempexps.size(); }
 	      break;
 	    }
 	    case 4:{ //pz
 	      l1 = l2 = 0; l3 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*tempexps.size(); }
 	      break;
 	    }
 	    }
@@ -215,27 +215,27 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2:{ // dyz
 	      l3 = l2 = 1; l1 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += tempexps.size(); }
 	      break;
 	    }
 	    case 3:{ // dxz
 	      l1 = l3 = 1; l2 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*tempexps.size(); }
 	      break;
 	    }
 	    case 4:{ // dyy
 	      l2 = 2; l3 = l1 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*tempexps.size(); }
 	      break;
 	    }
 	    case 5:{ // dxy 
 	      l3 = 0; l2 = l1 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*tempexps.size(); }
 	      break;
 	    }
 	    case 6:{ // dxx
 	      l1 = 2; l2 = l3 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*tempexps.size(); }
 	      break;
 	    }
 	    }
@@ -249,47 +249,47 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2:{ //fyzz
 	      l1 = 0; l2 = 1; l3 = 2;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += tempexps.size(); }
 	      break;
 	    }
 	    case 3:{ //fxzz
 	      l1 = 1; l2 = 0; l3 = 2;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*tempexps.size(); }
 	      break;
 	    }
 	    case 4:{ //fyyz
 	      l1 = 0; l2 = 2; l3 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*tempexps.size(); }
 	      break;
 	    }
 	    case 5:{ //fxyz
 	      l1 = 1; l2 = 1; l3 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*tempexps.size(); }
 	      break;
 	    }
 	    case 6:{ //fxxz
 	      l1 = 2; l2 = 0; l3 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*tempexps.size(); }
 	      break;
 	    }
 	    case 7:{ //fyyy
 	      l1 = l3 = 0; l2 = 3;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*tempexps.size(); }
 	      break;
 	    }
 	    case 8:{ // fxyy
 	      l1 = 1; l2 = 2; l3 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*tempexps.size(); }
 	      break;
 	    }
 	    case 9:{ // fxxy
 	      l1 = 2; l2 = 1; l3 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*tempexps.size(); }
 	      break;
 	    }
 	    case 10:{ // fxxx
 	      l1 = 3; l2 = 0; l3 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*tempexps.size(); }
 	      break;
 	    }
 	    }
@@ -303,72 +303,72 @@ BF BasisReader::readBF(int q, int i)
 	    }
 	    case 2: { 
 	      l3 = 3; l2 = 1;  l1 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += tempexps.size(); }
 	      break;
 	    }
             case 3: {
               l3 = 3; l2 = 0;  l1 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 2*tempexps.size(); }
               break;
             }
             case 4: {
               l3 = 2; l2 = 2;  l1 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 3*tempexps.size(); }
               break;
             }
             case 5: {
               l3 = 2; l2 = 1;  l1 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 4*tempexps.size(); }
               break;
             }
             case 6: {
               l3 = 2; l2 = 0;  l1 = 2;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 5*tempexps.size(); }
               break;
             }
             case 7: {
               l3 = 1; l2 = 3;  l1 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 6*tempexps.size(); }
               break;
             }
             case 8: {
               l3 = 1; l2 = 2;  l1 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 7*tempexps.size(); }
               break;
             }
             case 9: {
               l3 = 1; l2 = 1;  l1 = 2;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 8*tempexps.size(); }
               break;
             }
             case 10: {
               l3 = 1; l2 = 0;  l1 = 3;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 9*tempexps.size(); }
               break;
             }
             case 11: {
               l3 = 0; l2 = 4;  l1 = 0;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 10*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 10*tempexps.size(); }
               break;
             }
             case 12: {
               l3 = 0; l2 = 3;  l1 = 1;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 11*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 11*tempexps.size(); }
               break;
             }
             case 13: {
               l3 = 0; l2 = 2;  l1 = 2;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 12*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 12*tempexps.size(); }
               break;
             }
             case 14: {
               l3 = 0; l2 = 1;  l1 = 3;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 13*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 13*tempexps.size(); }
               break;
             }
             case 15: {
               l3 = 0; l2 = 0;  l1 = 4;
-	      for (int index = 0; index< ids.size(); index++) { ids[index] += 14*e.size(); }
+	      for (int index = 0; index< ids.size(); index++) { ids[index] += 14*tempexps.size(); }
               break;
             }
 	    default: { l1 = l2 = l3 = 0; }
@@ -381,6 +381,7 @@ BF BasisReader::readBF(int q, int i)
 	  }
 	  position = std::string::npos; // Exit loop
 	}
+
       } else { // Move on to the next line
       	std::getline(input, line);
     }

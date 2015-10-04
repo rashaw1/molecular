@@ -9,10 +9,10 @@ COMMANDLINE_OPTIONS =
 # Compiler options
 DEBUG = -g -Wall -O0 -stdlib=libc++ -D_GLIBCXX_DEBUG
 OPTIM = -O3 -Wall -stdlib=libc++
-COMPILE_OPTIONS = $(OPTIM)
+COMPILE_OPTIONS = $(DEBUG)
 
 # Header include directories
-HEADERS = -I./inc -I/usr/local/Cellar/boost/1.58.0/include -I/usr/local/Cellar/eigen/3.2.4/include/eigen3
+HEADERS = -I./inc -I/usr/local/Cellar/boost/1.58.0/include -I/usr/local/Cellar/eigen/3.2.5/include/eigen3
 
 # Libraries for linking
 LIBS =  -lboost_system -lboost_timer  -stdlib=libc++ 
