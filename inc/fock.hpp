@@ -55,6 +55,7 @@ private:
 public:
   Fock(IntegralEngine& ints, Molecule& m);
   IntegralEngine& getIntegrals() { return integrals; }
+  Molecule& getMolecule() { return molecule; }
   Matrix& getHCore() { return hcore; }
   Matrix& getFockAO() { return focka; }
   Matrix& getFockMO() { return fockm; }

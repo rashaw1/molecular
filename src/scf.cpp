@@ -133,7 +133,8 @@ void SCF::rhf()
       if ( delta > molecule.getLog().converge()/100.0 ) { converged = false; }
       iter++;
     }
-    
+	focker.diagonalise();
+	
     if (!converged) { 
       molecule.getLog().result("SCF failed to converge.");
     } else {
@@ -212,6 +213,9 @@ void SCF::uhf()
     if (delta < molecule.getLog().converge()/100.0 && dist < molecule.getLog().converge()) { converged = true; }
     iter++;
   }
+
+  focker.diagonalise();
+  focker2.diagonalise();
   if (converged) {
     // Construct the orbital energies
     molecule.getLog().print("\nALPHA ORBITALS");

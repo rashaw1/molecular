@@ -1,7 +1,7 @@
 basis, 6-311gdp
 memory, 1000
 nthreads, 2
-hf,
+rhf,
 geom,angstrom
 N, 0.0, 0.0, 0.110
 H, 0.0, 0.932, -0.256

@@ -18,6 +18,7 @@
 #include "integrals.hpp"
 #include "fock.hpp"
 #include "scf.hpp"
+#include "mp2.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -77,6 +78,10 @@ int main (int argc, char* argv[])
 	  }
 	  case 2: { // RHF
 	    hf.rhf();
+		MP2 mp2obj(focker);
+		mp2obj.transformIntegrals();
+		mp2obj.calculateEnergy();
+		std::cout << "MP2 Energy: " << mp2obj.getEnergy() << "\n";
 	    break;
 	  }
 	  case 3: { // UHF
