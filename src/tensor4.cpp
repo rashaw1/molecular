@@ -84,3 +84,18 @@ Tensor4& Tensor4::operator=(const Tensor4& other)
   }
   return *this;
 }
+
+Tensor4 Tensor4::operator+(const Tensor4& other) const
+{
+	Tensor4 retVal(w, x, y, z);
+	for (int i = 0; i < w; i++){
+		for (int j = 0; j < x; j++){
+			for (int k = 0; k < y; k++){
+				for (int l = 0; l < z; l++){
+					retVal(i, j, k, l) = data(i*x+j, k*z+l) + other(i, j, k, l);
+				}
+			}
+		}
+	}
+	return retVal;
+}

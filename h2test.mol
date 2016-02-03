@@ -5,3 +5,4 @@ geom,
 h, 0.0, 0.0, 0.0
 h, 0.0, 0.0, 1.4
 geomend
+integral, print, h2ints.out

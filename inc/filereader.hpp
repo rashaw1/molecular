@@ -29,7 +29,7 @@
 {
 private:
   std::ifstream& input;
-  int charge, multiplicity, maxiter, natoms;
+  int charge, multiplicity, maxiter, natoms, nthreads;
   int geomstart, geomend;
   double precision, thrint, memory, converge;
   bool direct, twoprint, diis, bprint, angstrom;
@@ -43,6 +43,7 @@ public:
   void readParameters();
   void readGeometry();
   int getCharge() const { return charge; }
+  int getNThreads() const { return nthreads; }
   int getMultiplicity() const { return multiplicity; }
   int getMaxIter() const { return maxiter; }
   int getNAtoms() const { return natoms; }

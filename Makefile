@@ -7,15 +7,15 @@ CXX = c++
 COMMANDLINE_OPTIONS = 
 
 # Compiler options
-DEBUG = -g -Wall -O0 -stdlib=libc++ -D_GLIBCXX_DEBUG
-OPTIM = -O3 -Wall -stdlib=libc++
-COMPILE_OPTIONS = $(DEBUG)
+DEBUG = -g -Wall -O0 -std=c++11 -D_GLIBCXX_DEBUG 
+OPTIM = -O3 -Wall -std=c++11 -openmp
+COMPILE_OPTIONS = $(OPTIM)
 
 # Header include directories
-HEADERS = -I./inc -I/usr/local/Cellar/boost/1.58.0/include -I/usr/local/Cellar/eigen/3.2.5/include/eigen3
+HEADERS = -I./inc -I/usr/local/Cellar/boost/1.60.0/include -I/usr/local/Cellar/eigen/3.2.5/include/eigen3
 
 # Libraries for linking
-LIBS =  -lboost_system -lboost_timer  -stdlib=libc++ 
+LIBS =  -L/usr/local/Cellar/boost/1.60.0/lib -lboost_system -lboost_timer  -std=c++11 
 
 # Dependency options
 DEPENDENCY_OPTIONS = -MM

@@ -76,7 +76,7 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
     } else if(molecule.getLog().getMemory() > ests(3)){ // Check memory requirements
       formERI(false); // Don't write to file
       if (molecule.getLog().twoprint()) {
-	 	 printERI(molecule.getLog().getIntFile(), M);
+	printERI(molecule.getLog().getIntFile(), M);
       }
     } else {
         molecule.getLog().print("Writing the two electron integrals to file\n");
@@ -126,7 +126,7 @@ double IntegralEngine::getERI(int i, int j, int k, int l) const
 // definitely enough memory!)
 void IntegralEngine::formERI(bool tofile)
 {
-    // Get the number of basis functions
+	// Get the number of basis functions
     // and the number of shells
     int natoms = molecule.getNAtoms();
     int N = 0; // No. of cartesian cgbfs
@@ -160,60 +160,76 @@ void IntegralEngine::formERI(bool tofile)
             k++;
         }
     }
-	
-    twoints.assign(NSpher, NSpher, NSpher, NSpher, 0.0);
     
-	int nthreads = molecule.getLog().getNThreads();
-	std::vector<std::thread> thrds(nthreads);
-	std::vector<Tensor4> tmpints;
-	for (int i = 0; i < nthreads; i++) tmpints.push_back(Tensor4(NSpher, NSpher, NSpher, NSpher, 0.0));
-	
-	prescreen.assign(NS, NS, 0.0);
-	std::vector<Matrix> pscreens;
-	for (int i = 0; i < nthreads; i++) pscreens.push_back(Matrix(NS, NS, 0.0));
-	
-	// Do load-balancing
-	std::vector<int> startList(nthreads+1);
-	startList[0] = 0; startList[nthreads] = NS;
-	
-	if(double(NS)/double(nthreads) < (1.0 + 1/double(nthreads))) { 
-		for (int i = 1; i < nthreads; i++) startList[i] = i;
-	} else {
-		int counter = 1; int currIndex = 1; int nfuncs = 0; int mfuncs = 0;
-		int idealSize = ceil(N/nthreads);
-		idealSize = (idealSize > 0 ? idealSize : 1);
-		while(currIndex < nthreads && counter < NS){
-			Vector nfshells = molecule.getAtom(atoms(nfuncs)).getShells();
-			int nsh = nfshells(shells(nfuncs));
-			mfuncs += nsh;
-			nfuncs += nsh;
-			if (mfuncs >= idealSize){
-				startList[currIndex] = counter;
-				currIndex++; 
-				mfuncs = 0;
-			}
-			counter++;
-		}
-		if (currIndex < nthreads) { nthreads = currIndex; startList[currIndex] = NS; }
-	}
-	
-	for (int i = 0; i < nthreads; i++)
-		thrds[i] = std::thread(&IntegralEngine::diagERIThread, *this, startList[i], startList[i+1], NS, std::ref(atoms), 
-								std::ref(shells), std::ref(bfs), std::ref(tmpints[i]), std::ref(pscreens[i]));
-	
-	for (int i = 0; i < nthreads; i++){
-		thrds[i].join();
-		prescreen = prescreen + pscreens[i];
-	} 
-	
-	for(int i = 0; i < nthreads; i++)
-		thrds[i] = std::thread(&IntegralEngine::offDiagERIThread, *this, startList[i], startList[i+1], NS, std::ref(atoms), 
-								std::ref(shells), std::ref(bfs), std::ref(tmpints[i]));
-	
-	for (int i = 0; i < nthreads; i++){
-		thrds[i].join();
-		twoints = twoints + tmpints[i];
-	} 
+    // Counters to keep track of cart. bfs
+    int m = 0; int n = 0; int p = 0; int q = 0;
+    // Counters to keep track of spher. bfs
+    int a = 0; int b = 0; int c = 0; int d = 0;
+    
+    Atom ma; Atom na; Atom pa; Atom qa;
+    // Loop over shell quartets
+    Tensor4 tempInts;
+    
+    if (!tofile){
+        twoints.assign(NSpher, NSpher, NSpher, NSpher, 0.0);
+    }
+    
+    std::ofstream& output = molecule.getLog().getIntFile();
+    // Do the "diagonal" elements for pre-screening purposes
+    Matrix prescreen(NS, NS, 0.0);
+    for (int r = 0; r < NS; r++) {
+        ma = molecule.getAtom(atoms(m));
+        Vector mshells = ma.getShells();
+        int spherR = ma.getNSpherShellBF(shells(m));
+        
+        n = m;
+        b = a;
+        for (int s = r; s < NS; s++) {
+            na = molecule.getAtom(atoms(n));
+            Vector nshells = na.getShells();
+            int spherS = na.getNSpherShellBF(shells(n));
+            
+            // Get the integrals
+            tempInts = twoe(ma, na, ma, na, shells(m), shells(n), shells(m), shells(n));
+            
+            // Copy into two ints, and find maximum element
+            double maxval = 0.0;
+            double tempval;
+            for (int w = 0; w < spherR; w++){
+                for (int x = 0; x < spherS; x++){
+                    for (int y = 0; y < spherR; y++){
+                        for (int z = 0; z < spherS; z++){
+                            if (w==y && x==z){
+                                tempval = fabs(tempInts(w,x,y,z));
+                                maxval = (tempval > maxval ? tempval : maxval);
+                            }
+                            if (!tofile) {
+                                twoints(a+w, b+x, a+y, b+z) = tempInts(w, x, y, z);
+                            } else {
+                                output << std::setw(6) << a+w+1;
+                                output << std::setw(6) << b+x+1;
+                                output << std::setw(6) << a+y+1;
+                                output << std::setw(6) << b+z+1;
+                                output << std::setw(20) << tempInts(w, x, y, z);
+                                output << "\n";
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Put maxval in the prescreening matrx
+            prescreen(r, s) = std::sqrt(maxval);
+            prescreen(s, r) = prescreen(r, s);
+            
+            // Increment no. of bfs
+            n += nshells(shells(n));
+            b += spherS;
+        }
+        
+        m += mshells(shells(m));
+        a += spherR;
+    }
     
     // Update the log file
     if (prescreen.nrows() < 10) { 
@@ -222,37 +238,9 @@ void IntegralEngine::formERI(bool tofile)
       molecule.getLog().print(prescreen);
       molecule.getLog().print("\n\n");
     }
-    
-    molecule.getLog().print("Two electron integrals completed.\n");
-    if(!tofile){
-        std::string mem = "Approximate memory usage = ";
-        mem += std::to_string(NSpher*NSpher*NSpher*NSpher*sizeof(double)/(1024.0*1024.0));
-        molecule.getLog().print(mem);
-    }
-    molecule.getLog().localTime();
 
-}
-
-void IntegralEngine::offDiagERIThread(int start, int end, int NS, Vector &atoms, Vector &shells,
-	 								Vector &bfs, Tensor4 &twints)
-{
-    // Counters to keep track of cart. bfs
-    int m = 0; int n = 0; int p = 0; int q = 0;
-    // Counters to keep track of spher. bfs
-    int a = 0; int b = 0; int c = 0; int d = 0;
-    
-    Atom ma; Atom na; Atom pa; Atom qa;
-	
-	for (int r = 0; r < start; r++) {
-		ma = molecule.getAtom(atoms(m));
-		Vector mshells = ma.getShells();
-		a += ma.getNSpherShellBF(shells(m));
-		m += mshells(shells(m));
-	}
-	
-    // Loop over shell quartets
-    Tensor4 tempInts;
-    for (int r = start; r < end; r++){
+    m = n = a = b = 0;
+    for (int r = 0; r < NS; r++){
         ma = molecule.getAtom(atoms(m));
         Vector mshells = ma.getShells();
         int spherR = ma.getNSpherShellBF(shells(m));
@@ -289,7 +277,16 @@ void IntegralEngine::offDiagERIThread(int start, int end, int NS, Vector &atoms,
                             for (int x = 0; x < spherS; x++){
                                 for (int y = 0; y < spherT; y++){
                                     for (int z = 0; z < spherU; z++){
-                                   	 	twints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
+                                        if (!tofile){
+                                            twoints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
+                                        } else {
+                                            output << std::setw(6) << a+w+1;
+                                            output << std::setw(6) << b+x+1;
+                                            output << std::setw(6) << c+y+1;
+                                            output << std::setw(6) << d+z+1;
+                                            output << std::setw(20) << tempInts(w, x, y, z);
+                                            output << "\n";
+                                        }
                                     } // end z-loop
                                 } // end y-loop
                             } // end x-loop
@@ -310,74 +307,15 @@ void IntegralEngine::offDiagERIThread(int start, int end, int NS, Vector &atoms,
         
         m += mshells(shells(m));
         a += spherR;
-    } // end r-loop						
-}
-
-void IntegralEngine::diagERIThread(int start, int end, int NS, Vector &atoms, 
-							Vector &shells, Vector &bfs, Tensor4 &twints, Matrix &pscreen)
-{
-    // Counters to keep track of cart. bfs
-    int m = 0; int n = 0; 
-    // Counters to keep track of spher. bfs
-    int a = 0; int b = 0;
-	
-	Atom ma; Atom na; Atom pa; Atom qa;
+    } // end r-loop
     
-	for (int r = 0; r < start; r++) {
-		ma = molecule.getAtom(atoms(m));
-		Vector mshells = ma.getShells();
-		a += ma.getNSpherShellBF(shells(m));
-		m += mshells(shells(m));
-	}
-	
-    // Loop over shell quartets
-    Tensor4 tempInts;
-	
-    // Do the "diagonal" elements for pre-screening purposes
-    for (int r = start; r < end; r++) {
-        ma = molecule.getAtom(atoms(m));
-        Vector mshells = ma.getShells();
-        int spherR = ma.getNSpherShellBF(shells(m));
-        
-        n = m;
-        b = a;
-        for (int s = r; s < NS; s++) {
-            na = molecule.getAtom(atoms(n));
-            Vector nshells = na.getShells();
-            int spherS = na.getNSpherShellBF(shells(n));
-            
-            // Get the integrals
-            tempInts = twoe(ma, na, ma, na, shells(m), shells(n), shells(m), shells(n));
-            
-            // Copy into two ints, and find maximum element
-            double maxval = 0.0;
-            double tempval;
-            for (int w = 0; w < spherR; w++){
-                for (int x = 0; x < spherS; x++){
-                    for (int y = 0; y < spherR; y++){
-                        for (int z = 0; z < spherS; z++){
-                            if (w==y && x==z){
-                                tempval = fabs(tempInts(w,x,y,z));
-                                maxval = (tempval > maxval ? tempval : maxval);
-                            }
-                            twints(a+w, b+x, a+y, b+z) = tempInts(w, x, y, z);
-                        }
-                    }
-                }
-            }
-            
-            // Put maxval in the prescreening matrx
-            pscreen(r, s) = std::sqrt(maxval);
-            pscreen(s, r) = pscreen(r, s);
-            
-            // Increment no. of bfs
-            n += nshells(shells(n));
-            b += spherS;
-        }
-        
-        m += mshells(shells(m));
-        a += spherR;
+    molecule.getLog().print("Two electron integrals completed.\n");
+    if(!tofile){
+        std::string mem = "Approximate memory usage = ";
+        mem += std::to_string(NSpher*NSpher*NSpher*NSpher*sizeof(double)/(1024.0*1024.0));
+        molecule.getLog().print(mem);
     }
+    molecule.getLog().localTime();
 }
 
 // Print a sorted list of ERIs to ostream output

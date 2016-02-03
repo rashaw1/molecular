@@ -21,6 +21,8 @@
 // Constructor
 Fock::Fock(IntegralEngine& ints, Molecule& m) : integrals(ints), molecule(m)
 {
+	Eigen::setNbThreads(m.getLog().getNThreads());
+	
   // Make the core hamiltonian matrix
   formHCore();
 

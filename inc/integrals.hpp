@@ -70,6 +70,7 @@ private:
   Matrix sints;
   Matrix tints;
   Matrix naints;
+  Matrix prescreen;
   Vector sizes;
   Tensor4 twoints;
 public:
@@ -89,6 +90,10 @@ public:
   // Intrinsic routines
   void printERI(std::ostream& output, int NSpher) const;
   void formERI(bool tofile);
+  void diagERIThread(int start, int end, int NS, Vector &atoms, Vector &shells,
+				Vector &bfs, Tensor4 &twints, Matrix &pscreen);
+  void offDiagERIThread(int start, int end, int NS, Vector &atoms, Vector &shells,
+			  	Vector &bfs, Tensor4 &twints);
   Vector getVals(double a, double b, const Vector& A, const Vector& B) const;
   Vector overlapKinetic(const PBF& u, const PBF& v, const Vector& ucoords,
 			const Vector& vcoords) const;

@@ -50,6 +50,7 @@ int FileReader::findToken(std::string t)
   else if (t == "rhf") { rval = 16; }
   else if (t == "uhf") { rval = 17; }
   else if (t == "angstrom") { rval = 18; }
+  else if (t == "nthreads") { rval = 19; }
   return rval;
 }
 
@@ -65,6 +66,7 @@ void FileReader::readParameters()
   thrint = 1e-12;
   converge = 1e-5;
   memory = 100;
+  nthreads = 1;
   direct = false;
   twoprint = false;
   bprint = false;
@@ -223,6 +225,10 @@ void FileReader::readParameters()
       }
       case 17: { // UHF directive
 	commands.push_back("UHF");
+	break;
+      }
+      case 19: { // Nthreads
+	nthreads = std::stoi(line.substr(pos+1, line.length()));
 	break;
       }
       default: { // Unkown command issued

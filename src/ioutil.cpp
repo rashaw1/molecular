@@ -64,7 +64,7 @@ int getAtomCharge(const std::string& n)
 	// Make it upper case
 	std::string name = n;
 	std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-	int q = 0;
+	int q = 1;
 	bool found = false;
 	while (!found && q < 109 ){
 		  if(getAtomName(q) == name){

@@ -53,6 +53,7 @@ Logger::Logger(std::ifstream& in, std::ofstream& out, std::ostream& e) : infile(
   // Do a whole heap of input file reading
   // The single variables are pretty easy
   charge = input.getCharge();
+  nthreads = input.getNThreads();
   multiplicity = input.getMultiplicity();
   PRECISION = input.getPrecision();
   MAXITER = input.getMaxIter();

@@ -100,7 +100,7 @@ private:
   Basis basisset;
   // User defined constants
   double PRECISION, THRINT, CONVERGE,  memory;
-  int MAXITER;
+  int MAXITER, nthreads;
   bool directing, twoprinting, diising, basisprint;
 public:
   // Conversion factors
@@ -117,6 +117,7 @@ public:
   // Accessors
   Basis& getBasis() { return basisset; }
   int getCharge() const { return charge; }
+  int getNThreads() const { return nthreads; }
   int getMultiplicity() const { return multiplicity; }
   bool direct() const { return directing; }
   bool twoprint() const { return twoprinting; }
