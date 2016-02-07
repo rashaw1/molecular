@@ -23,6 +23,10 @@ void Matrix::cleanUp()
 
 // Constructors and destructor
 
+Matrix::Matrix() : rows(0), cols(0)
+{
+}
+
 Matrix::Matrix(int m, int n)
 {
   // Set no. of rows and columns

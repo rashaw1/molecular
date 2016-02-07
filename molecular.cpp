@@ -44,7 +44,7 @@ int main (int argc, char* argv[])
       std::ofstream err(efname);
       
       // Create the logger
-      Logger log(input, output, err);
+     Logger log(input, output, err);
       log.init();
 
       try{
@@ -78,15 +78,22 @@ int main (int argc, char* argv[])
 	  }
 	  case 2: { // RHF
 	    hf.rhf();
-		MP2 mp2obj(focker);
-		mp2obj.transformIntegrals();
-		mp2obj.calculateEnergy();
-		std::cout << "MP2 Energy: " << mp2obj.getEnergy() << "\n";
 	    break;
 	  }
 	  case 3: { // UHF
 	    hf.uhf();
 	    break;
+	  }
+	  case 4: { // MP2
+		  log.title("MP2 CALCULATION");
+		  MP2 mp2obj(focker);
+		  mp2obj.transformIntegrals();
+		  log.print("Integral transformation complete.\n");
+		  log.localTime();
+		  mp2obj.calculateEnergy();
+		  log.result("MP2 Energy Correction = " + std::to_string(mp2obj.getEnergy()) + " Hartree");
+		  log.result("Total Energy = " + std::to_string(hf.getEnergy() + mp2obj.getEnergy()) + " Hartree");
+		  break;
 	  }
 	  default: { }
 	  }

@@ -160,59 +160,107 @@ void IntegralEngine::formERI(bool tofile)
             k++;
         }
     }
-	
+
+	// Assign the two-electron matrix
     twoints.assign(NSpher, NSpher, NSpher, NSpher, 0.0);
-    
+
+	// Set up multi-threading
 	int nthreads = molecule.getLog().getNThreads();
-	std::vector<std::thread> thrds(nthreads);
-	std::vector<Tensor4> tmpints;
-	for (int i = 0; i < nthreads; i++) tmpints.push_back(Tensor4(NSpher, NSpher, NSpher, NSpher, 0.0));
-	
-	prescreen.assign(NS, NS, 0.0);
-	std::vector<Matrix> pscreens;
-	for (int i = 0; i < nthreads; i++) pscreens.push_back(Matrix(NS, NS, 0.0));
+	std::vector<std::thread> thrds(nthreads); // Vector of threads
+	std::vector<Tensor4> tmpints(nthreads); // Temporary 2e int matrices
+
+	// Set up prescreening matrix
+	prescreen.assign(NS, NS, 0.0); 
+	std::vector<Matrix> pscreens(nthreads);
 	
 	// Do load-balancing
-	std::vector<int> startList(nthreads+1);
+	// First form lists of starting positions,
+	// and the matrix sizes needed on each thread
+	std::vector<int> startList(nthreads+1); 
+	std::vector<int> threadSize(nthreads);
+	std::vector<int> threadSum(nthreads+1);
 	startList[0] = 0; startList[nthreads] = NS;
+	threadSum[0] = 0;
 	
 	if(double(NS)/double(nthreads) < (1.0 + 1/double(nthreads))) { 
-		for (int i = 1; i < nthreads; i++) startList[i] = i;
+		int icount = 0;
+		for (int i = 1; i < nthreads; i++) {
+			startList[i] = i;
+			Vector nfshells = molecule.getAtom(atoms(icount)).getShells();
+			threadSize[i-1] = molecule.getAtom(atoms(icount)).getNSpherShellBF(shells(icount));
+			threadSum[i] = threadSum[i-1] + threadSize[i-1];
+			icount +=  nfshells(shells(icount));
+		}
 	} else {
 		int counter = 1; int currIndex = 1; int nfuncs = 0; int mfuncs = 0;
-		int idealSize = ceil(N/nthreads);
+		int idealSize = ceil(NSpher/nthreads); int icount = 0;
 		idealSize = (idealSize > 0 ? idealSize : 1);
+
 		while(currIndex < nthreads && counter < NS){
-			Vector nfshells = molecule.getAtom(atoms(nfuncs)).getShells();
-			int nsh = nfshells(shells(nfuncs));
+			Vector nfshells = molecule.getAtom(atoms(icount)).getShells();
+			int nsh = molecule.getAtom(atoms(icount)).getNSpherShellBF(shells(icount));
 			mfuncs += nsh;
 			nfuncs += nsh;
+			icount +=  nfshells(shells(icount));
 			if (mfuncs >= idealSize){
 				startList[currIndex] = counter;
-				currIndex++; 
+				threadSize[currIndex-1] = mfuncs;
+				threadSum[currIndex] = nfuncs;
+				currIndex++;
 				mfuncs = 0;
 			}
 			counter++;
 		}
-		if (currIndex < nthreads) { nthreads = currIndex; startList[currIndex] = NS; }
+
+		// Sort out the final thread
+		threadSize[currIndex-1] = NSpher - threadSum[currIndex-1];
+		if (currIndex < nthreads) {
+			nthreads = currIndex;
+			startList[currIndex] = NS;
+			threadSum[currIndex] = nfuncs;
+		}
 	}
-	
-	for (int i = 0; i < nthreads; i++)
-		thrds[i] = std::thread(&IntegralEngine::diagERIThread, *this, startList[i], startList[i+1], NS, std::ref(atoms), 
-								std::ref(shells), std::ref(bfs), std::ref(tmpints[i]), std::ref(pscreens[i]));
-	
+
+	// Do the diagonal elements
+	for (int i = 0; i < nthreads; i++) {
+		pscreens[i] = Matrix(startList[i+1]-startList[i], NS, 0.0);
+		tmpints[i] = Tensor4(threadSize[i], NSpher, NSpher, NSpher);
+		thrds[i] = std::thread(&IntegralEngine::diagERIThread, *this, startList[i], startList[i+1], NS, threadSum[i],
+							   std::ref(atoms), std::ref(shells), std::ref(bfs), std::ref(tmpints[i]), std::ref(pscreens[i]));
+	}
+
+	// Join threads back and form prescreening matrix
 	for (int i = 0; i < nthreads; i++){
 		thrds[i].join();
-		prescreen = prescreen + pscreens[i];
+		for (int p = startList[i]; p < startList[i+1]; p++){
+			for (int q = p; q < NS; q++){
+				prescreen(p, q) = pscreens[i](p-startList[i], q);
+				prescreen(q, p) = prescreen(p, q);
+			}
+		}
 	} 
-	
+
+	// Do the off-diagonal elements
 	for(int i = 0; i < nthreads; i++)
-		thrds[i] = std::thread(&IntegralEngine::offDiagERIThread, *this, startList[i], startList[i+1], NS, std::ref(atoms), 
-								std::ref(shells), std::ref(bfs), std::ref(tmpints[i]));
-	
+		thrds[i] = std::thread(&IntegralEngine::offDiagERIThread, *this, startList[i], startList[i+1], NS, threadSum[i],
+							   std::ref(atoms), std::ref(shells), std::ref(bfs), std::ref(tmpints[i]));
+
+	// Recombine temporary 2e int. matrices into twoints
+	int mfuncs = 0;
+	int nfuncs = 0;
 	for (int i = 0; i < nthreads; i++){
 		thrds[i].join();
-		twoints = twoints + tmpints[i];
+		nfuncs += threadSize[i];
+		for (int p = mfuncs; p < nfuncs; p++){
+			for (int q = 0; q < NSpher; q++){
+				for (int r = 0; r < NSpher; r++){
+					for (int s = 0; s < NSpher; s++){
+						twoints(p, q, r, s) = tmpints[i](p-mfuncs, q, r, s);
+					}
+				}
+			}
+		}
+		mfuncs += threadSize[i];
 	} 
     
     // Update the log file
@@ -227,14 +275,15 @@ void IntegralEngine::formERI(bool tofile)
     if(!tofile){
         std::string mem = "Approximate memory usage = ";
         mem += std::to_string(NSpher*NSpher*NSpher*NSpher*sizeof(double)/(1024.0*1024.0));
+		mem += " MB\n";
         molecule.getLog().print(mem);
     }
     molecule.getLog().localTime();
 
 }
 
-void IntegralEngine::offDiagERIThread(int start, int end, int NS, Vector &atoms, Vector &shells,
-	 								Vector &bfs, Tensor4 &twints)
+void IntegralEngine::offDiagERIThread(int start, int end, int NS, int threadSize, Vector &atoms,
+									  Vector &shells, Vector &bfs, Tensor4 &twints)
 {
     // Counters to keep track of cart. bfs
     int m = 0; int n = 0; int p = 0; int q = 0;
@@ -289,7 +338,7 @@ void IntegralEngine::offDiagERIThread(int start, int end, int NS, Vector &atoms,
                             for (int x = 0; x < spherS; x++){
                                 for (int y = 0; y < spherT; y++){
                                     for (int z = 0; z < spherU; z++){
-                                   	 	twints(a+w, b+x, c+y, d+z) = tempInts(w, x, y, z);
+                                   	 	twints(a+w-threadSize, b+x, c+y, d+z) = tempInts(w, x, y, z);
                                     } // end z-loop
                                 } // end y-loop
                             } // end x-loop
@@ -313,7 +362,7 @@ void IntegralEngine::offDiagERIThread(int start, int end, int NS, Vector &atoms,
     } // end r-loop						
 }
 
-void IntegralEngine::diagERIThread(int start, int end, int NS, Vector &atoms, 
+void IntegralEngine::diagERIThread(int start, int end, int NS, int threadSize, Vector &atoms, 
 							Vector &shells, Vector &bfs, Tensor4 &twints, Matrix &pscreen)
 {
     // Counters to keep track of cart. bfs
@@ -360,15 +409,14 @@ void IntegralEngine::diagERIThread(int start, int end, int NS, Vector &atoms,
                                 tempval = fabs(tempInts(w,x,y,z));
                                 maxval = (tempval > maxval ? tempval : maxval);
                             }
-                            twints(a+w, b+x, a+y, b+z) = tempInts(w, x, y, z);
+                            twints(a+w-threadSize, b+x, a+y, b+z) = tempInts(w, x, y, z);
                         }
                     }
                 }
             }
             
             // Put maxval in the prescreening matrx
-            pscreen(r, s) = std::sqrt(maxval);
-            pscreen(s, r) = pscreen(r, s);
+            pscreen(r-start, s) = std::sqrt(maxval);
             
             // Increment no. of bfs
             n += nshells(shells(n));

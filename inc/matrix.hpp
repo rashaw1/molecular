@@ -31,7 +31,7 @@ private:
   void cleanUp(); // Utility function for memory deallocation
 public:
   // Constructors and destructor
-  Matrix() : rows(0), cols(0) {} // Default, forms zero length vector
+	Matrix(); // Default constructor
   Matrix(int m, int n); // Declare an m x n matrix
   Matrix(int m, int n, const double& a); // Declare m x n matrix, all entries = a
   Matrix(int m, int n, const Vector& a); // Matrix of m row copies of n-vector a

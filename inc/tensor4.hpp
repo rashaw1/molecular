@@ -21,7 +21,11 @@ public:
   Tensor4(int a, int b, int c, int d);
   Tensor4(int a, int b, int c, int d, double val);
   Tensor4(const Tensor4& other);
-  void resize(int a, int b, int c, int d);
+	int getW() const { return w; }
+	int getX() const { return x; }
+	int getY() const { return y; }
+	int getZ() const { return z; }
+	void resize(int a, int b, int c, int d);
   void assign(int a, int b, int c, int d, double val);
   void print() const;
   double& operator()(int i, int j, int k, int l);

@@ -191,6 +191,8 @@ int Logger::nextCmd()
 			rval = 2;
 		} else if (token == "UHF"){
 			rval = 3;
+		} else if (token == "MP2"){
+			rval = 4;
 		}
 		ncmd++;
 	}

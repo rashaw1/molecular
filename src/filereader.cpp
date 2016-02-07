@@ -51,6 +51,7 @@ int FileReader::findToken(std::string t)
   else if (t == "uhf") { rval = 17; }
   else if (t == "angstrom") { rval = 18; }
   else if (t == "nthreads") { rval = 19; }
+  else if (t == "mp2") { rval = 20; }
   return rval;
 }
 
@@ -231,6 +232,10 @@ void FileReader::readParameters()
 	nthreads = std::stoi(line.substr(pos+1, line.length()));
 	break;
       }
+	  case 20: { // MP2 directive
+		  commands.push_back("MP2");
+		  break;
+	  }
       default: { // Unkown command issued
 	throw(Error("READIN", "Command " + token + " not found."));
       }

@@ -42,6 +42,7 @@ public:
   SCF(Molecule& m, Fock& f);
   // Routines
   void calcE();
+	double getEnergy() const { return energy; } 
   double calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock); 
   Vector calcErr(const Matrix& F, const Matrix& D, Matrix S);
   Vector calcErr();
