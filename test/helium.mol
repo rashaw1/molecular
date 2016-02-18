@@ -1,7 +1,6 @@
 basis, 6-311gdp
-nthreads, 4
 geom,
-Be, 0.0, 0.0, 0.0
+He, 0.0, 0.0, 0.0
 geomend
 multiplicity, 1
 hf,

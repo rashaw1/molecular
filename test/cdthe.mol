@@ -1,0 +1,6 @@
+basis, test
+geom,
+he, 0.0, 0.0, 0.0
+geomend
+integral, print, cdthe.ints
+hf,

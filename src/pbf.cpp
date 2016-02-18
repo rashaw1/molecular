@@ -15,7 +15,7 @@
 
 PBF::PBF(double e, int l1, int l2, int l3) : exponent(e), lx(l1), ly(l2), lz(l3)
 {
-  normalise();  
+	normalise();  
 }
 
 // Copy constructor

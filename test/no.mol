@@ -1,0 +1,9 @@
+basis, 6-311gdp
+nthreads, 4
+maxiter, 100
+geom, angstrom
+N, 0.0, 0.0, 0.0
+O, 0.0, 0.0, 1.15
+geomend
+multiplicity, 2
+hf,

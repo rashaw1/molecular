@@ -181,8 +181,10 @@ void IntegralEngine::formERI(bool tofile)
 	std::vector<int> threadSum(nthreads+1);
 	startList[0] = 0; startList[nthreads] = NS;
 	threadSum[0] = 0;
-	
-	if(double(NS)/double(nthreads) < (1.0 + 1/double(nthreads))) { 
+
+	if (nthreads == 1) {
+		threadSize[0] = NSpher;
+	} else if(double(NS)/double(nthreads) < (1.0 + 1/double(nthreads))) { 
 		int icount = 0;
 		for (int i = 1; i < nthreads; i++) {
 			startList[i] = i;
