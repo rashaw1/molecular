@@ -17,3 +17,4 @@ H, -2.139, 1.235, 0.000
 geomend
 hf,
 mp2,
+integral, print, benzene.ints

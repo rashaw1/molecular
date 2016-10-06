@@ -9,6 +9,10 @@
  * 
  */
 
+#ifndef EIGEN_USE_MKL_ALL
+#define EIGEN_USE_MKL_ALL
+#endif
+
 #include "fock.hpp"
 #include "error.hpp"
 #include "tensor4.hpp"
@@ -21,7 +25,7 @@
 // Constructor
 Fock::Fock(IntegralEngine& ints, Molecule& m) : integrals(ints), molecule(m)
 {
-	Eigen::setNbThreads(m.getLog().getNThreads());
+  Eigen::setNbThreads(m.getLog().getNThreads());
 	
   // Make the core hamiltonian matrix
   formHCore();
