@@ -67,7 +67,7 @@ int BesselFunction::tabulate(const double accuracy) {
 				break;
 			} 
 			
-			F[j] = F[j-1] * z2 / j;
+			F[j] = F[j-1] * z2 / ((double)j);
 			ratio = F[j] / dfac[2*j+1];
 			K[i][0] += ratio;
 		}
@@ -111,10 +111,12 @@ void BesselFunction::calculate(const double z, Vector &values) {
 		values[0] = 0.5/z;
 		for (int l = 1; l <= lMax; l++) {
 			values[l] = values[0];
-			double Rl = 0.0;
+			double Rl = 1.0;
 			double Tlk = 1.0;
+			double cof = 1.0;
 			for (int k = 1; k <= l; k++) {
-				Tlk *= ((l-k+1)*(l+k)/k) * values[0];
+				cof = (l-k+1)*(l+k)/((double)k);
+				Tlk *= - cof * values[0];
 				Rl += Tlk;
 			}
 			values[l] *= Rl;
@@ -130,38 +132,43 @@ void BesselFunction::calculate(const double z, Vector &values) {
 		// Index of abscissa z in table
 		int index = floor(z * scale + 0.5);
 		double dz = z - index/scale; // z - z0
-		scale = 1.0;
 		
-		// Determine the necessary derivatives from
-		// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n)
-		double dK[TAYLOR_CUT][maxLambda + 1];
+		if (fabs(dz) < 1e-12) { // z is one of the tabulated points
+			for (int l = 0; l <= lMax; l++) values[l] = K[index][l];
+		} else {
+			// Determine the necessary derivatives from
+			// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n)
+			double dK[TAYLOR_CUT][maxLambda + 1];
 		
-		dK[0][0] = K[index][1];
-		// Do first derivatives first
-		for (int l = 1; l < maxLambda; l++) 
-			dK[0][l] = C[l]*K[index][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*K[index][l+1];
-		// Then the rest
-		for (int n = 1; n < TAYLOR_CUT; n++) { 
-			dK[n][0] = dK[n-1][1];
-			for (int l = 0; l < maxLambda - n; l++) 
-				dK[n][l] = C[l]*dK[n-1][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*dK[n-1][l+1];
-		}
+			dK[0][0] = K[index][1];
+			// Do first derivatives first
+			for (int l = 1; l < maxLambda; l++) 
+				dK[0][l] = C[l]*K[index][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*K[index][l+1];
+			// Then the rest
+			for (int n = 1; n < TAYLOR_CUT; n++) { 
+				dK[n][0] = dK[n-1][1];
+				for (int l = 0; l < maxLambda - n; l++) 
+					dK[n][l] = C[l]*dK[n-1][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*dK[n-1][l+1];
+			}
 		
-		// Calculate (dz)^n/n! terms just once
-		double dzn[TAYLOR_CUT];
-		dzn[0] = dz;
-		for (int n = 1; n < TAYLOR_CUT; n++)
-			dzn[n] = dzn[n-1] * dz / n;
+			// Calculate (dz)^n/n! terms just once
+			double dzn[TAYLOR_CUT];
+			dzn[0] = dz;
+			for (int n = 1; n < TAYLOR_CUT; n++)
+				dzn[n] = dzn[n-1] * dz / ((double)(n+1));
 		
-		// Now tabulate the values through Taylor seris
-		// K(z) ~ sum_{n=0 to 5} K^(n)(z0)(z-z0)^n / n!
-		for (int l = 0; l <= lMax; l++) {
-			values[l] = K[index][l];
+			// Now tabulate the values through Taylor seris
+			// K(z) ~ sum_{n=0 to 5} K^(n)(z0)(z-z0)^n / n!
+			for (int l = 0; l <= lMax; l++) {
+				values[l] = K[index][l];
 			
-			for (int n = 0; n < TAYLOR_CUT; n++)
-				values[l] += dzn[n-1] * dK[n][l];
+				for (int n = 0; n < TAYLOR_CUT; n++) 
+				{
+					values[l] += dzn[n] * dK[n][l]; 
+					std::cout << l << " " << n << " " << dzn[n] << " " << dK[n][l] << "\n";
+				}
+			}
 		}
-		
 	}
 }
 

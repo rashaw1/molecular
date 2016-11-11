@@ -116,11 +116,11 @@ int main (int argc, char* argv[])
       log.localTime();
       log.print(values, 10, true);
       log.print("z = 3.145\n");
-      bessie.calculate(3.145, values);
+      bessie.calculate(3.143, values);
       log.localTime();
       log.print(values, 10, true);
       log.print("z = 11.495\n");
-      bessie.calculate(11.495, values);
+      bessie.calculate(11.497, values);
       log.localTime();
       log.print(values, 10, true);
       log.print("z = 17.5\n");
