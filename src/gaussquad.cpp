@@ -19,5 +19,9 @@ GCQuadrature::~GCQuadrature() {
 
 // Initialise the quadrature grid
 void GCQuadrature::initGrid(int points, const double tolerance, GCTYPE t) {
+	// Determine the maximum order
+	//order = pow(2, floor)
+	
+	// PS92 type
 	
 }

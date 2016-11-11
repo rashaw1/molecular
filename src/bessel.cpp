@@ -136,7 +136,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 			for (int l = 0; l <= lMax; l++) values[l] = K[index][l];
 		} else {
 			// Determine the necessary derivatives from
-			// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n)
+			// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n) - K_l^(n)
 			double dK[TAYLOR_CUT+1][maxLambda + 1];
 		
 			// Copy K values into dK
