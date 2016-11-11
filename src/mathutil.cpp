@@ -40,6 +40,22 @@ unsigned long int fact2(int i)
   return rval;
 }
 
+void factArray(int i, double *values) {
+  values[0] = 1.0;
+  if ( i > 0 ) {
+    values[1] = 1.0;
+    for (int j = 2; j <= i; j++) values[j] = values[j-1]*j;
+  }				
+}
+
+void fact2Array(int i, double *values) {
+  values[0] = 1.0;
+  if ( i > 0 ) {
+    values[1] = 1.0;
+    for (int j = 2; j <= i; j++) values[j] = values[j-2]*j;
+  }
+}
+
 // Calculate the boys function F_m(x) for a range of values of m from mmax
 // to mmin.
 // First, the mmax value is calculated using the relation to the (full)

@@ -19,6 +19,7 @@
 #include "fock.hpp"
 #include "scf.hpp"
 #include "mp2.hpp"
+#include "bessel.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -105,6 +106,27 @@ int main (int argc, char* argv[])
       } catch (Error e){
 	log.error(e);
       }
+
+      // BESSEL FUNCTION TEST
+      log.title("BESSEL FUNCTION TEST");
+      BesselFunction bessie(20, 1600, 200, 1.0E-14);
+      Vector values;
+      log.print("z = 1e-8\n");
+      bessie.calculate(1e-8, values);
+      log.localTime();
+      log.print(values, 10, true);
+      log.print("z = 3.145\n");
+      bessie.calculate(3.145, values);
+      log.localTime();
+      log.print(values, 10, true);
+      log.print("z = 11.495\n");
+      bessie.calculate(11.495, values);
+      log.localTime();
+      log.print(values, 10, true);
+      log.print("z = 17.5\n");
+      bessie.calculate(17.5, values);
+      log.localTime();
+      log.print(values, 10, true);
       
       // Close file streams
       input.close();
@@ -112,5 +134,6 @@ int main (int argc, char* argv[])
       err.close();
     }
   }
+
   return 0;
 }

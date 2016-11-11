@@ -1,4 +1,4 @@
-basis, 6-311gdp
+basis, cc-pvdz
 nthreads, 8
 geom,
 C, 0.0, 0.0, 0.0

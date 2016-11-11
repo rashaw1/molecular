@@ -32,6 +32,8 @@ class Matrix;
 // Functions to calculate the factorial and double factorial of an integer i
 unsigned long int fact(int i);
 unsigned long int fact2(int i);
+void factArray(int i, double *values);
+void fact2Array(int i, double *values);
 
 // Boys function calculator for the evaluation of molecular integrals over
 // gaussian type basis functions. Returns a vector of F_m(x) for m in the range
