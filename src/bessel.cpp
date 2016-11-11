@@ -147,7 +147,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 			// Then the rest
 			for (int n = 1; n < TAYLOR_CUT; n++) { 
 				dK[n][0] = dK[n-1][1];
-				for (int l = 0; l < maxLambda - n; l++) 
+				for (int l = 1; l < maxLambda - n; l++) 
 					dK[n][l] = C[l]*dK[n-1][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*dK[n-1][l+1];
 			}
 		
@@ -163,10 +163,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 				values[l] = K[index][l];
 			
 				for (int n = 0; n < TAYLOR_CUT; n++) 
-				{
 					values[l] += dzn[n] * dK[n][l]; 
-					std::cout << l << " " << n << " " << dzn[n] << " " << dK[n][l] << "\n";
-				}
 			}
 		}
 	}
