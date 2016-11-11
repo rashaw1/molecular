@@ -45,7 +45,6 @@ int BesselFunction::tabulate(const double accuracy) {
 	fact2Array(2*order + 2*lmax + 1, dfac);
 	
 	K[0][0] = 1.0;
-	int dim = N+1;
 	double z, z2; // z and z^2 / 2
 	double ratio; // F_j(z) / (2j+1)!!
 	for (int i = 1; i <= N; i++) {
@@ -138,31 +137,31 @@ void BesselFunction::calculate(const double z, Vector &values) {
 		} else {
 			// Determine the necessary derivatives from
 			// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n)
-			double dK[TAYLOR_CUT][maxLambda + 1];
+			double dK[TAYLOR_CUT+1][maxLambda + 1];
 		
-			dK[0][0] = K[index][1];
-			// Do first derivatives first
-			for (int l = 1; l < maxLambda; l++) 
-				dK[0][l] = C[l]*K[index][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*K[index][l+1];
+			// Copy K values into dK
+			for (int l = 0; l < maxLambda; l++) 
+				dK[0][l] = K[index][l];
+			
 			// Then the rest
-			for (int n = 1; n < TAYLOR_CUT; n++) { 
-				dK[n][0] = dK[n-1][1];
-				for (int l = 1; l < maxLambda - n; l++) 
-					dK[n][l] = C[l]*dK[n-1][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*dK[n-1][l+1];
+			for (int n = 1; n < TAYLOR_CUT+1; n++) { 
+				dK[n][0] = dK[n-1][1] - dK[n-1][0];
+				for (int l = 1; l <= maxLambda - n; l++) 
+					dK[n][l] = C[l]*dK[n-1][l-1] + (C[l] + 1.0/(2.0*l + 1.0))*dK[n-1][l+1] - dK[n-1][l];
 			}
+			
 		
 			// Calculate (dz)^n/n! terms just once
-			double dzn[TAYLOR_CUT];
-			dzn[0] = dz;
-			for (int n = 1; n < TAYLOR_CUT; n++)
-				dzn[n] = dzn[n-1] * dz / ((double)(n+1));
+			double dzn[TAYLOR_CUT+1];
+			dzn[0] = 1.0;
+			for (int n = 1; n < TAYLOR_CUT + 1; n++)
+				dzn[n] = dzn[n-1] * dz / ((double) n);
 		
 			// Now tabulate the values through Taylor seris
 			// K(z) ~ sum_{n=0 to 5} K^(n)(z0)(z-z0)^n / n!
 			for (int l = 0; l <= lMax; l++) {
-				values[l] = K[index][l];
-			
-				for (int n = 0; n < TAYLOR_CUT; n++) 
+				values[l] = 0.0;
+				for (int n = 0; n < TAYLOR_CUT+1; n++) 
 					values[l] += dzn[n] * dK[n][l]; 
 			}
 		}

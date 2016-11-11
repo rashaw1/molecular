@@ -9,10 +9,10 @@
  * 
  */
 
-#ifndef EIGEN_USE_MKL_ALL
+/*#ifndef EIGEN_USE_MKL_ALL
 #define EIGEN_USE_MKL_ALL
 #endif
-
+*/
 #include "fock.hpp"
 #include "error.hpp"
 #include "tensor4.hpp"
