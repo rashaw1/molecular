@@ -19,7 +19,27 @@
 #include "fock.hpp"
 #include "scf.hpp"
 #include "mp2.hpp"
-#include "bessel.hpp"
+#include "gaussquad.hpp"
+#include <functional>
+#include <cmath>
+
+double quadratic(double x) {
+  double value = 1.5 + 2.3*x + 0.8*x*x;
+  return value;
+}
+
+double exponential(double x) {
+  return exp(x);
+}
+
+double logar(double x) {
+  return log((x+3.0)/2.0);
+}
+
+double hard_test(double x) {
+  double x2 = x * x;
+  return x2 * x2 * exp(-2.1*x2);
+}
 
 int main (int argc, char* argv[])
 {
@@ -107,27 +127,24 @@ int main (int argc, char* argv[])
 	log.error(e);
       }
 
-      // BESSEL FUNCTION TEST
-      log.title("BESSEL FUNCTION TEST");
-      BesselFunction bessie(20, 1600, 200, 1.0E-14);
-      Vector values;
-      log.print("z = 1e-8\n");
-      bessie.calculate(1e-8, values);
+      // GCQuadrature test
+      log.title("GC QUAD TEST");
+      GCQuadrature gc;
+      gc.initGrid(8, PS93);
       log.localTime();
-      log.print(values, 10, true);
-      log.print("z = 3.143\n");
-      bessie.calculate(3.143, values);
+      std::function<double(double)> integrand = exponential;
+      gc.integrate(integrand, 1e-12);
+      log.print(std::to_string(gc.getI()));
       log.localTime();
-      log.print(values, 10, true);
-      log.print("z = 11.497\n");
-      bessie.calculate(11.497, values);
+      integrand = logar;
+      gc.integrate(integrand, 1e-12);
+      log.print(std::to_string(gc.getI()));
       log.localTime();
-      log.print(values, 10, true);
-      log.print("z = 17.5\n");
-      bessie.calculate(17.5, values);
+      integrand = hard_test;
+      gc.integrate(integrand, 1e-12);
+      log.print(std::to_string(gc.getI()));
       log.localTime();
-      log.print(values, 10, true);
-      
+
       // Close file streams
       input.close();
       output.close();
@@ -137,3 +154,4 @@ int main (int argc, char* argv[])
 
   return 0;
 }
+

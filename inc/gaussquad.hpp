@@ -25,23 +25,32 @@ enum GCTYPE {
 class GCQuadrature {
 private:
 	int N, order; // Number of points
+	int offset_fixed; // Offset for symmetry of weights and abscissae
+	int M; // Midpoint
 	
 	double *x; // Abscissae
 	double *w; // Weights
-	double I_value; // Integration value
+	double I; // Integration value
 	
 	int start, end; // Grid dimensions
+	
+	GCTYPE t; // PS92 or PS93
+	
+	void transformKK();
+	void transformFM06(double z, double P);
 
 public:
 	GCQuadrature();
 	~GCQuadrature();
 	
-	void initGrid(int points, const double tolerance, GCTYPE t);
+	void initGrid(int points, GCTYPE t);
 	
-	int integrate(std::function<double(double, int, const void*)> &f, const void* params, GCTYPE t);
+	int integrate(std::function<double(double)> &f, const double tolerance);
 	
 	// Only need to specify zeta_P, P for t = FM06
 	void transformGrid(GCTYPE t, double zeta_P =0.0, double P = 0.0);  
+	
+	double getI() const { return I; }
 };
 
 #endif
