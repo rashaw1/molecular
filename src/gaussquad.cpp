@@ -96,49 +96,54 @@ int GCQuadrature::integrate(std::function<double(double)> &f, const double toler
 	double nd = n + 1.0;
 	double e, T, q, p;
 	int idx, i, cnt;
-	int offset = (int) pow(2, (int) floor(log(maxN)/log(2)));
+	int offset = maxN + 1;
+	if (t == TWOPOINT) offset /= 3;
+	else if (t == ONEPOINT) offset /= 2;
 	
 	// Perez92 Case
+	// Integration proceeds in the sequence T_1, T_3, T_7, ..., T_{maxN}
+	// where T_m = (3(m+1)/16)I_m
+	// by using the fact that T_{2m + 1} = T_{m} + sum_{k = 0}^m w_{2k+1}f(x_{2k+1})
+	// The indices in terms of the maxN indices are given by 
+	// 2k + 1 = (2k + 1) * M / 2^n = (2k + 1) * p
+	// and checking convergence via whether
+	// (T_{2m + 1} - 2T_m)^2 <= |T_{2m+1} - 4T_{(m-1)/2}| x tolerance
 	if (t == ONEPOINT) {
+		double Tn, T2n1, Tn12; // T_n, T_{2n+1} and 4T_{(n-1)/2}
+		
+		// Initialise values, 
 		// Single point integration would use midpoint, M
-		I = w[M]*f(x[M]);
-		p = I;
+		Tn = w[M]*f(x[M]);
+		Tn12 = 2.0 * Tn;
 		
-		// Do the integration using an n-point Gaussian approximation 
-		while(n<=M) {
-			// Convergence checking variables
-			q = 2*p; // q is 2I_(n-2)
-			p = 2*I; // p is 2I_(n-1)
-			offset /= 2; // Offset shrinks as n increases
-			cnt = 0; // Count how many points were evaluated
-		
-			// Add extra points to integration for this n
-			// Using relatinship I_(2n+1) = 0.5I_n + extra points
-			for (i = 1; i <= n; i+=2) {
-				idx = i*offset-1;
-				T = 0.0;
-				if (idx >= start) {
-					T += w[idx]*f(x[idx]);
-					cnt++;
-				}
-				if (maxN - idx - 1 <= end) {
-					T += w[maxN-idx-1]*f(x[maxN-idx-1]);
-					cnt++;
-				}
-				I += T;
+		// Main loop
+		n = 1;
+		double dT; // T_{2n+1} - 2T_n
+		int ix; // Index needs to be calculated to know which points to use
+		int p = (M+1) / 2; // M / 2^n 
+		while (n < maxN) {
+			// Initialise T2n1 to Tn
+			T2n1 = Tn;
+			
+			// Add the extra terms
+			for (int m = 0; m <= n; m+=2){
+				ix = (2 * m + 1) * p - 1;
+				T2n1 += w[ix] * f(x[ix]);
+				T2n1 += w[maxN - ix - 1] * f(x[maxN - ix - 1]);
 			}
-			n = 2*n + 1;
-			nd = n+1.0;
-		
+			
 			// Check convergence
-			e = I - p;
-			if (0==cnt) continue; // If no points were evaluated for this n, skip convergence check 
-			if(16 * e * e <= 3 * nd * fabs(I - q) * tolerance) { 
-				I = 16.0 * I / (3.0 * nd);
-				retval = 0;
-				break;
+			dT = T2n1 - 2.0*Tn;
+			if (dT*dT <= fabs(T2n1 - Tn12)*tolerance) {
+				I = 16.0 * T2n1 / (6.0 * (n + 1.0));
+				n = maxN + 1;
+				retval = 0; 
+			} else {
+				n = 2*n + 1;
+				Tn12 = 4.0 * Tn; 
+				Tn = T2n1;
+				p /= 2; 
 			}
-				
 		}
 	} else if (t == TWOPOINT) {
 		i, cnt, idx = offset - 1;
@@ -179,6 +184,9 @@ int GCQuadrature::integrate(std::function<double(double)> &f, const double toler
 				I = 16.0 * q / (3.0 * n);
 				retval = 0;
 				break;
+			} else {
+				I = 16.0 * q / (3.0 * n);
+				std::cout << n << " " << e << "\n";
 			}
 		}	
 	}
