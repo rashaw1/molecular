@@ -4,10 +4,10 @@
    	Robert A. Shaw 2016	
 
    	REFERENCES:
-   	(PS92) J.M. Perez-Jorda et al., Comput. Phys. Comm. 70 (1992), 271-284
-   	(PS93) J.M. Perez-Jorda et al., Comput. Phys. Comm. 77 (1993), 46-56
-	(KK) M. Krack, A.M. Koster, J. Chem. Phys. 108 (1998), 3226 - 3234
-	(FM06) R. Flores-Moreno et al., J. Comput. Chem. 27 (2006), 1009-1019
+   	(Perez92) J.M. Perez-Jorda et al., Comput. Phys. Comm. 70 (1992), 271-284
+   	(Perez93) J.M. Perez-Jorda et al., Comput. Phys. Comm. 77 (1993), 46-56
+	(Krack98) M. Krack, A.M. Koster, J. Chem. Phys. 108 (1998), 3226 - 3234
+	(Flores06) R. Flores-Moreno et al., J. Comput. Chem. 27 (2006), 1009-1019
 */
 
 #ifndef GC_QUAD_HEAD
@@ -16,28 +16,22 @@
 #include <functional>
 
 enum GCTYPE {
-	PS92,
-	PS93,
-	KK,
-	FM06
+	ONEPOINT, // Described in Perez92
+	TWOPOINT // Described in Perez93
 };
 
 class GCQuadrature {
 private:
-	int N, order; // Number of points
-	int offset_fixed; // Offset for symmetry of weights and abscissae
-	int M; // Midpoint
+	int maxN; // Maximum number of points to use
+	int M; // index of midpoint
 	
 	double *x; // Abscissae
 	double *w; // Weights
 	double I; // Integration value
 	
-	int start, end; // Grid dimensions
+	int start, end; // For prescreening
 	
-	GCTYPE t; // PS92 or PS93
-	
-	void transformKK();
-	void transformFM06(double z, double P);
+	GCTYPE t;
 
 public:
 	GCQuadrature();
@@ -47,8 +41,8 @@ public:
 	
 	int integrate(std::function<double(double)> &f, const double tolerance);
 	
-	// Only need to specify zeta_P, P for t = FM06
-	void transformGrid(GCTYPE t, double zeta_P =0.0, double P = 0.0);  
+	void transformZeroInf(); // Transformation from [-1, 1] to [0, infty) from Krack98
+	void transformRMinMax(double z, double p);  // Transfromation from [-1, 1] to [rmin, rmax] from Flores06
 	
 	double getI() const { return I; }
 };

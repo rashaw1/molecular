@@ -130,7 +130,7 @@ int main (int argc, char* argv[])
       // GCQuadrature test
       log.title("GC QUAD TEST");
       GCQuadrature gc;
-      gc.initGrid(8, PS93);
+      gc.initGrid(1024, ONEPOINT);
       log.localTime();
       std::function<double(double)> integrand = exponential;
       gc.integrate(integrand, 1e-12);
