@@ -37,6 +37,8 @@ void GCQuadrature::initGrid(int points, GCTYPE _t) {
 		maxN = 3*pow(2, p) - 1;
 	}
 	M = (maxN-1)/2; // Midpoint
+	start = 0;
+	end = maxN - 1;
 	
 	// initialise arrays
 	x = new double[maxN];
@@ -95,7 +97,6 @@ int GCQuadrature::integrate(std::function<double(double)> &f, const double toler
 	double e, T, q, p;
 	int idx, i, cnt;
 	int offset = (int) pow(2, (int) floor(log(maxN)/log(2)));
-	offset/=2;
 	
 	// Perez92 Case
 	if (t == ONEPOINT) {
