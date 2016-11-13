@@ -81,8 +81,8 @@ void GCQuadrature::initGrid(int points, GCTYPE _t) {
 		ci1 = c1 * ci - s1 * si;
 	}
 	
-	std::cout << maxN << " " << M << " " << start << " " << end << "\n";
-	for (int q = 0; q < maxN; q++) std::cout << x[q] << " " << w[q] << "\n";
+	/*std::cout << maxN << " " << M << " " << start << " " << end << "\n";
+	for (int q = 0; q < maxN; q++) std::cout << x[q] << " " << w[q] << "\n";*/
 }
 
 // Perform the GC integration on the function f
@@ -95,6 +95,7 @@ int GCQuadrature::integrate(std::function<double(double)> &f, const double toler
 	double e, T, q, p;
 	int idx, i, cnt;
 	int offset = (int) pow(2, (int) floor(log(maxN)/log(2)));
+	offset/=2;
 	
 	// Perez92 Case
 	if (t == ONEPOINT) {
