@@ -88,27 +88,18 @@ void GCQuadrature::initGrid(int points, GCTYPE _t) {
 }
 
 // Perform the GC integration on the function f
-int GCQuadrature::integrate(std::function<double(double)> &f, const double tolerance) {
-	int retval = -1; // 0 for converged, -1 for not converged
+bool GCQuadrature::integrate(std::function<double(double)> &f, const double tolerance) {
+	bool converged = false; // 0 for converged, -1 for not converged
 	
-	// Initialise parameters
-	int n = t == ONEPOINT ? 1 : 3;
-	double nd = n + 1.0;
-	double e, T, q, p;
-	int idx, i, cnt;
-	int offset = maxN + 1;
-	if (t == TWOPOINT) offset /= 3;
-	else if (t == ONEPOINT) offset /= 2;
-	
-	// Perez92 Case
-	// Integration proceeds in the sequence T_1, T_3, T_7, ..., T_{maxN}
-	// where T_m = (3(m+1)/16)I_m
-	// by using the fact that T_{2m + 1} = T_{m} + sum_{k = 0}^m w_{2k+1}f(x_{2k+1})
-	// The indices in terms of the maxN indices are given by 
-	// 2k + 1 = (2k + 1) * M / 2^n = (2k + 1) * p
-	// and checking convergence via whether
-	// (T_{2m + 1} - 2T_m)^2 <= |T_{2m+1} - 4T_{(m-1)/2}| x tolerance
 	if (t == ONEPOINT) {
+		// Perez92 Case
+		// Integration proceeds in the sequence T_1, T_3, T_7, ..., T_{maxN}
+		// where T_m = (3(m+1)/16)I_m
+		// by using the fact that T_{2m + 1} = T_{m} + sum_{k = 0}^m w_{2k+1}f(x_{2k+1})
+		// The indices in terms of the maxN indices are given by 
+		// 2k + 1 = (2k + 1) * M / 2^n = (2k + 1) * p
+		// and checking convergence via whether
+		// (T_{2m + 1} - 2T_m)^2 <= |T_{2m+1} - 4T_{(m-1)/2}| x tolerance
 		double Tn, T2n1, Tn12; // T_n, T_{2n+1} and 4T_{(n-1)/2}
 		
 		// Initialise values, 
@@ -117,81 +108,100 @@ int GCQuadrature::integrate(std::function<double(double)> &f, const double toler
 		Tn12 = 2.0 * Tn;
 		
 		// Main loop
-		n = 1;
+		int n = 1;
 		double dT; // T_{2n+1} - 2T_n
 		int ix; // Index needs to be calculated to know which points to use
 		int p = (M+1) / 2; // M / 2^n 
-		while (n < maxN) {
-			// Initialise T2n1 to Tn
-			T2n1 = Tn;
-			
-			// Add the extra terms
-			for (int m = 0; m <= n; m+=2){
-				ix = (2 * m + 1) * p - 1;
-				T2n1 += w[ix] * f(x[ix]);
-				T2n1 += w[maxN - ix - 1] * f(x[maxN - ix - 1]);
-			}
+		while (n < maxN && !converged) {
+			// Compute T_{2n+1}
+			T2n1 = Tn + sumTerms(f, n, p, 2);
 			
 			// Check convergence
 			dT = T2n1 - 2.0*Tn;
+			n = 2*n + 1;
 			if (dT*dT <= fabs(T2n1 - Tn12)*tolerance) {
-				I = 16.0 * T2n1 / (6.0 * (n + 1.0));
-				n = maxN + 1;
-				retval = 0; 
+				converged = true;  
 			} else {
-				n = 2*n + 1;
 				Tn12 = 4.0 * Tn; 
 				Tn = T2n1;
 				p /= 2; 
 			}
 		}
-	} else if (t == TWOPOINT) {
-		i, cnt, idx = offset - 1;
-		p = w[M] * f(0.0);
-		q = w[idx] * f(x[idx]) * f(x[maxN-offset]);
-		I = p + q;
-		offset /= 2;
+		// Finalise the integral
+		I = 16.0 * T2n1 / (3.0*(n + 1.0));
 		
-		// Integrate
-		int j = 0;
-	    while((2*n*(1-j) + j*4*n/3 - 1) <= maxN) {
-			j = 1 - j;
-			if (j == 0) offset /= 2;
-			cnt = 0;
-			for (i=1; i<n; i+=2) {
-				if (3 * ((i+2*j)/3) >= i+j) {
-					idx = i*offset - 1;
-					T = 0.0;
-					if (idx >= start) {
-						T += w[idx] * f(x[idx]);
-						cnt++;
-					}
-					if (maxN - idx - 1 <= end) {
-						T += w[maxN-idx-1] * f(x[maxN-idx-1]);
-						cnt++;
-					}
-					I += T;
-				}
-			}
-			i = n;
-			n *= (1+j);
-			p += (1-j)*(I-q);
-			if (0 < cnt) e = 16*fabs((1-j)*(q-3*p/2) + j*(I-2*q)) / (3.0*n);
-			q = (1-j)*q + j*I;
-			if (0 == cnt) continue;
+	} else if (t == TWOPOINT) {
+		// Perez93 case
+		// We instead proceed along T_2, T_5, T_11, ..., T_{2m + 1} where maxN = 2m+1
+		// but also compute T_1, T_3, ..., T_n, T_{2n+1} etc. as before,
+		// where m + 1 = 3/2(n+1), so as to get better error control
+		// To do this, we use that 
+		// T_{2m+1} = T_m + T_n - T_{(n-1)/2} + sum_{i=0}^{(m-2)/3} [w_{6i+1}f(x_{6i+1}) + w_{6i+5}f(x_{6i+5})]
+		// along with the same results as before. 
+		// The algorithm proceeds by calculating one in the two-point sequence,
+		// using an error of |I_{2m+1} - I_m|, then calculates one in the one-point sequence
+		// and uses an error of |I_m - I_n|, to check convergence.
+		double Tn, Tm, T2n1, T2m1, Tn12;
+		
+		// Initialise values
+		Tn12 = 0.0; 
+		Tn = w[M]*f(x[M]);
+		int M2 = (maxN - 2)/3; //Index of first point in twopoint sequence
+		Tm = w[M2]*f(x[M2]) + w[maxN - M2 - 1]*f(x[maxN - M2 - 1]);
+		int p = (M+1) / 2; // as before
+		M2 = (M2 + 1)/2; 
+		int ix; 
+		int n = 1; int m = 2;
+		double error;
+		 
+		while(m < maxN && !converged) {
+			// Propagate the two-point sequence first 
+			T2m1 = Tm + Tn - Tn12 + sumTerms(f, (2*m - 1)/3, M2, 3);
 			
-			if (e < tolerance) {
-				I = 16.0 * q / (3.0 * n);
-				retval = 0;
-				break;
+			// Check convergence
+			error = 16.0 * fabs(0.5*T2m1 - Tm) / (3.0 * (m + 1)); 
+			if (error > tolerance) {
+				// Propagate the one-point sequence
+				T2n1 = Tn + sumTerms(f, n, p, 2); 
+				
+				// Check convergence again
+				error = 16.0 * fabs(2.0*T2m1 - 3.0*T2n1) / (18.0 * (n+1) );
+				m = 2 * m + 1;
+				n = 2 * n + 1;
+				if ( error < tolerance) {
+					converged = true; 
+				} else {
+					Tn12 = Tn;
+					Tn = T2n1;
+					Tm = T2m1; 
+					p /= 2;
+					M2 /= 2; 
+				}
 			} else {
-				I = 16.0 * q / (3.0 * n);
-				std::cout << n << " " << e << "\n";
+				converged = true; 
 			}
-		}	
+		}
+		// Finalise the integral
+		I = 16.0 * T2m1 / (3.0 * (m + 1.0));
 	}
 	
-	return retval;
+	return converged;
+}
+
+// Worker function to do the additional sum terms when going from I_n to I_{2n+1}
+double GCQuadrature::sumTerms(std::function<double(double)> &f, int limit, int shift, int skip) {
+	double value = 0.0;
+	int ix; 
+	for (int i = 0; i <= limit; i+=2) {	
+		ix = (skip*i + 1)*shift - 1;
+		if (ix >= start)
+			value += w[ix] * f(x[ix]);
+		
+		ix = maxN - ix - 1; 
+		if (ix <= end)
+			value += w[ix] * f(x[ix]);
+	}
+	return value;
 }
 
 // The GC integrations above are over the interval [-1, 1] and thus need to be transformed

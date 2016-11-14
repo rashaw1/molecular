@@ -41,6 +41,10 @@ double hard_test(double x) {
   return x2 * x2 * exp(-2.1*x2);
 }
 
+double gaussiantest(double x) {
+  return exp(-x*x);
+}
+
 int main (int argc, char* argv[])
 {
   if (argc == 1) { 
@@ -130,7 +134,7 @@ int main (int argc, char* argv[])
       // GCQuadrature test
       log.title("GC QUAD TEST");
       GCQuadrature gc;
-      gc.initGrid(1024, ONEPOINT);
+      gc.initGrid(1024, TWOPOINT);
       log.localTime();
       std::function<double(double)> integrand = exponential;
       gc.integrate(integrand, 1e-12);
@@ -141,6 +145,11 @@ int main (int argc, char* argv[])
       log.print(std::to_string(gc.getI()));
       log.localTime();
       integrand = hard_test;
+      gc.integrate(integrand, 1e-12);
+      log.print(std::to_string(gc.getI()));
+      log.localTime();
+      integrand = exponential;
+      gc.transformRMinMax(16, 3.75);
       gc.integrate(integrand, 1e-12);
       log.print(std::to_string(gc.getI()));
       log.localTime();
