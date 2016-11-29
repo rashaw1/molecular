@@ -24,6 +24,10 @@
 #include <cmath>
 #include "ecpint.hpp"
 
+double gaussfunc(double z, double *p) {
+  return exp(-p[0]*z*z);
+}
+
 int main (int argc, char* argv[])
 {
   if (argc == 1) { 
@@ -109,12 +113,16 @@ int main (int argc, char* argv[])
       } catch (Error e){
 	log.error(e);
       }
-      log.title("ANG TEST");
-      log.localTime();
-      // Angular integral test
-      AngularIntegral ang(7, 4);
-      ang.compute();
-      log.localTime();
+
+      // Integration test
+      log.title("GC Test");
+      GCQuadrature gc;
+      gc.initGrid(1024, ONEPOINT);
+      gc.transformZeroInf();
+      std::function<double(double, double*)> integrand = gaussfunc;
+      double params[1] = {2.1};
+      gc.integrate(integrand, params, 1e-12);
+      log.print(std::to_string(gc.getI()));
 
       // Close file streams
       input.close();
