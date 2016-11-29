@@ -8,28 +8,59 @@
 class Matrix;
 class GCQuadrature;
 
+// Calculate single and double factorials iteratively
+static std::vector<double> facArray(int l);
+static std::vector<double> dfacArray(int l);
+
 // Calculate real spherical harmonics Slm(theta, phi) for all l, m up to lmax
 static Matrix realSphericalHarmonics(int lmax, double theta, double phi, std::vector<double> &fac, std::vector<double> &dfac);  
-static int getIndex(int k, int l, int dim);
-static int getIndex(int k, int l, int m, int dim1, int dim2);
-static int getIndex(int k, int l, int m, int n, int dim1, int dim2, int dim3);
+
+struct ThreeIndex {
+	int dims[3];
+	Matrix data;
+	double& operator()(int i, int j, int k);
+	double operator()(int i, int j, int k) const;
+	ThreeIndex();
+	ThreeIndex(int dim1, int dim2, int dim3);
+	ThreeIndex(const ThreeIndex &other);
+};
+
+struct FiveIndex {
+	int dims[5];
+	Matrix data;
+	double & operator()(int i, int j, int k, int l, int m);
+	double operator()(int i, int j, int k, int l, int m) const;
+	FiveIndex();
+	FiveIndex(int dim1, int dim2, int dim3, int dim4, int dim5);
+	FiveIndex(const FiveIndex &other);
+};
+
+struct SevenIndex {
+	int dims[7];
+	Matrix data;
+	double & operator()(int i, int j, int k, int l, int m, int n, int p);
+	double operator()(int i, int j, int k, int l, int m, int n, int p) const;
+	SevenIndex();
+	SevenIndex(int dim1, int dim2, int dim3, int dim4, int dim5, int dim6, int dim7);
+	SevenIndex(const SevenIndex &other);
+};
 
 class AngularIntegral 
 {
 private: 
 	int LB, LE; // Maximum angular momentum of basis and ECP, respectively
-	int wDim, ijkDim, maxL; // Limits for w-integral indices, and lambda
+	int wDim, maxL; // Limits for w-integral indices, and lambda
 	
-	Matrix U; // USP to RSH transformation coefficients
-	Matrix W; // Type 1 angular integrals
-	Matrix omega; // Type 2 angular integrals
+	FiveIndex U; // USP to RSH transformation coefficients
+	FiveIndex W; // Type 1 angular integrals
+	SevenIndex omega; // Type 2 angular integrals
 	
 	// Calculate terms for U and W
 	double calcG(int l, int m, std::vector<double> &fac) const;
 	double calcH1(int i, int j, int l, int m, std::vector<double> &fac) const;
 	double calcH2(int i, int j, int k, int m, std::vector<double> &fac) const;
-	Matrix uklm(int lam, int mu, std::vector<double> &fac) const;
-	std::vector<double> pijk(int maxI) const; 
+	ThreeIndex uklm(int lam, int mu, std::vector<double> &fac) const;
+	ThreeIndex Pijk(int maxI) const; 
 	
 	// Build the angular integrals
 	void makeU(std::vector<double> &fac);
@@ -48,9 +79,9 @@ public:
 	double getIntegral(int k, int l, int m, int lam, int mu) const; 
 	double getIntegral(int k, int l, int m, int lam, int mu, int rho, int sigma) const;
 	
-	bool isZero(int k, int l, int lam, int mu) const; 
-	bool isZero(int k, int l, int m, int lam, int mu) const;
-	bool isZero(int k, int l, int m, int lam, int mu, int rho, int sigma) const;
+	bool isZero(int k, int l, int lam, int mu, double tolerance) const; 
+	bool isZero(int k, int l, int m, int lam, int mu, double tolerance) const;
+	bool isZero(int k, int l, int m, int lam, int mu, int rho, int sigma, double tolerance) const;
 	
 };
 

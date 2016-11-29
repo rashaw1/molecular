@@ -22,28 +22,7 @@
 #include "gaussquad.hpp"
 #include <functional>
 #include <cmath>
-
-double quadratic(double x) {
-  double value = 1.5 + 2.3*x + 0.8*x*x;
-  return value;
-}
-
-double exponential(double x) {
-  return exp(x);
-}
-
-double logar(double x) {
-  return log((x+3.0)/2.0);
-}
-
-double hard_test(double x) {
-  double x2 = x * x;
-  return x2 * x2 * exp(-2.1*x2);
-}
-
-double gaussiantest(double x) {
-  return exp(-x*x);
-}
+#include "ecpint.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -130,28 +109,11 @@ int main (int argc, char* argv[])
       } catch (Error e){
 	log.error(e);
       }
-
-      // GCQuadrature test
-      log.title("GC QUAD TEST");
-      GCQuadrature gc;
-      gc.initGrid(1024, TWOPOINT);
+      log.title("ANG TEST");
       log.localTime();
-      std::function<double(double)> integrand = exponential;
-      gc.integrate(integrand, 1e-12);
-      log.print(std::to_string(gc.getI()));
-      log.localTime();
-      integrand = logar;
-      gc.integrate(integrand, 1e-12);
-      log.print(std::to_string(gc.getI()));
-      log.localTime();
-      integrand = hard_test;
-      gc.integrate(integrand, 1e-12);
-      log.print(std::to_string(gc.getI()));
-      log.localTime();
-      integrand = exponential;
-      gc.transformRMinMax(16, 3.75);
-      gc.integrate(integrand, 1e-12);
-      log.print(std::to_string(gc.getI()));
+      // Angular integral test
+      AngularIntegral ang(7, 4);
+      ang.compute();
       log.localTime();
 
       // Close file streams

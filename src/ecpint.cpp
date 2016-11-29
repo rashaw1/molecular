@@ -4,6 +4,29 @@
 #include "ecpint.hpp"
 #include "mathutil.hpp"
 #include <iostream>
+#include <cmath>
+
+// Compute single and double factorials iteratively
+static std::vector<double> facArray(int l) {
+	std::vector<double> values(l+1, 0.0);
+	if (l > -1) {
+		values[0] = 1.0;
+		for (int i = 1; i < l + 1; i++) values[i] = values[i-1]*i;
+	}
+	return values; 
+}
+
+static std::vector<double> dfacArray(int l) {
+	std::vector<double> values(l+1, 0.0);
+	if (l > -1) {
+		values[0] = 1.0;
+		if (l > 0) {
+			values[1] = 1.0;
+			for (int i = 2; i <= l; i++) values[i] = values[i-2] * i;
+		}
+	}
+	return values;
+}
 
 // Compute all the real spherical harmonics Slm(theta, phi) for l,m up to lmax
 static Matrix realSphericalHarmonics(int lmax, double theta, double phi, std::vector<double> &fac, std::vector<double> &dfac){
@@ -61,9 +84,41 @@ static Matrix realSphericalHarmonics(int lmax, double theta, double phi, std::ve
 	return rshValues;
 }
 
-static int getIndex(int k, int l, int dim) { return k * dim + l; }
-static int getIndex(int k, int l, int m, int dim1, int dim2) const { return k * dim1 * dim2 + l * dim2 + m; }
-static int getIndex(int k, int l, int m, int n, int dim1, int dim2, int dim3) { return k * dim1 * dim2 * dim3 + l * dim2 * dim3 + m * dim3 + n; }
+ThreeIndex::ThreeIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; }
+ThreeIndex::ThreeIndex(const ThreeIndex &other) { 
+	data = other.data;
+	for (int n = 0; n < 3; n++) dims[n] = other.dims[n]; 
+}
+ThreeIndex::ThreeIndex(int dim1, int dim2, int dim3) {
+	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3;
+	data.resize(dim1, dim2*dim3);
+}
+double& ThreeIndex::operator()(int i, int j, int k) { return data(i, j*dims[2]+k); }
+double ThreeIndex::operator()(int i, int j, int k) const { return data(i, j*dims[2]+k); }
+
+FiveIndex::FiveIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; }
+FiveIndex::FiveIndex(const FiveIndex &other) { 
+	data = other.data;
+	for (int n = 0; n < 5; n++) dims[n] = other.dims[n]; 
+}
+FiveIndex::FiveIndex(int dim1, int dim2, int dim3, int dim4, int dim5) {
+	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3; dims[3] = dim4; dims[4] = dim5;
+	data.resize(dim1*dim2, dim3*dim4*dim5);
+}
+double& FiveIndex::operator()(int i, int j, int k, int l, int m) { return data(i*dims[1] + j, k*dims[3]*dims[4] + l*dims[4] + m); }
+double FiveIndex::operator()(int i, int j, int k, int l, int m) const { return data(i*dims[1] + j, k*dims[3]*dims[4] + l*dims[4] + m); }
+
+SevenIndex::SevenIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; dims[5] = 0; dims[6] = 0; }
+SevenIndex::SevenIndex(const SevenIndex &other) { 
+	data = other.data;
+	for (int n = 0; n < 7; n++) dims[n] = other.dims[n]; 
+}
+SevenIndex::SevenIndex(int dim1, int dim2, int dim3, int dim4, int dim5, int dim6, int dim7) {
+	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3; dims[3] = dim4; dims[4] = dim5; dims[5] = dim6; dims[6]=dim7;
+	data.resize(dim1*dim2*dim3, dim4*dim5*dim6*dim7);
+}
+double& SevenIndex::operator()(int i, int j, int k, int l, int m, int n, int p) { return data(i*dims[1]*dims[2] + j*dims[2] + k, l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p); }
+double SevenIndex::operator()(int i, int j, int k, int l, int m, int n, int p) const { return data(i*dims[1]*dims[2] + j*dims[2] + k, l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p); }
 
 double AngularIntegral::calcG(int l, int m, std::vector<double> &fac) const {
 	double value = 0.0;
@@ -96,8 +151,8 @@ double AngularIntegral::calcH2(int i, int j, int k, int m, std::vector<double> &
 }
 
 
-Matrix AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) const {
-	Matrix values((lam+1)*(lam+1), 2); 
+ThreeIndex AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) const {
+	ThreeIndex values(lam+1, lam+1, 2);
 	 
   	double or2 = 1.0/sqrt(2.0);
   	double u = 0.0;
@@ -129,29 +184,28 @@ Matrix AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) const {
 				um = u;
 			} 
 		}
-		j = getIndex(k, l, lam+1);
-		values(j, 0) = u;
-		values(j, 1) = um;
+		values(k, l, 0) = u;
+		values(k, l, 1) = um;
 	  }
 	}
 	return values;						
 }
 
 
-std::vector<double> AngularIntegral::pijk(int maxI) const {
+ThreeIndex AngularIntegral::Pijk(int maxI) const {
 	int dim = maxI+1;
-	std::vector<double> values(dim * dim * dim);
+	ThreeIndex values(dim, dim, dim);
 	double pi4 = 4.0*M_PI;
 	
-	values[0] = pi4;
+	values(0, 0, 0) = pi4;
 	for (int i = 1; i <= maxI; i++) {
-		values[getIndex(i, 0, 0, dim, dim)] = pi4 / ((double) (2*i+1));
+		values(i, 0, 0) = pi4 / ((double) (2*i+1));
 		
 		for (int j = 1; j <= i; j++) {
-			values[getIndex(i, j, 0, dim, dim)] = values[getIndex(i, j-1, 0, dim, dim)] * (2.0*j - 1.0) / (2.0 * ((double)(i + j)) + 1.0);
+			values(i, j, 0) = values(i, j-1, 0) * (2.0*j - 1.0) / (2.0 * ((double)(i + j)) + 1.0);
 			
 			for (int k = 1; k <= j; k++)
-				values[getIndex(i, j, k, dim, dim)] = values[getIndex(i, j, k-1, dim, dim)] * (2.0*k - 1.0) / (2.0 * ((double)(i + j + k)) + 1.0);
+				values(i, j, k) = values(i, j, k-1) * (2.0*k - 1.0) / (2.0 * ((double)(i + j + k)) + 1.0);
 			
 		}
 	}
@@ -159,26 +213,152 @@ std::vector<double> AngularIntegral::pijk(int maxI) const {
 }
 
 void AngularIntegral::makeU(std::vector<double> &fac) {
-	int dim = maxLam + 1;
-	
-	int ix1, ix2;
-	for (int lam = 0; lam <= maxLam; lam++) {
+	int dim = maxL + 1;
+
+	FiveIndex values(dim, dim, dim, dim, 2);
+	for (int lam = 0; lam <= maxL; lam++) {
 		for (int mu = 0; mu <= lam; mu++) {
-			ix1 = getIndex(lam, mu, dim);
-			Matrix Uij = uklm(lam, mu, fac);
+			ThreeIndex Uij = uklm(lam, mu, fac);
 			for (int i = 0; i <= lam; i++) {
 				for (int j = 0; j <= lam; j++){
-					ix2 = getIndex(i, j, dim);
-					U(lam, mu, i, j, 0) = Uij(i, j, 0);
-					U(lam, mu, i, j, 1) = Uij(i, j, 1);
+					values(lam, mu, i, j, 0) = Uij(i, j, 0);
+					values(lam, mu, i, j, 1) = Uij(i, j, 1);
 				}
 			}
 		}
 	}
-
-	return U;
-
+	
+	U = values;
 }
 
+void AngularIntegral::makeW(std::vector<double> &fac) {
+	int LB2 = 2*LB;
+	int dim = wDim;
+	int maxI = dim/2 + LB;
+	int maxLam = maxL;
+	
+	FiveIndex values{dim+1, dim+1, dim+1, maxLam+1, 2*(maxLam + 1)};
+	ThreeIndex pijk = Pijk(maxI);
+	
+	int plam, pmu;
+	double smu, w;
+	std::vector<int> ix(3);
+	for (int k = 0; k <= dim; k++) {	
+		for (int l = 0; l <= dim; l++) {	
+			for(int m = 0; m <= dim; m++) {
+				plam = (k + l + m)%2;
+				
+				int limit = maxLam > k+l+m ? k+l+m : maxLam;
+				for(int lam = plam; lam <= limit; lam += 2){
+					smu = 1 - 2*(l%2);
+					pmu = (k+l) % 2;
+					
+					for (int mu = pmu; mu <= lam; mu+=2) {
+						w = 0.0;
+						
+						for (int i = 0; i <= lam; i++) {
+							for (int j = 0; j <= lam - i; j++) {
+								ix[0] = k+i;
+								ix[1] = l+j;
+								ix[2] = m + lam - i - j; 
+								
+								if (ix[0]%2 + ix[1]%2 + ix[2]%2 == 0){
+									std::sort(ix.begin(), ix.end()); 
+									w += U(lam, mu, i, j, (1 - (int)(smu))/2)*pijk(ix[2]/2, ix[1]/2, ix[0]/2);
+								}
+							}
+						}
+						
+						values(k, l, m, lam, lam+(int)(smu*mu)) = w;
+					}
+				}	
+			}	
+		}	
+	}
+	W = values;
+}
 
+void AngularIntegral::makeOmega() {
+	
+	int lamDim = LE + LB; 
+	int muDim = 2*lamDim + 1;
+	SevenIndex values{LB+1, LB+1, LB+1, lamDim+1, muDim+1, lamDim+1, muDim+1};
+	
+	double om_plus=0.0, om_minus=0.0;
+	double wval; 
+	for (int k = 0; k <= LB; k++) {
+		for (int l = 0; l <= LB; l++) {
+			for (int m = 0; m <= LB; m++) {
+					
+				for (int rho = 0; rho <= lamDim; rho++ ) {
+					for (int sigma = -rho; sigma <= rho; sigma++) {
+						
+						for (int lam = 0; lam <= rho; lam++) {
+							for (int mu = 0; mu <= lam; mu++) {
+								
+								om_plus = om_minus = 0.0;
+								for (int i = 0; i<= lam; i++ ) {
+									for (int j = 0; j <= lam - i; j++) {
+										
+										wval = W(k+i, l+j, m+lam-i-j, rho, rho+sigma);
+										om_plus += U(lam, mu, i, j, 0) * wval;
+										om_minus += U(lam, mu, i, j, 1) * wval;
+										
+									}
+								}
+								if (mu == 0) om_minus = om_plus;
+								values(k, l, m, rho, sigma+rho, lam, lam+mu) = om_plus;
+								values(k, l, m, lam, lam+mu, rho, sigma+rho) = om_plus;
+								values(k, l, m, rho, sigma+rho, lam, lam-mu) = om_minus;
+								values(k, l, m, lam, lam-mu, rho, sigma+rho) = om_minus;
+								
+							}
+						}
+						
+					}
+				}
+					
+			}
+		}
+	}
+	
+	omega = values;
+}
+
+AngularIntegral::AngularIntegral() { init(0, 0); }
+AngularIntegral::AngularIntegral(int _LB, int _LE) { init(_LB, _LE); }
+void AngularIntegral::init(int _LB, int _LE ) {
+	LB = _LB;
+	LE = _LE;
+	wDim = 4*LB > 3*LB + LE ? 4*LB : 3*LB + LE;
+	maxL = 2*LB > LB + LE ? 2*LB : LB+LE;
+	
+}
+
+void AngularIntegral::compute() {
+	std::vector<double> fac = facArray(wDim);
+	
+	makeU(fac);
+	makeW(fac);
+	makeOmega();
+}
+
+void AngularIntegral::clear() {}
+
+double AngularIntegral::getU(int k, int l, int lam, int mu) const { return U(k, l, lam, abs(mu), mu < 0 ? 1 : 0); }
+double AngularIntegral::getIntegral(int k, int l, int m, int lam, int mu) const { return W(k, l, m, lam, lam+mu); }
+double AngularIntegral::getIntegral(int k, int l, int m, int lam, int mu, int rho, int sigma) const { return omega(k, l, m, lam, lam+mu, rho, rho+sigma); }
+
+bool AngularIntegral::isZero(int k, int l, int lam, int mu, double tolerance) const { 
+	if (wDim > 0) return fabs(U(k, l, lam, abs(mu), mu < 0 ? 1 : 0)) < tolerance;
+	else return true;
+} 	
+bool AngularIntegral::isZero(int k, int l, int m, int lam, int mu, double tolerance) const {
+	if (wDim > 0) return fabs(W(k, l, m, lam, lam+mu)) < tolerance;
+	else return true;
+}
+bool AngularIntegral::isZero(int k, int l, int m, int lam, int mu, int rho, int sigma, double tolerance) const {
+	if (wDim > 0) return fabs(omega(k, l, m, lam, lam+mu, rho, rho+sigma)) < tolerance;
+	else return true;
+}
 
