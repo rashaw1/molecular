@@ -38,6 +38,7 @@ private:
 public:
 	GCQuadrature();
 	~GCQuadrature();
+	GCQuadrature(const GCQuadrature &other);
 	
 	void initGrid(int points, GCTYPE t);
 	

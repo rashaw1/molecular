@@ -18,6 +18,21 @@ GCQuadrature::~GCQuadrature() {
 	delete[] w;
 }
 
+GCQuadrature::GCQuadrature(const GCQuadrature &other) {
+	maxN = other.maxN;
+	M = other.M;
+	I = other.I;
+	start = other.start;
+	end = other.end; 
+	t = other.t;
+	x = new double[maxN];
+	w = new double[maxN];
+	for (int i = 0; i < maxN; i++) {
+		x[i] = other.x[i];
+		w[i] = other.w[i];
+	}
+}
+
 // Initialise the quadrature grid
 // As described in both Perez92 and Perez93
 void GCQuadrature::initGrid(int points, GCTYPE _t) {

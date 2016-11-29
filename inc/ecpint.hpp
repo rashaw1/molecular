@@ -51,7 +51,6 @@ private:
 	int LB, LE; // Maximum angular momentum of basis and ECP, respectively
 	int wDim, maxL; // Limits for w-integral indices, and lambda
 	
-	FiveIndex U; // USP to RSH transformation coefficients
 	FiveIndex W; // Type 1 angular integrals
 	SevenIndex omega; // Type 2 angular integrals
 	
@@ -64,8 +63,8 @@ private:
 	
 	// Build the angular integrals
 	void makeU(std::vector<double> &fac);
-	void makeW(std::vector<double> &fac);
-	void makeOmega();
+	void makeW(std::vector<double> &fac, FiveIndex &U);
+	void makeOmega(FiveIndex &U);
 	
 public:
 	
@@ -75,11 +74,9 @@ public:
 	void compute();
 	void clear();
 	
-	double getU(int k, int l, int lam, int mu) const;
 	double getIntegral(int k, int l, int m, int lam, int mu) const; 
 	double getIntegral(int k, int l, int m, int lam, int mu, int rho, int sigma) const;
-	
-	bool isZero(int k, int l, int lam, int mu, double tolerance) const; 
+
 	bool isZero(int k, int l, int m, int lam, int mu, double tolerance) const;
 	bool isZero(int k, int l, int m, int lam, int mu, int rho, int sigma, double tolerance) const;
 	
@@ -87,6 +84,22 @@ public:
 
 class RadialIntegral
 {
+private:
+	GCQuadrature bigGrid;
+	GCQuadrature smallGrid;
+	
+	double tolerance;
+	
+	double T1Integrand(double r, double *p);
+	double T2Integrand(double r, double *p);
+	double Q2Integrand(double r, double *p);
+
+public:
+	RadialIntegral();
+	void init(double tol = 1e-12, int small = 128, int large = 1024);
+	
+	std::vector<double> type1(double *coeffs, double *exponents);
+	std::vector<double> type2(double *coeffs, double *exponents);	
 };
 
 class ECPIntegral

@@ -212,7 +212,7 @@ ThreeIndex AngularIntegral::Pijk(int maxI) const {
 	return values;
 }
 
-void AngularIntegral::makeU(std::vector<double> &fac) {
+FiveIndex AngularIntegral::makeU(std::vector<double> &fac) {
 	int dim = maxL + 1;
 
 	FiveIndex values(dim, dim, dim, dim, 2);
@@ -228,10 +228,10 @@ void AngularIntegral::makeU(std::vector<double> &fac) {
 		}
 	}
 	
-	U = values;
+	return values;
 }
 
-void AngularIntegral::makeW(std::vector<double> &fac) {
+void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex &U) {
 	int LB2 = 2*LB;
 	int dim = wDim;
 	int maxI = dim/2 + LB;
@@ -278,7 +278,7 @@ void AngularIntegral::makeW(std::vector<double> &fac) {
 	W = values;
 }
 
-void AngularIntegral::makeOmega() {
+void AngularIntegral::makeOmega(FiveIndex &U) {
 	
 	int lamDim = LE + LB; 
 	int muDim = 2*lamDim + 1;
@@ -338,21 +338,16 @@ void AngularIntegral::init(int _LB, int _LE ) {
 void AngularIntegral::compute() {
 	std::vector<double> fac = facArray(wDim);
 	
-	makeU(fac);
-	makeW(fac);
-	makeOmega();
+	FiveIndex U = makeU(fac);
+	makeW(fac, U);
+	makeOmega(U);
 }
 
 void AngularIntegral::clear() {}
 
-double AngularIntegral::getU(int k, int l, int lam, int mu) const { return U(k, l, lam, abs(mu), mu < 0 ? 1 : 0); }
 double AngularIntegral::getIntegral(int k, int l, int m, int lam, int mu) const { return W(k, l, m, lam, lam+mu); }
 double AngularIntegral::getIntegral(int k, int l, int m, int lam, int mu, int rho, int sigma) const { return omega(k, l, m, lam, lam+mu, rho, rho+sigma); }
 
-bool AngularIntegral::isZero(int k, int l, int lam, int mu, double tolerance) const { 
-	if (wDim > 0) return fabs(U(k, l, lam, abs(mu), mu < 0 ? 1 : 0)) < tolerance;
-	else return true;
-} 	
 bool AngularIntegral::isZero(int k, int l, int m, int lam, int mu, double tolerance) const {
 	if (wDim > 0) return fabs(W(k, l, m, lam, lam+mu)) < tolerance;
 	else return true;
