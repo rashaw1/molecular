@@ -62,7 +62,7 @@ private:
 	ThreeIndex Pijk(int maxI) const; 
 	
 	// Build the angular integrals
-	void makeU(std::vector<double> &fac);
+	FiveIndex makeU(std::vector<double> &fac);
 	void makeW(std::vector<double> &fac, FiveIndex &U);
 	void makeOmega(FiveIndex &U);
 	
@@ -85,8 +85,8 @@ public:
 class RadialIntegral
 {
 private:
-	GCQuadrature bigGrid;
-	GCQuadrature smallGrid;
+  //	GCQuadrature bigGrid;
+  //    GCQuadrature smallGrid;
 	
 	double tolerance;
 	

@@ -3,6 +3,7 @@
 #include "matrix.hpp"
 #include "ecpint.hpp"
 #include "mathutil.hpp"
+#include "gaussquad.hpp"
 #include <iostream>
 #include <cmath>
 

@@ -24,8 +24,12 @@
 #include <cmath>
 #include "ecpint.hpp"
 
-double gaussfunc(double z, double *p) {
+double gaussfunc(double z, double *p, int ix) {
   return exp(-p[0]*z*z);
+}
+
+double polynom(double z, double *p, int ix) {
+  return p[0]*z*z;
 }
 
 int main (int argc, char* argv[])
@@ -117,11 +121,12 @@ int main (int argc, char* argv[])
       // Integration test
       log.title("GC Test");
       GCQuadrature gc;
-      gc.initGrid(1024, ONEPOINT);
-      gc.transformZeroInf();
-      std::function<double(double, double*)> integrand = gaussfunc;
+      gc.initGrid(128, TWOPOINT);
+      //      gc.transformZeroInf();
+      std::function<double(double, double*, int)> integrand = polynom;
       double params[1] = {2.1};
       gc.integrate(integrand, params, 1e-12);
+      std::cout << true << "\n";
       log.print(std::to_string(gc.getI()));
 
       // Close file streams

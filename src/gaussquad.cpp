@@ -103,7 +103,7 @@ void GCQuadrature::initGrid(int points, GCTYPE _t) {
 }
 
 // Perform the GC integration on the function f
-bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *params, const double tolerance) {
+bool GCQuadrature::integrate(std::function<double(double, double*, int)> &f, double *params, const double tolerance) {
 	bool converged = false; // 0 for converged, -1 for not converged
 	
 	if (t == ONEPOINT) {
@@ -119,7 +119,7 @@ bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *
 		
 		// Initialise values, 
 		// Single point integration would use midpoint, M
-		Tn = w[M]*f(x[M], params);
+		Tn = w[M]*f(x[M], params, M);
 		Tn12 = 2.0 * Tn;
 		
 		// Main loop
@@ -129,7 +129,7 @@ bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *
 		int p = (M+1) / 2; // M / 2^n 
 		while (n < maxN && !converged) {
 			// Compute T_{2n+1}
-			T2n1 = Tn + sumTerms(f, params, n, p, 2);
+		  T2n1 = Tn + sumTerms(f, params, n, p, 2);
 			
 			// Check convergence
 			dT = T2n1 - 2.0*Tn;
@@ -160,9 +160,9 @@ bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *
 		
 		// Initialise values
 		Tn12 = 0.0; 
-		Tn = w[M]*f(x[M], params);
+		Tn = w[M]*f(x[M], params, M);
 		int M2 = (maxN - 2)/3; //Index of first point in twopoint sequence
-		Tm = w[M2]*f(x[M2], params) + w[maxN - M2 - 1]*f(x[maxN - M2 - 1], params);
+		Tm = w[M2]*f(x[M2], params, M2) + w[maxN - M2 - 1]*f(x[maxN - M2 - 1], params, maxN - M2 - 1);
 		int p = (M+1) / 2; // as before
 		M2 = (M2 + 1)/2; 
 		int ix; 
@@ -171,13 +171,13 @@ bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *
 		 
 		while(m < maxN && !converged) {
 			// Propagate the two-point sequence first 
-			T2m1 = Tm + Tn - Tn12 + sumTerms(f, params, (2*m - 1)/3, M2, 3);
+		  T2m1 = Tm + Tn - Tn12 + sumTerms(f, params, (2*m - 1)/3, M2, 3);
 			
 			// Check convergence
 			error = 16.0 * fabs(0.5*T2m1 - Tm) / (3.0 * (m + 1)); 
 			if (error > tolerance) {
 				// Propagate the one-point sequence
-				T2n1 = Tn + sumTerms(f, params, n, p, 2); 
+			  T2n1 = Tn + sumTerms(f, params, n, p, 2); 
 				
 				// Check convergence again
 				error = 16.0 * fabs(2.0*T2m1 - 3.0*T2n1) / (18.0 * (n+1) );
@@ -193,6 +193,7 @@ bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *
 					M2 /= 2; 
 				}
 			} else {
+				m = 2 * m + 1;
 				converged = true; 
 			}
 		}
@@ -204,17 +205,17 @@ bool GCQuadrature::integrate(std::function<double(double, double*)> &f, double *
 }
 
 // Worker function to do the additional sum terms when going from I_n to I_{2n+1}
-double GCQuadrature::sumTerms(std::function<double(double, double*)> &f, double *p, int limit, int shift, int skip) {
+double GCQuadrature::sumTerms(std::function<double(double, double*, int)> &f, double *p, int limit, int shift, int skip) {
 	double value = 0.0;
 	int ix; 
 	for (int i = 0; i <= limit; i+=2) {	
 		ix = (skip*i + 1)*shift - 1;
 		if (ix >= start)
-			value += w[ix] * f(x[ix], p);
+		  value += w[ix] * f(x[ix], p, ix);
 		
 		ix = maxN - ix - 1; 
 		if (ix <= end)
-			value += w[ix] * f(x[ix], p);
+		  value += w[ix] * f(x[ix], p, ix);
 	}
 	return value;
 }

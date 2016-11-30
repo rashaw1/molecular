@@ -33,7 +33,7 @@ private:
 	
 	GCTYPE t;
 	
-	double sumTerms(std::function<double(double, double*)> &f, double *p, int limit, int shift, int skip);
+  double sumTerms(std::function<double(double, double*, int)> &f, double *p, int limit, int shift, int skip);
 
 public:
 	GCQuadrature();
@@ -43,7 +43,7 @@ public:
 	void initGrid(int points, GCTYPE t);
 	
 	// Returns true if quadrature converged, false otherwise. 
-	bool integrate(std::function<double(double, double*)> &f, double *params, const double tolerance);
+  bool integrate(std::function<double(double, double*, int)> &f, double *params, const double tolerance);
 	
 	void transformZeroInf(); // Transformation from [-1, 1] to [0, infty) from Krack98
 	void transformRMinMax(double z, double p);  // Transfromation from [-1, 1] to [rmin, rmax] from Flores06
