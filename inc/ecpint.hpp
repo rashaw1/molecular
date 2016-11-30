@@ -4,9 +4,12 @@
 #define ECPINT_HEAD
 
 #include <vector>
+#include "gaussquad.hpp"
+#include "bessel.hpp"
 
 class Matrix;
-class GCQuadrature;
+class ECP;
+class GaussianShell;
 
 // Calculate single and double factorials iteratively
 static std::vector<double> facArray(int l);
@@ -85,21 +88,31 @@ public:
 class RadialIntegral
 {
 private:
-  //	GCQuadrature bigGrid;
-  //    GCQuadrature smallGrid;
+	GCQuadrature bigGrid;
+    GCQuadrature smallGrid;
+	BesselFunction bessie;
+	
+	Matrix p, P, P2, K;
 	
 	double tolerance;
 	
-	double T1Integrand(double r, double *p);
-	double T2Integrand(double r, double *p);
-	double Q2Integrand(double r, double *p);
+	static double integrand(double r, double *p, int ix);
+
+	void buildBessel(double *r, int nr, int maxL, Matrix &values, double weight = 1.0);
+	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const;
+	
+	void buildParameters(GaussianShell &shellA, GaussianShell &shellB);
+	void buildU(ECP &U, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab);
+	void buildF(GaussianShell &shell, int maxL, double *r, int nr, int start, int end, Matrix &F);
+	
+	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values);
 
 public:
 	RadialIntegral();
-	void init(double tol = 1e-12, int small = 128, int large = 1024);
+	void init(int maxL, double tol = 1e-12, int small = 128, int large = 1024);
 	
-	std::vector<double> type1(double *coeffs, double *exponents);
-	std::vector<double> type2(double *coeffs, double *exponents);	
+	void type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, std::vector<double> &values);
+	void type2(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, std::vector<double> &values);	
 };
 
 class ECPIntegral

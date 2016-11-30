@@ -12,7 +12,7 @@
 #ifndef BESSEL_FUNCTION_HEAD
 #define BESSEL_FUNCTION_HEAD
 
-class Vector;
+#include <vector>
 
 const double SMALL = 1.0E-7;
 const int TAYLOR_CUT = 5;
@@ -28,11 +28,14 @@ private:
 	double *C; // Coefficients for derivatives of Bessel function
 	
 public:
+	BesselFunction();
 	BesselFunction(int lMax, int N, int order, const double accuracy);
 	~BesselFunction();
 	
+	void init(int lMax, int N, int order, const double accuracy);
+	
 	int tabulate(const double accuracy);
-	void calculate(const double z, Vector &values);
+	void calculate(const double z, int maxL, std::vector<double> &values);
 };
 
 #endif

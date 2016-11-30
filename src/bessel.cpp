@@ -7,15 +7,19 @@
 #include "mathutil.hpp"
 #include <cmath>
 #include <iostream>
-#include "mvector.hpp"
 
 // Constructor
-BesselFunction::BesselFunction(int _lMax, int _N, int _order, const double accuracy) : lMax(_lMax), N(_N), order(_order)
+BesselFunction::BesselFunction() {}
+BesselFunction::BesselFunction(int _lMax, int _N, int _order, const double accuracy)
 {
+	init(_lMax, _N, _order, accuracy);
+}
+
+void BesselFunction::init(int _lMax, int _N, int _order, const double accuracy) {
 	// Check parameters
-	lMax = lMax > -1 ? lMax : 0;
-	N = N > 0 ? N : 1;
-	order = order > 0 ? order : 1;
+	lMax = _lMax > -1 ? _lMax : 0;
+	N = _N > 0 ? _N : 1;
+	order = _order > 0 ? _order : 1;
 	
 	// Allocate arrays
 	K = new double*[N+1];
@@ -27,8 +31,8 @@ BesselFunction::BesselFunction(int _lMax, int _N, int _order, const double accur
 }
 
 BesselFunction::~BesselFunction() {
-	delete[] K;
-	delete[] C;
+	free(K);
+	free(C);
 }
 
 // Tabulate the bessel function values
@@ -91,8 +95,9 @@ int BesselFunction::tabulate(const double accuracy) {
 
 // Calculate modified spherical Bessel function K_l(z), weighted with an exponential factor e^(-z)
 // for l = 0 to lMax. This restricts K(z) to the interval [0,1].
-void BesselFunction::calculate(const double z, Vector &values) {
-	values.assign(lMax + 1, 0.0);
+void BesselFunction::calculate(const double z, int maxL, std::vector<double> &values) {
+	maxL = maxL <= lMax ? maxL : lMax;
+	values.assign(maxL + 1, 0.0);
 	
 	// Set K_0(z) = 1.0, and K_l(z) = 0.0 (for l != 0) if z <= 0
 	if (z <= 0) values[0] = 1.0;
@@ -100,7 +105,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 	// K_l(z) ~ (1-z)*z^l / (2l + 1)!!
 	else if (z < SMALL) { 
 		values[0] = 1.0 - z;
-		for (int l = 1; l <= lMax; l++) values[l] = values[l-1]*z/(2.0*l+1.0);
+		for (int l = 1; l <= maxL; l++) values[l] = values[l-1]*z/(2.0*l+1.0);
 	} 
 	// Large z case
 	// K_l(z) ~ R_l(-z)/(2z)
@@ -108,7 +113,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 	// where T_l,k(z) = (l+k)!/[k!(l-k)!] * (2z)^{-k}
 	else if (z > 16.0) {
 		values[0] = 0.5/z;
-		for (int l = 1; l <= lMax; l++) {
+		for (int l = 1; l <= maxL; l++) {
 			values[l] = values[0];
 			double Rl = 1.0;
 			double Tlk = 1.0;
@@ -125,7 +130,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 	// Use Taylor series around pretabulated values in class
 	// 5 terms is usually sufficient for machine accuracy
 	else {
-		int maxLambda = lMax + TAYLOR_CUT;
+		int maxLambda = maxL + TAYLOR_CUT;
 		double scale = N/16.0;
 		
 		// Index of abscissa z in table
@@ -133,7 +138,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 		double dz = z - index/scale; // z - z0
 		
 		if (fabs(dz) < 1e-12) { // z is one of the tabulated points
-			for (int l = 0; l <= lMax; l++) values[l] = K[index][l];
+			for (int l = 0; l <= maxL; l++) values[l] = K[index][l];
 		} else {
 			// Determine the necessary derivatives from
 			// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n) - K_l^(n)
@@ -159,7 +164,7 @@ void BesselFunction::calculate(const double z, Vector &values) {
 		
 			// Now tabulate the values through Taylor seris
 			// K(z) ~ sum_{n=0 to 5} K^(n)(z0)(z-z0)^n / n!
-			for (int l = 0; l <= lMax; l++) {
+			for (int l = 0; l <= maxL; l++) {
 				values[l] = 0.0;
 				for (int n = 0; n < TAYLOR_CUT+1; n++) 
 					values[l] += dzn[n] * dK[n][l]; 

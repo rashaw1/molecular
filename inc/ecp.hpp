@@ -20,7 +20,7 @@ struct GaussianECP {
 	double a, d;
 	
 	GaussianECP();
-	GaussianECP(int n, int l, int a, int d);
+	GaussianECP(int n, int l, double a, double d);
 	GaussianECP(const GaussianECP& other);
 };
 
@@ -32,12 +32,14 @@ private:
 public:
 	ECP();
 	
-	void addPrimitive(int n, int l, int a, int d, bool needSort = true);
+	void addPrimitive(int n, int l, double a, double d, bool needSort = true);
 	
 	void sort(); // Sort primitives according to angular momentum
 	
 	// Evaluate U_l(r)
 	double evaluate(double r, int l);
+  
+  int getL() const { return L; }
 	
 };
 

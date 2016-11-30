@@ -20,17 +20,11 @@
 #include "scf.hpp"
 #include "mp2.hpp"
 #include "gaussquad.hpp"
+#include "gshell.hpp"
+#include "ecp.hpp"
 #include <functional>
 #include <cmath>
 #include "ecpint.hpp"
-
-double gaussfunc(double z, double *p, int ix) {
-  return exp(-p[0]*z*z);
-}
-
-double polynom(double z, double *p, int ix) {
-  return p[0]*z*z;
-}
 
 int main (int argc, char* argv[])
 {
@@ -117,18 +111,29 @@ int main (int argc, char* argv[])
       } catch (Error e){
 	log.error(e);
       }
-
-      // Integration test
-      log.title("GC Test");
-      GCQuadrature gc;
-      gc.initGrid(128, TWOPOINT);
-      //      gc.transformZeroInf();
-      std::function<double(double, double*, int)> integrand = polynom;
-      double params[1] = {2.1};
-      gc.integrate(integrand, params, 1e-12);
-      std::cout << true << "\n";
-      log.print(std::to_string(gc.getI()));
-
+	  
+	  // Radial integral test
+	  ECP U1;
+	  U1.addPrimitive(2, 0, 1.4, 1.0, false);
+	  U1.addPrimitive(3, 1, 1.1, 1.0, false);
+	  U1.addPrimitive(1 ,2, 0.8, 1.0);
+	  
+	  double centerA[3] = { 1.5, 0.1, 0.9 };
+	  double centerB[3] = { 0.8, 0.8, 0.8 };
+	  GaussianShell shellA(centerA);
+	  shellA.addPrim(0.6, 1.0);
+	  GaussianShell shellB(centerB);
+	  shellB.addPrim(1.2, 1.0);
+	 
+	  std::cout << shellA.nprimitive() << " " << shellB.center()[1] << "\n";
+	  std::cout << U1.evaluate(0.2, 1) << "\n";
+	 
+	  RadialIntegral rint;
+	  rint.init(1);
+	  std::vector<double> values;
+	  rint.type2(1, U1, shellA, shellB, values);
+	  std::cout << values[0] << " " << values[1] << "\n";
+	 
       // Close file streams
       input.close();
       output.close();

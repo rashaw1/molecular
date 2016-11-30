@@ -2,9 +2,11 @@
 
 #include "matrix.hpp"
 #include "ecpint.hpp"
+#include "ecp.hpp"
 #include "mathutil.hpp"
-#include "gaussquad.hpp"
+#include "gshell.hpp"
 #include <iostream>
+#include <functional>
 #include <cmath>
 
 // Compute single and double factorials iteratively
@@ -357,4 +359,226 @@ bool AngularIntegral::isZero(int k, int l, int m, int lam, int mu, int rho, int 
 	if (wDim > 0) return fabs(omega(k, l, m, lam, lam+mu, rho, rho+sigma)) < tolerance;
 	else return true;
 }
+
+//****************************************** RADIAL INTEGRAL *********************************************
+
+RadialIntegral::RadialIntegral() {}
+
+void RadialIntegral::init(int maxL, double tol, int small, int large) {
+	bigGrid.initGrid(large, ONEPOINT);
+	smallGrid.initGrid(small, TWOPOINT);
+	smallGrid.transformZeroInf();
+	
+	bessie.init(maxL, 1600, 200, tol);
+	
+	tolerance = tol;
+}
+
+void RadialIntegral::buildBessel(double *r, int nr, int maxL, Matrix &values, double weight) {
+	std::vector<double> besselValues;
+	for (int i = 0; i < nr; i++) {
+		bessie.calculate(weight * r[i], maxL, besselValues);
+		for (int l = 0; l <= maxL; l++) values(l, i) = besselValues[l];
+	}
+}
+
+double RadialIntegral::calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const {
+	double muij = zeta_a * zeta_b / (zeta_a + zeta_b);
+	double R[3] = {A[0] - B[0], A[1] - B[1], A[2] - B[2]};
+	double R2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2];
+	return Na * Nb * exp(muij * R2);
+}
+
+// Assumes that p is the pretabulated integrand at the abscissae
+double RadialIntegral::integrand(double r, double *p, int ix) {
+	return p[ix];
+}
+
+void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shellB) {
+	int npA = shellA.nprimitive();
+	int npB = shellB.nprimitive();
+
+	p.assign(npA, npB, 0.0);
+	P.assign(npA, npB, 0.0);
+	P2.assign(npA, npB, 0.0);
+	K.assign(npA, npB, 0.0);
+
+	double Pvec[3];
+	double zetaA, zetaB;
+	double A[3], B[3];
+	for (int a = 0; a < npA; a++) {
+		zetaA = shellA.exp(a);
+		A[0] = shellA.center()[0];
+		A[1] = shellA.center()[1];
+		A[2] = shellA.center()[2];
+		for (int b = 0; b < npB; b++) {
+			zetaB = shellB.exp(a);
+			B[0] = shellB.center()[0];
+			B[1] = shellB.center()[1];
+			B[2] = shellB.center()[2];
+			
+			p(a, b) = zetaA + zetaB;
+			for (int n = 0; n < 3; n++) {
+				Pvec[n] = (zetaA * A[n] + zetaB * B[n])/p(a, b);
+				P2(a, b) = Pvec[0]*Pvec[0] + Pvec[1]*Pvec[1] + Pvec[2]*Pvec[2];
+				P(a, b) = sqrt(P2(a, b));
+			}
+			K(a, b) = calcKij(1.0, 1.0, zetaA, zetaB, A, B);
+			
+		}
+	}
+}
+
+void RadialIntegral::buildU(ECP &U, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab) {
+	int gridSize = smallGrid.getN();
+	double* gridPoints = smallGrid.getX();
+	
+	// Tabulate weighted ECP values
+	int UL = U.getL();
+	int N = shellA.am() + shellB.am();
+	double r;
+	bool foundStart = false;
+	for (int i = 0; i < gridSize; i++) {
+		r = gridPoints[i];
+		Utab[i] = pow(r, N+2) * U.evaluate(r, UL);
+		if(Utab[i] > tolerance && !foundStart) {
+			 grid.start = i;
+			 foundStart = true;
+		}
+		if(Utab[i] < tolerance && foundStart) {
+			grid.end = i-1;
+			foundStart = false;
+		}
+	}
+}
+
+int RadialIntegral::integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values) {
+	std::function<double(double, double*, int)> intgd = integrand; 
+	values.assign(maxL+1, 0.0);
+	int test;
+	double params[gridSize];
+	for (int l = 0; l <= maxL; l++) {
+		for (int i = grid.start; i <= grid.end; i++) params[i] = intValues(l, i);
+		test = grid.integrate(intgd, params, tolerance);
+		values[l] = smallGrid.getI();
+		if (test == 0) break;
+	}
+	return test;
+}
+
+void RadialIntegral::type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, std::vector<double> &values) {
+	int npA = shellA.nprimitive();
+	int npB = shellB.nprimitive();
+	buildParameters(shellA, shellB);
+	
+	int gridSize = smallGrid.getN();
+	double* gridPoints = smallGrid.getX();
+	
+	// Reset grid starting points
+	smallGrid.start = 0;
+	smallGrid.end = gridSize;
+	
+	double Utab[gridSize];
+	buildU(U, shellA, shellB, smallGrid, Utab);
+
+	// Now pretabulate integrand
+	Matrix intValues(maxL+1, gridSize, 0.0);
+	// and bessel function
+	Matrix besselValues(maxL+1, gridSize);
+	// Calculate type1 integrals
+	double da, db, val;
+	// Tabulate integrand
+	for (int a = 0; a < npA; a++) {
+		da = shellA.coef(a);
+		for (int b = 0; b < npB; b++) {
+			db = shellB.coef(b);
+			
+			buildBessel(gridPoints, gridSize, maxL, besselValues, 2.0*p(a,b)*P(a,b));
+			
+			for (int i = smallGrid.start; i <= smallGrid.end; i++) {
+				val = -p(a, b) * (gridPoints[i]*(gridPoints[i] - 2*P(a, b)) + P2(a, b));
+				val = da * db * K(a, b) * exp(val);
+			
+				for (int l = 0; l <= maxL; l++)
+					intValues(l, i) += val * besselValues(l, i);
+				
+				for (int l = 0; l <= maxL; l++) { 
+					intValues(l, i) *= Utab[i];
+				 	std::cout << l << " " << i << " " << intValues(l, i) << "\n";
+				}
+			}
+		}
+	}
+	
+	// Calculate integrals
+	int test = integrate(maxL, gridSize, intValues, smallGrid, values);
+	if (test == 0) std::cout << "Failed to converge\n";
+}
+
+// F_a(lam, r) = sum_{i in a} d_i K_{lam}(2 zeta_a A r)*exp(-zeta_a(r - A)^2)
+void RadialIntegral::buildF(GaussianShell &shell, int maxL, double *r, int nr, int start, int end, Matrix &F) {
+	int np = shell.nprimitive();
+	double *Avec = shell.center();
+	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
+	A = sqrt(A); 
+	
+	double weight, zeta, c;
+	Matrix besselValues(maxL+1, nr, 0.0);
+	
+	F.assign(maxL+1, nr, 0.0);
+	for (int a = 0; a < np; a++) {
+		zeta = shell.exp(a);
+		c = shell.coef(a);
+		weight = 2.0 * zeta * A;
+		
+		buildBessel(r, nr, maxL, besselValues, weight);
+		
+		for (int i = start; i <= end; i++) {
+			weight = r[i] - A;
+			weight = c * exp(-zeta * weight * weight);
+			
+			for (int l = 0; l <= maxL; l++) 
+				F(l, i) += weight * besselValues(l, i); 
+		}
+	}
+}
+
+void RadialIntegral::type2(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, std::vector<double> &values) {
+	int npA = shellA.nprimitive();
+	int npB = shellB.nprimitive();
+	
+	// Start with the small grid
+	// Pretabulate U
+	int gridSize = smallGrid.getN();
+	double* gridPoints = smallGrid.getX();
+	
+	// Reset grid starting points
+	smallGrid.start = 0;
+	smallGrid.end = gridSize;
+	
+	double Utab[gridSize];
+	buildU(U, shellA, shellB, smallGrid, Utab);
+	
+	// Build the F matrices
+	Matrix Fa;
+	Matrix Fb;
+	buildF(shellA, maxL, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fa);
+	buildF(shellB, maxL, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fb);
+	
+	// Build the integrand values
+	Matrix intValues(maxL+1, gridSize, 0.0);
+	for (int i = smallGrid.start; i <= smallGrid.end; i++) {
+		for (int l = 0; l <= maxL; l++)
+			intValues(l, i) = Utab[i] * Fa(l, i) * Fb(l, i);
+	}
+	
+	// Compute the integrals
+	int test = integrate(maxL, gridSize, intValues, smallGrid, values);
+	if (test == 0) {
+		// Use the larger grid, and integrate over primitives
+		std::cout << "Not converged\n";
+	}
+	
+}
+
 
