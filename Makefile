@@ -12,13 +12,13 @@ MKLROOT = /opt/intel/mkl
 # Compiler options
 DEBUG = -g -Wall -O0 -std=c++11 -D_GLIBCXX_DEBUG 
 OPTIM = -O3 -Wall -std=c++11 -qopenmp -DMKL_LP64 -mkl -DEIGEN_USE_MKL_ALL
-COMPILE_OPTIONS = $(DEBUG)
+COMPILE_OPTIONS = $(OPTIM)
 
 # Header include directories
-HEADERS = -I./inc -I/usr/local/Cellar/boost/1.61.0_1/include -I/usr/local/Cellar/eigen/3.2.9/include/eigen3 -I${MKLROOT}/include
+HEADERS = -I./inc -I/usr/local/Cellar/boost/1.61.0/include -I/usr/local/Cellar/eigen/3.2.9/include/eigen3 -I${MKLROOT}/include
 
 # Libraries for linking
-LIBS =  -L/usr/local/Cellar/boost/1.61.0_1/lib -lboost_system -lboost_timer  -std=c++11 -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lpthread -lm -ldl -qopenmp -I${MKLROOT}/include
+LIBS =  -L/usr/local/Cellar/boost/1.61.0/lib -lboost_system -lboost_timer  -std=c++11 -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lpthread -lm -ldl -qopenmp -I${MKLROOT}/include
 
 # Dependency options
 DEPENDENCY_OPTIONS = -MM

@@ -130,9 +130,9 @@ int main (int argc, char* argv[])
 	 
 	  RadialIntegral rint;
 	  rint.init(1);
-	  std::vector<double> values;
-	  rint.type2(1, U1, shellA, shellB, values);
-	  std::cout << values[0] << " " << values[1] << "\n";
+	  Matrix values;
+	  rint.type2(1, 1, 1, U1, shellA, shellB, centerA, centerB, values);
+	  std::cout << values(0, 0) << " " << values(0, 1) << " " << values(1, 0) << " " << values(1, 1) << "\n";
 	 
       // Close file streams
       input.close();
