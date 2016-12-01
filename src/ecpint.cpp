@@ -588,7 +588,6 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 	if (failed) {
 		std::cout << "Failed at first attempt\n";
 		// Not converged, switch to big grid
-		GCQuadrature newGrid;
 		double zeta_a, zeta_b, c_a, c_b, weight, XA, XB;
 		double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
 		double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
@@ -621,9 +620,9 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 						weight = 2.0 * zeta_b * B;
 					
 						// Set up grid
-						newGrid = bigGrid;
+						GCQuadrature newGrid = bigGrid;
 						gridSize = newGrid.getN();
-						gridPoints = newGrid.getX();
+						std::vector<double> &gridPoints2 = newGrid.getX();
 						newGrid.start = 0;
 						newGrid.end = gridSize;
 						newGrid.transformRMinMax(p(a,b), (zeta_a * A + zeta_b * B)/p(a, b));
@@ -634,9 +633,9 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 					
 						// Build U and bessel
 					
-						buildBessel(gridPoints, gridSize, maxL2, Fb, weight); 
+						buildBessel(gridPoints2, gridSize, maxL2, Fb, weight); 
 						for (int i = 0; i < gridSize; i++) {
-							XB = gridPoints[i] - B;
+							XB = gridPoints2[i] - B;
 							XB = exp(-zeta_b * XB * XB);
 							for (int l2 = 0; l2 <= maxL2; l2++) {
 								Fb(l2, i) *= XB;
