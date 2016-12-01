@@ -14,6 +14,7 @@
 #define GC_QUAD_HEAD
 
 #include <functional>
+#include <vector>
 
 enum GCTYPE {
 	ONEPOINT, // Described in Perez92
@@ -25,8 +26,8 @@ private:
 	int maxN; // Maximum number of points to use
 	int M; // index of midpoint
 	
-	double *x; // Abscissae
-	double *w; // Weights
+	std::vector<double> x; // Abscissae
+	std::vector<double> w; // Weights
 	double I; // Integration value
 	
 	GCTYPE t;
@@ -37,7 +38,6 @@ public:
 	int start, end; // For prescreening
 	
 	GCQuadrature();
-	~GCQuadrature();
 	GCQuadrature(const GCQuadrature &other);
 	
 	void initGrid(int points, GCTYPE t);
@@ -51,7 +51,7 @@ public:
 	double getI() const { return I; }
 	
 	int getN() const { return maxN; }
-	double* getX() { return x; }
+	std::vector<double>& getX() { return x; }
 };
 
 #endif

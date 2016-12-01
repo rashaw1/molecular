@@ -374,7 +374,7 @@ void RadialIntegral::init(int maxL, double tol, int small, int large) {
 	tolerance = tol;
 }
 
-void RadialIntegral::buildBessel(double *r, int nr, int maxL, Matrix &values, double weight) {
+void RadialIntegral::buildBessel(std::vector<double> &r, int nr, int maxL, Matrix &values, double weight) {
 	std::vector<double> besselValues;
 	for (int i = 0; i < nr; i++) {
 		bessie.calculate(weight * r[i], maxL, besselValues);
@@ -409,14 +409,14 @@ void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shell
 		zetaA = shellA.exp(a);
 		
 		for (int b = 0; b < npB; b++) {
-			zetaB = shellB.exp(a);
+			zetaB = shellB.exp(b);
 			
 			p(a, b) = zetaA + zetaB;
-			for (int n = 0; n < 3; n++) {
+			for (int n = 0; n < 3; n++) 
 				Pvec[n] = (zetaA * A[n] + zetaB * B[n])/p(a, b);
-				P2(a, b) = Pvec[0]*Pvec[0] + Pvec[1]*Pvec[1] + Pvec[2]*Pvec[2];
-				P(a, b) = sqrt(P2(a, b));
-			}
+			
+			P2(a, b) = Pvec[0]*Pvec[0] + Pvec[1]*Pvec[1] + Pvec[2]*Pvec[2];
+			P(a, b) = sqrt(P2(a, b));
 			K(a, b) = calcKij(1.0, 1.0, zetaA, zetaB, A, B);
 			
 		}
@@ -424,8 +424,8 @@ void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shell
 }
 
 void RadialIntegral::buildU(ECP &U, int l, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab) {
-	int gridSize = smallGrid.getN();
-	double* gridPoints = smallGrid.getX();
+	int gridSize = grid.getN();
+	std::vector<double> &gridPoints = grid.getX();
 	
 	// Tabulate weighted ECP values
 	int N = shellA.am() + shellB.am();
@@ -453,64 +453,73 @@ int RadialIntegral::integrate(int maxL, int gridSize, Matrix &intValues, GCQuadr
 	for (int i = 0; i < grid.start; i++) params[i] = 0.0;
 	for (int i = grid.end+1; i < gridSize; i++) params[i] = 0.0;
 	for (int l = 0; l <= maxL; l++) {
-		for (int i = grid.start; i <= grid.end; i++) params[i] = intValues(l, i);
+		for (int i = grid.start; i <= grid.end; i++) params[i] = intValues(l, i); 
 		test = grid.integrate(intgd, params, tolerance);
-		values[l] = smallGrid.getI();
+		values[l] = grid.getI();
 		if (test == 0) break;
 	}
 	return test;
 }
 
-void RadialIntegral::type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, std::vector<double> &values) {
+void RadialIntegral::type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, std::vector<double> &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
-	buildParameters(shellA, shellB, A, B);
+	buildParameters(shellA, shellB, Avec, Bvec);
 	
-	int gridSize = smallGrid.getN();
-	double* gridPoints = smallGrid.getX();
-	
-	// Reset grid starting points
-	smallGrid.start = 0;
-	smallGrid.end = gridSize;
-	
-	double Utab[gridSize];
-	buildU(U, U.getL(), shellA, shellB, smallGrid, Utab);
+	int gridSize = bigGrid.getN();
 
 	// Now pretabulate integrand
 	Matrix intValues(maxL+1, gridSize, 0.0);
 	// and bessel function
 	Matrix besselValues(maxL+1, gridSize);
 	// Calculate type1 integrals
-	double da, db, val;
+	double da, db, za, zb, val;
+	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
+	double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
+	A = sqrt(A); B = sqrt(B);
+	std::vector<double> tempValues;
+	values.assign(maxL+1, 0.0);
+	
 	// Tabulate integrand
 	for (int a = 0; a < npA; a++) {
 		da = shellA.coef(a);
+		za = shellA.exp(a);
+		
 		for (int b = 0; b < npB; b++) {
 			db = shellB.coef(b);
+			zb = shellB.exp(b);
 			
+			// Reset grid starting points
+			GCQuadrature newGrid = bigGrid;
+			newGrid.transformRMinMax(p(a, b), (za * A + zb * B)/p(a, b));
+			std::vector<double> &gridPoints = newGrid.getX();
+			newGrid.start = 0;
+			newGrid.end = gridSize;
+			
+			// Build U and bessel tabs
+			double Utab[gridSize];
+			buildU(U, U.getL(), shellA, shellB, newGrid, Utab);
 			buildBessel(gridPoints, gridSize, maxL, besselValues, 2.0*p(a,b)*P(a,b));
 			
-			for (int i = smallGrid.start; i <= smallGrid.end; i++) {
+			for (int i = newGrid.start; i <= newGrid.end; i++) {
 				val = -p(a, b) * (gridPoints[i]*(gridPoints[i] - 2*P(a, b)) + P2(a, b));
-				val = da * db * K(a, b) * exp(val);
-			
-				for (int l = 0; l <= maxL; l++)
-					intValues(l, i) += val * besselValues(l, i);
+				val = exp(val);
 				
 				for (int l = 0; l <= maxL; l++)
-					intValues(l, i) *= Utab[i];
+					intValues(l, i) = Utab[i] * val * besselValues(l, i);
 			}
+
+			int test = integrate(maxL, gridSize, intValues, newGrid, tempValues);
+			if (test == 0) std::cout << "Failed to converge\n";
+			for (int l = 0; l <= maxL; l++)
+				values[l] += da * db * K(a, b) * tempValues[l];
 		}
 	}
-	
-	// Calculate integrals
-	int test = integrate(maxL, gridSize, intValues, smallGrid, values);
-	if (test == 0) std::cout << "Failed to converge\n";
 }
 
 // F_a(lam, r) = sum_{i in a} d_i K_{lam}(2 zeta_a A r)*exp(-zeta_a(r - A)^2)
-void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int maxL, double *r, int nr, int start, int end, Matrix &F) {
+void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int maxL, std::vector<double> &r, int nr, int start, int end, Matrix &F) {
 	int np = shell.nprimitive();
 	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
 	A = sqrt(A); 
@@ -542,12 +551,10 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 	
 	buildParameters(shellA, shellB, Avec, Bvec);
 	
-	std::cout << "Built params\n";
-	
 	// Start with the small grid
 	// Pretabulate U
 	int gridSize = smallGrid.getN();
-	double* gridPoints = smallGrid.getX();
+	std::vector<double> &gridPoints = smallGrid.getX();
 	
 	// Reset grid starting points
 	smallGrid.start = 0;
@@ -579,6 +586,7 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 	}
 	
 	if (failed) {
+		std::cout << "Failed at first attempt\n";
 		// Not converged, switch to big grid
 		GCQuadrature newGrid;
 		double zeta_a, zeta_b, c_a, c_b, weight, XA, XB;

@@ -12,11 +12,6 @@ GCQuadrature::GCQuadrature() {
 	// Currently does nothing
 }
 
-// Destructor
-GCQuadrature::~GCQuadrature() {
-	delete[] x;
-	delete[] w;
-}
 
 GCQuadrature::GCQuadrature(const GCQuadrature &other) {
 	maxN = other.maxN;
@@ -25,12 +20,8 @@ GCQuadrature::GCQuadrature(const GCQuadrature &other) {
 	start = other.start;
 	end = other.end; 
 	t = other.t;
-	x = new double[maxN];
-	w = new double[maxN];
-	for (int i = 0; i < maxN; i++) {
-		x[i] = other.x[i];
-		w[i] = other.w[i];
-	}
+	x = other.x;
+	w = other.w;
 }
 
 // Initialise the quadrature grid
@@ -56,8 +47,8 @@ void GCQuadrature::initGrid(int points, GCTYPE _t) {
 	end = maxN - 1;
 	
 	// initialise arrays
-	x = new double[maxN];
-	w = new double[maxN];
+	x.assign(maxN, 0.0);
+	w.assign(maxN, 0.0);
 	
 	// At the midpoint, M, x[M] = 0 and w[M] = 1
 	x[M] = 0.0; w[M] = 1.0;
@@ -129,7 +120,7 @@ bool GCQuadrature::integrate(std::function<double(double, double*, int)> &f, dou
 		int p = (M+1) / 2; // M / 2^n 
 		while (n < maxN && !converged) {
 			// Compute T_{2n+1}
-		  T2n1 = Tn + sumTerms(f, params, n, p, 2);
+		 	T2n1 = Tn + sumTerms(f, params, n, p, 2);
 			
 			// Check convergence
 			dT = T2n1 - 2.0*Tn;
@@ -247,7 +238,7 @@ void GCQuadrature::transformRMinMax(double z, double p) {
 	double amid = rmid + rmin; // Midpoint of interval
 	
 	// Transform weights and abscissae by linearly transforming
-	// both are scaled by amid, and the abscissae are translated by amid
+	// both are scaled by rmid, and the abscissae are translated by amid
 	for (int i = 0; i < maxN; i++) {
 		x[i] = rmid * x[i] + amid;
 		w[i] *= rmid;

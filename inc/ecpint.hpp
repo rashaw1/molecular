@@ -98,12 +98,12 @@ private:
 	
 	static double integrand(double r, double *p, int ix);
 
-	void buildBessel(double *r, int nr, int maxL, Matrix &values, double weight = 1.0);
+	void buildBessel(std::vector<double> &r, int nr, int maxL, Matrix &values, double weight = 1.0);
 	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const;
 	
 	void buildParameters(GaussianShell &shellA, GaussianShell &shellB, double *A, double *B);
 	void buildU(ECP &U, int l, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab);
-	void buildF(GaussianShell &shell, double *A, int maxL, double *r, int nr, int start, int end, Matrix &F);
+	void buildF(GaussianShell &shell, double *A, int maxL, std::vector<double> &r, int nr, int start, int end, Matrix &F);
 	
 	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values);
 
