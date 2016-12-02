@@ -105,13 +105,13 @@ private:
 	void buildU(ECP &U, int l, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab);
 	void buildF(GaussianShell &shell, double *A, int maxL, std::vector<double> &r, int nr, int start, int end, Matrix &F);
 	
-	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values);
+	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values, int offset = 0, int skip = 1);
 
 public:
 	RadialIntegral();
 	void init(int maxL, double tol = 1e-12, int small = 128, int large = 1024);
 	
-	void type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, std::vector<double> &values);
+	void type1(int maxL, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
 	void type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);	
 };
 
@@ -121,10 +121,11 @@ private:
 	RadialIntegral radInts;
 	AngularIntegral angInts;
 	
+	double calcC(int a, int m, double A, std::vector<double> &fac) const;
 public:
 	ECPIntegral();
 	
-	std::vector<double> type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB);
+	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
 };
 
 

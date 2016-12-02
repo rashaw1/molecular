@@ -18,7 +18,7 @@ GaussianECP::GaussianECP(const GaussianECP& other) : n(other.n), l(other.l), a(o
 // class ECP
 
 ECP::ECP() : N(0), L(-1) {}
-ECP::ECP(const doublt *_center) : N(0), L(-1), center_(_center) {}
+ECP::ECP(const double *_center) : N(0), L(-1), center_(_center) {}
 
 void ECP::addPrimitive(int n, int l, double a, double d, bool needSort) {
 	GaussianECP newEcp(n, l, a, d);

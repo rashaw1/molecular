@@ -32,7 +32,8 @@ static std::vector<double> dfacArray(int l) {
 }
 
 // Compute all the real spherical harmonics Slm(theta, phi) for l,m up to lmax
-static Matrix realSphericalHarmonics(int lmax, double theta, double phi, std::vector<double> &fac, std::vector<double> &dfac){
+// x = cos (theta)
+static Matrix realSphericalHarmonics(int lmax, double x, double phi, std::vector<double> &fac, std::vector<double> &dfac){
 	Matrix rshValues(lmax+1, 2*lmax+1);
 	
 	if (lmax > 0) {
@@ -40,7 +41,6 @@ static Matrix realSphericalHarmonics(int lmax, double theta, double phi, std::ve
 		// (l-m)Plm = x(2l - 1)P{l-1}m - (l+m-1)P{l-2}m
 		// along with the zeroth order term
 		// Pmm = (-1)^m (2m-1)!!(1-x^2)^{m/2}
-		double x = cos(theta);
 		double x2 = x * x;
 		double Plm[lmax+1][lmax+1]; 
 		// First get all Pmm terms
@@ -237,7 +237,7 @@ FiveIndex AngularIntegral::makeU(std::vector<double> &fac) {
 void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex &U) {
 	int LB2 = 2*LB;
 	int dim = wDim;
-	int maxI = dim/2 + LB;
+	int maxI = (maxL + dim)/2;
 	int maxLam = maxL;
 	
 	FiveIndex values{dim+1, dim+1, dim+1, maxLam+1, 2*(maxLam + 1)};
@@ -258,7 +258,6 @@ void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex &U) {
 					
 					for (int mu = pmu; mu <= lam; mu+=2) {
 						w = 0.0;
-						
 						for (int i = 0; i <= lam; i++) {
 							for (int j = 0; j <= lam - i; j++) {
 								ix[0] = k+i;
@@ -269,6 +268,7 @@ void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex &U) {
 									std::sort(ix.begin(), ix.end()); 
 									w += U(lam, mu, i, j, (1 - (int)(smu))/2)*pijk(ix[2]/2, ix[1]/2, ix[0]/2);
 								}
+								
 							}
 						}
 						
@@ -445,14 +445,14 @@ void RadialIntegral::buildU(ECP &U, int l, GaussianShell &shellA, GaussianShell 
 	}
 }
 
-int RadialIntegral::integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values) {
+int RadialIntegral::integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values, int offset, int skip) {
 	std::function<double(double, double*, int)> intgd = integrand; 
 	values.assign(maxL+1, 0.0);
 	int test;
 	double params[gridSize];
 	for (int i = 0; i < grid.start; i++) params[i] = 0.0;
 	for (int i = grid.end+1; i < gridSize; i++) params[i] = 0.0;
-	for (int l = 0; l <= maxL; l++) {
+	for (int l = offset; l <= maxL; l+=skip) {
 		for (int i = grid.start; i <= grid.end; i++) params[i] = intValues(l, i); 
 		test = grid.integrate(intgd, params, tolerance);
 		values[l] = grid.getI();
@@ -461,7 +461,7 @@ int RadialIntegral::integrate(int maxL, int gridSize, Matrix &intValues, GCQuadr
 	return test;
 }
 
-void RadialIntegral::type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, std::vector<double> &values) {
+void RadialIntegral::type1(int maxL, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
@@ -479,9 +479,13 @@ void RadialIntegral::type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShel
 	double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
 	A = sqrt(A); B = sqrt(B);
 	std::vector<double> tempValues;
-	values.assign(maxL+1, 0.0);
+	values.assign(maxL+1, 2*maxL + 1, 0.0);
+	
+	std::vector<double> fac = facArray(2*maxL);
+	std::vector<double> dfac = dfacArray(2*maxL);
 	
 	// Tabulate integrand
+	double x, phi, Px, Py;
 	for (int a = 0; a < npA; a++) {
 		da = shellA.coef(a);
 		za = shellA.exp(a);
@@ -506,14 +510,24 @@ void RadialIntegral::type1(int maxL, ECP &U, GaussianShell &shellA, GaussianShel
 				val = -p(a, b) * (gridPoints[i]*(gridPoints[i] - 2*P(a, b)) + P2(a, b));
 				val = exp(val);
 				
-				for (int l = 0; l <= maxL; l++)
+				for (int l = offset; l <= maxL; l+=2)
 					intValues(l, i) = Utab[i] * val * besselValues(l, i);
 			}
 
-			int test = integrate(maxL, gridSize, intValues, newGrid, tempValues);
+			int test = integrate(maxL, gridSize, intValues, newGrid, tempValues, offset, 2);
 			if (test == 0) std::cout << "Failed to converge\n";
-			for (int l = 0; l <= maxL; l++)
-				values[l] += da * db * K(a, b) * tempValues[l];
+			
+			// Calculate real spherical harmonic
+			x = (za * Avec[2] + zb * Bvec[2]) / (p(a, b) * P(a, b));
+			Py = (za * Avec[1] + zb * Bvec[1]) / p(a, b);
+			Px = (za * Avec[0] + zb * Bvec[0]) / p(a, b);
+			phi = atan2(Py, Px);
+			Matrix harmonics = realSphericalHarmonics(maxL, x, phi, fac, dfac);
+			//harmonics.print();
+			for (int l = offset; l <= maxL; l+=2) {
+				for (int mu = -l; mu <= l; mu++)
+					values(l, l+mu) += da * db * harmonics(l, l+mu) * K(a, b) * tempValues[l];
+			}
 		}
 	}
 }
@@ -657,8 +671,94 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 
 ECPIntegral::ECPIntegral() { };
 
-std::vector<double> ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB) {
+double ECPIntegral::calcC(int a, int m, double A, std::vector<double> &fac) const {
+	double value = 1.0 - 2*((a-m) % 2);
+	value *= pow(A, a-m);
+	value *= fac[a]/(fac[m] * fac[a-m]);
+	return value;
+}
+
+void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values) { 
+	
+	int LA = shellA.am(); int LB = shellB.am();
+	int maxLBasis = LA > LB ? LA : LB;
+	angInts.init(maxLBasis, U.getL());
+	angInts.compute();
+	
+	radInts.init(shellA.am() + shellB.am());
+	values.assign(shellA.ncartesian(), shellB.ncartesian(), 0.0);
+	std::vector<double> fac = facArray(maxLBasis);
+	
+	// Unpack positions
+	double Ax = A[0]; double Ay = A[1]; double Az = A[2];
+	double Bx = B[0]; double By = B[1]; double Bz = B[2];
+	
 	// Calculate chi_ab for all ab in shells
+	int z1, z2, lparity, mparity, msign, ix, k, l, m;
+	double Ck1, Ck2, Cl1, Cl2, Cm1, Cm2, C, R;
+	Matrix radials;
+	int na = 0, nb = 0;
+	for (int x1 = 0; x1 <= LA; x1++) {
+		for (int y1 = 0; y1 <= LA - x1; y1++) {
+			z1 = LA - x1 - y1;
+			nb = 0;
+			
+			for (int x2 = 0; x2 <= LB; x2++) {
+				for (int y2 = 0; y2 <= LB - x2; y2++) {
+					z2 = LB - x2 - y2;
+					
+					for (int k1 = 0; k1 <= x1; k1++) {
+						Ck1 = calcC(x1, k1, Ax, fac);
+						
+						for (int k2 = 0; k2 <= x2; k2++) {
+							Ck2 = calcC(x2, k2, Bx, fac);
+							k = k1 + k2;
+							
+							for (int l1 = 0; l1 <= y1; l1++) {
+								Cl1 = calcC(y1, l1, Ay, fac);
+								
+								for (int l2 = 0; l2 <= y2; l2++) {
+									Cl2 = calcC(y2, l2, By, fac);
+									l = l1 + l2;
+									
+									for (int m1 = 0; m1 <= z1; m1++) {
+										Cm1 = calcC(z1, m1, Az, fac);
+										
+										for (int m2 = 0; m2 <= z2; m2++){
+											Cm2 = calcC(z2, m2, Bz, fac);
+											m = m1 + m2;
+											C = Ck1 * Cl1 * Cm1 * Ck2 * Cl2 * Cm2;
+								
+											if ( fabs(C) > 1e-14 ) {
+												// Build radial integrals
+												ix = k + l + m;
+												lparity = ix % 2;
+												msign = 1 - 2*(l%2);
+												mparity = (lparity + m) % 2;
+												radInts.type1(ix, lparity, U, shellA, shellB, A, B, radials);
+								
+												for (int lam = lparity; lam <= ix; lam+=2) {
+													for (int mu = mparity; mu <= lam; mu+=2) {
+														values(na, nb) += C * angInts.getIntegral(k, l, m, lam, msign*mu) * radials(lam, lam+mu);
+														std::cout << lam << " " << msign*mu << " " << angInts.getIntegral(k, l, m, lam, msign*mu) << " " << radials(lam, lam+msign*mu) << "\n";
+													}
+												}
+								
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					
+					nb++;
+				}
+			}
+			
+			na++;
+		}
+	}
 	
 }
 
