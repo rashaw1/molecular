@@ -121,18 +121,24 @@ int main (int argc, char* argv[])
 	  double centerA[3] = { 1.5, 0.1, 0.9 };
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  GaussianShell shellA(centerA);
-	  shellA.addPrim(0.6, 1.0);
+	  shellA.addPrim(0.6, 0.5);
+	  shellA.addPrim(1.1, 0.3);
+	  shellA.addPrim(1.5, 0.1);
 	  GaussianShell shellB(centerB);
-	  shellB.addPrim(1.2, 1.0);
+	  shellB.addPrim(1.2, 0.6);
+	  shellB.addPrim(0.9, 0.3);
 	 
 	  std::cout << shellA.nprimitive() << " " << shellB.center()[1] << "\n";
 	  std::cout << U1.evaluate(0.2, 1) << "\n";
 	 
 	  RadialIntegral rint;
 	  rint.init(1);
-	  std::vector<double> values;
-	  rint.type2(1, U1, shellA, shellB, values);
-	  std::cout << values[0] << " " << values[1] << "\n";
+	  //Matrix values;
+	  //rint.type2(1, 1, 1, U1, shellA, shellB, centerA, centerB, values);
+	  //std::cout << values(0, 0) << " " << values(0, 1) << " " << values(1, 0) << " " << values(1, 1) << "\n";
+	  std::vector<double> values2;
+	  rint.type1(1, U1, shellA, shellB, centerA, centerB, values2);
+	  std::cout << values2[0] << " " << values2[1] << "\n";
 	 
       // Close file streams
       input.close();
