@@ -117,6 +117,14 @@ public:
 
 class ECPIntegral
 {
+private:
+	RadialIntegral radInts;
+	AngularIntegral angInts;
+	
+public:
+	ECPIntegral();
+	
+	std::vector<double> type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB);
 };
 
 

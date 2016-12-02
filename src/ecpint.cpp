@@ -581,4 +581,13 @@ void RadialIntegral::type2(int maxL, ECP &U, GaussianShell &shellA, GaussianShel
 	
 }
 
+//***************************************** ECP INTEGRAL ***********************************************
+
+ECPIntegral::ECPIntegral() { };
+
+std::vector<double> ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB) {
+	// Calculate chi_ab for all ab in shells
+	
+}
+
 

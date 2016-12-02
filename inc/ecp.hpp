@@ -28,18 +28,20 @@ class ECP {
 private:
 	std::vector<GaussianECP> gaussians; // All the primitives in the ECP expansion
 	int N, L; // # of Gaussians and maximum angular momentum
+	const double *center_;
 	
 public:
 	ECP();
+	ECP(const double *_center);
 	
 	void addPrimitive(int n, int l, double a, double d, bool needSort = true);
-	
+	const double* center() const { return center_; }
 	void sort(); // Sort primitives according to angular momentum
 	
 	// Evaluate U_l(r)
 	double evaluate(double r, int l);
   
-  int getL() const { return L; }
+ 	int getL() const { return L; }
 	
 };
 
