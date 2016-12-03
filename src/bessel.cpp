@@ -51,7 +51,7 @@ int BesselFunction::tabulate(const double accuracy) {
 	K[0][0] = 1.0;
 	double z, z2; // z and z^2 / 2
 	double ratio; // F_j(z) / (2j+1)!!
-	for (int i = 1; i <= N; i++) {
+	for (int i = 0; i <= N; i++) {
 		// Calculate K(z) at equally spaced points z = 16/N to 16
 		z = i / (N/16.0);
 		z2 = z * z / 2.0;
@@ -142,10 +142,10 @@ void BesselFunction::calculate(const double z, int maxL, std::vector<double> &va
 		} else {
 			// Determine the necessary derivatives from
 			// K_l^(n+1) = C_l K_(l-1)^(n) + (C_l + 1/(2l+1))K_(l+1)^(n) - K_l^(n)
-			double dK[TAYLOR_CUT+1][maxLambda + 1];
+			double dK[TAYLOR_CUT+1][maxLambda];
 		
 			// Copy K values into dK
-			for (int l = 0; l < maxLambda; l++) 
+			for (int l = 0; l < maxLambda; l++)
 				dK[0][l] = K[index][l];
 			
 			// Then the rest
@@ -166,7 +166,7 @@ void BesselFunction::calculate(const double z, int maxL, std::vector<double> &va
 			// K(z) ~ sum_{n=0 to 5} K^(n)(z0)(z-z0)^n / n!
 			for (int l = 0; l <= maxL; l++) {
 				values[l] = 0.0;
-				for (int n = 0; n < TAYLOR_CUT+1; n++) 
+				for (int n = 0; n < TAYLOR_CUT+1; n++)
 					values[l] += dzn[n] * dK[n][l]; 
 			}
 		}

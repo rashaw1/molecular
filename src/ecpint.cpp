@@ -34,8 +34,8 @@ static std::vector<double> dfacArray(int l) {
 // Compute all the real spherical harmonics Slm(theta, phi) for l,m up to lmax
 // x = cos (theta)
 static Matrix realSphericalHarmonics(int lmax, double x, double phi, std::vector<double> &fac, std::vector<double> &dfac){
-	Matrix rshValues(lmax+1, 2*lmax+1);
-	
+	Matrix rshValues(lmax+1, 2*lmax+1, 0.0);
+
 	if (lmax > 0) {
 		// First calculate the associated Legendre polynomials, Plm(cos theta), using the recursion relation
 		// (l-m)Plm = x(2l - 1)P{l-1}m - (l+m-1)P{l-2}m
@@ -509,7 +509,6 @@ void RadialIntegral::type1(int maxL, int offset, ECP &U, GaussianShell &shellA, 
 			for (int i = newGrid.start; i <= newGrid.end; i++) {
 				val = -p(a, b) * (gridPoints[i]*(gridPoints[i] - 2*P(a, b)) + P2(a, b));
 				val = exp(val);
-				
 				for (int l = offset; l <= maxL; l+=2)
 					intValues(l, i) = Utab[i] * val * besselValues(l, i);
 			}
@@ -518,14 +517,14 @@ void RadialIntegral::type1(int maxL, int offset, ECP &U, GaussianShell &shellA, 
 			if (test == 0) std::cout << "Failed to converge\n";
 			
 			// Calculate real spherical harmonic
-			x = (za * Avec[2] + zb * Bvec[2]) / (p(a, b) * P(a, b));
+			x = fabs(P(a, b)) < 1e-12 ? 0.0 : (za * Avec[2] + zb * Bvec[2]) / (p(a, b) * P(a, b));
 			Py = (za * Avec[1] + zb * Bvec[1]) / p(a, b);
 			Px = (za * Avec[0] + zb * Bvec[0]) / p(a, b);
 			phi = atan2(Py, Px);
+
 			Matrix harmonics = realSphericalHarmonics(maxL, x, phi, fac, dfac);
-			//harmonics.print();
 			for (int l = offset; l <= maxL; l+=2) {
-				for (int mu = -l; mu <= l; mu++)
+				for (int mu = -l; mu <= l; mu++) 
 					values(l, l+mu) += da * db * harmonics(l, l+mu) * K(a, b) * tempValues[l];
 			}
 		}
@@ -728,7 +727,7 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 											Cm2 = calcC(z2, m2, Bz, fac);
 											m = m1 + m2;
 											C = Ck1 * Cl1 * Cm1 * Ck2 * Cl2 * Cm2;
-								
+
 											if ( fabs(C) > 1e-14 ) {
 												// Build radial integrals
 												ix = k + l + m;
@@ -738,10 +737,8 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 												radInts.type1(ix, lparity, U, shellA, shellB, A, B, radials);
 								
 												for (int lam = lparity; lam <= ix; lam+=2) {
-													for (int mu = mparity; mu <= lam; mu+=2) {
+													for (int mu = mparity; mu <= lam; mu+=2) 
 														values(na, nb) += C * angInts.getIntegral(k, l, m, lam, msign*mu) * radials(lam, lam+mu);
-														std::cout << lam << " " << msign*mu << " " << angInts.getIntegral(k, l, m, lam, msign*mu) << " " << radials(lam, lam+msign*mu) << "\n";
-													}
 												}
 								
 											}
@@ -752,6 +749,7 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 						}
 					}
 					
+					values(na, nb) *= 4.0 * M_PI;
 					nb++;
 				}
 			}
