@@ -102,7 +102,7 @@ private:
 	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const;
 	
 	void buildParameters(GaussianShell &shellA, GaussianShell &shellB, double *A, double *B);
-	void buildU(ECP &U, int l, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab);
+	void buildU(ECP &U, int l, int N, GCQuadrature &grid, double *Utab);
 	void buildF(GaussianShell &shell, double *A, int maxL, std::vector<double> &r, int nr, int start, int end, Matrix &F);
 	
 	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values, int offset = 0, int skip = 1);
@@ -111,8 +111,8 @@ public:
 	RadialIntegral();
 	void init(int maxL, double tol = 1e-12, int small = 128, int large = 1024);
 	
-	void type1(int maxL, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
-	void type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);	
+	void type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
+	void type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);	
 };
 
 class ECPIntegral

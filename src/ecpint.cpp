@@ -70,13 +70,16 @@ static Matrix realSphericalHarmonics(int lmax, double x, double phi, std::vector
 		// Sl0(theta, phi) = sqrt(2) * Cl0 * Pl0(cos(theta))
 		// where Clm^2 = (2l + 1)*(l - m)! / (8*pi * (l+m)!)
 		double osq4pi = 1.0 / sqrt(4.0 * M_PI); 
+		int sign;
 		for (int l = 0; l <= lmax; l++) {
 			rshValues(l, l) = osq4pi * sqrt(2.0 * l + 1.0) * Plm[l][0];
+			sign = -1;
 			for (int m = 1; m <= l; m++) {
 				ox2m = (2.0 * l + 1.0) * fac[l-m] / fac[l+m];
-				ox2m = osq4pi * sqrt(2.0 * ox2m) * Plm[l][m];
+				ox2m = sign * osq4pi * sqrt(2.0 * ox2m) * Plm[l][m];
 				rshValues(l, l+m) = ox2m * cos(m * phi);
 				rshValues(l, l-m) = ox2m * sin(m * phi);
+				sign *= -1;
 			}
 		}
 		
@@ -386,7 +389,7 @@ double RadialIntegral::calcKij(double Na, double Nb, double zeta_a, double zeta_
 	double muij = zeta_a * zeta_b / (zeta_a + zeta_b);
 	double R[3] = {A[0] - B[0], A[1] - B[1], A[2] - B[2]};
 	double R2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2];
-	return Na * Nb * exp(muij * R2);
+	return Na * Nb * exp(-muij * R2);
 }
 
 // Assumes that p is the pretabulated integrand at the abscissae
@@ -423,12 +426,11 @@ void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shell
 	}
 }
 
-void RadialIntegral::buildU(ECP &U, int l, GaussianShell &shellA, GaussianShell &shellB, GCQuadrature &grid, double *Utab) {
+void RadialIntegral::buildU(ECP &U, int l, int N, GCQuadrature &grid, double *Utab) {
 	int gridSize = grid.getN();
 	std::vector<double> &gridPoints = grid.getX();
 	
 	// Tabulate weighted ECP values
-	int N = shellA.am() + shellB.am();
 	double r;
 	bool foundStart = false;
 	for (int i = 0; i < gridSize; i++) {
@@ -461,7 +463,7 @@ int RadialIntegral::integrate(int maxL, int gridSize, Matrix &intValues, GCQuadr
 	return test;
 }
 
-void RadialIntegral::type1(int maxL, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
+void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
@@ -503,7 +505,7 @@ void RadialIntegral::type1(int maxL, int offset, ECP &U, GaussianShell &shellA, 
 			
 			// Build U and bessel tabs
 			double Utab[gridSize];
-			buildU(U, U.getL(), shellA, shellB, newGrid, Utab);
+			buildU(U, U.getL(), N, newGrid, Utab);
 			buildBessel(gridPoints, gridSize, maxL, besselValues, 2.0*p(a,b)*P(a,b));
 			
 			for (int i = newGrid.start; i <= newGrid.end; i++) {
@@ -524,7 +526,7 @@ void RadialIntegral::type1(int maxL, int offset, ECP &U, GaussianShell &shellA, 
 
 			Matrix harmonics = realSphericalHarmonics(maxL, x, phi, fac, dfac);
 			for (int l = offset; l <= maxL; l+=2) {
-				for (int mu = -l; mu <= l; mu++) 
+				for (int mu = -l; mu <= l; mu++)
 					values(l, l+mu) += da * db * harmonics(l, l+mu) * K(a, b) * tempValues[l];
 			}
 		}
@@ -558,7 +560,7 @@ void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int maxL, std::v
 	}
 }
 
-void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
+void RadialIntegral::type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
@@ -574,7 +576,7 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 	smallGrid.end = gridSize;
 	
 	double Utab[gridSize];
-	buildU(U, l, shellA, shellB, smallGrid, Utab);
+	buildU(U, l, N, smallGrid, Utab);
 	
 	// Build the F matrices
 	Matrix Fa;
@@ -641,7 +643,7 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, ECP &U, GaussianShell &s
 						newGrid.transformRMinMax(p(a,b), (zeta_a * A + zeta_b * B)/p(a, b));
 				
 						// Build the U tab
-						buildU(U, l, shellA, shellB, newGrid, Utab);				
+						buildU(U, l, N, newGrid, Utab);				
 						intValues.assign(maxL2+1, gridSize, 0.0);
 					
 						// Build U and bessel
@@ -684,7 +686,18 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	angInts.init(maxLBasis, U.getL());
 	angInts.compute();
 	
-	radInts.init(shellA.am() + shellB.am());
+	// Build radial integrals
+	int L = LA + LB;
+	radInts.init(L);
+	Matrix temp;
+	ThreeIndex radials(L+1, L+1, 2*L+1);
+	for (int ix = 0; ix <= L; ix++) {
+		radInts.type1(ix, ix, ix % 2, U, shellA, shellB, A, B, temp);
+		for(int l = 0; l <= ix; l++) {
+			for (int m = -l; m <= l; m++) radials(ix, l, l+m) = temp(l, l+m);
+		}
+	}
+	
 	values.assign(shellA.ncartesian(), shellB.ncartesian(), 0.0);
 	std::vector<double> fac = facArray(maxLBasis);
 	
@@ -695,7 +708,6 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	// Calculate chi_ab for all ab in shells
 	int z1, z2, lparity, mparity, msign, ix, k, l, m;
 	double Ck1, Ck2, Cl1, Cl2, Cm1, Cm2, C, R;
-	Matrix radials;
 	int na = 0, nb = 0;
 	for (int x1 = 0; x1 <= LA; x1++) {
 		for (int y1 = 0; y1 <= LA - x1; y1++) {
@@ -734,11 +746,10 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 												lparity = ix % 2;
 												msign = 1 - 2*(l%2);
 												mparity = (lparity + m) % 2;
-												radInts.type1(ix, lparity, U, shellA, shellB, A, B, radials);
-								
+												
 												for (int lam = lparity; lam <= ix; lam+=2) {
 													for (int mu = mparity; mu <= lam; mu+=2) 
-														values(na, nb) += C * angInts.getIntegral(k, l, m, lam, msign*mu) * radials(lam, lam+mu);
+														values(na, nb) += C * angInts.getIntegral(k, l, m, lam, msign*mu) * radials(ix, lam, lam+msign*mu);
 												}
 								
 											}
