@@ -869,7 +869,6 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 													for (int kappa = l2start; kappa <= lam + N2; kappa += 2) {
 														for (int tau = -kappa; tau <= kappa; tau++) {
 															val = C * SA(rho, rho+sigma) * SB(kappa, kappa+tau) * radials(ix, rho, kappa);
-															std::cout << C << " " << SA(0, 0) << " " << SB(0, 0) << " " << angInts.getIntegral(0, 0, 0, 0, 0, 0, 0) << "\n";
 															for (int mu = -lam; mu <= lam; mu++)
 																values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
 														}
