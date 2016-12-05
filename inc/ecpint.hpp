@@ -15,8 +15,8 @@ class GaussianShell;
 static std::vector<double> facArray(int l);
 static std::vector<double> dfacArray(int l);
 
-// Calculate real spherical harmonics Slm(theta, phi) for all l, m up to lmax
-static Matrix realSphericalHarmonics(int lmax, double theta, double phi, std::vector<double> &fac, std::vector<double> &dfac);  
+// Calculate real spherical harmonics Slm(theta, phi) for all l, m up to lmax, x = cos(theta)
+static Matrix realSphericalHarmonics(int lmax, double x, double phi, std::vector<double> &fac, std::vector<double> &dfac);  
 
 struct ThreeIndex {
 	int dims[3];
@@ -101,18 +101,18 @@ private:
 	void buildBessel(std::vector<double> &r, int nr, int maxL, Matrix &values, double weight = 1.0);
 	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const;
 	
-	void buildParameters(GaussianShell &shellA, GaussianShell &shellB, double *A, double *B);
 	void buildU(ECP &U, int l, int N, GCQuadrature &grid, double *Utab);
-	void buildF(GaussianShell &shell, double *A, int maxL, std::vector<double> &r, int nr, int start, int end, Matrix &F);
+	void buildF(GaussianShell &shell, double *A, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, Matrix &F);
 	
 	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values, int offset = 0, int skip = 1);
 
 public:
 	RadialIntegral();
 	void init(int maxL, double tol = 1e-12, int small = 128, int large = 1024);
+	void buildParameters(GaussianShell &shellA, GaussianShell &shellB, double *A, double *B);
 	
 	void type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
-	void type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);	
+	void type2(int lam, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);	
 };
 
 class ECPIntegral
@@ -126,6 +126,7 @@ public:
 	ECPIntegral();
 	
 	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
+	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex &values);
 };
 
 

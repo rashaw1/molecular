@@ -97,7 +97,7 @@ ThreeIndex::ThreeIndex(const ThreeIndex &other) {
 }
 ThreeIndex::ThreeIndex(int dim1, int dim2, int dim3) {
 	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3;
-	data.resize(dim1, dim2*dim3);
+	data.assign(dim1, dim2*dim3, 0.0);
 }
 double& ThreeIndex::operator()(int i, int j, int k) { return data(i, j*dims[2]+k); }
 double ThreeIndex::operator()(int i, int j, int k) const { return data(i, j*dims[2]+k); }
@@ -109,7 +109,7 @@ FiveIndex::FiveIndex(const FiveIndex &other) {
 }
 FiveIndex::FiveIndex(int dim1, int dim2, int dim3, int dim4, int dim5) {
 	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3; dims[3] = dim4; dims[4] = dim5;
-	data.resize(dim1*dim2, dim3*dim4*dim5);
+	data.assign(dim1*dim2, dim3*dim4*dim5, 0.0);
 }
 double& FiveIndex::operator()(int i, int j, int k, int l, int m) { return data(i*dims[1] + j, k*dims[3]*dims[4] + l*dims[4] + m); }
 double FiveIndex::operator()(int i, int j, int k, int l, int m) const { return data(i*dims[1] + j, k*dims[3]*dims[4] + l*dims[4] + m); }
@@ -121,7 +121,7 @@ SevenIndex::SevenIndex(const SevenIndex &other) {
 }
 SevenIndex::SevenIndex(int dim1, int dim2, int dim3, int dim4, int dim5, int dim6, int dim7) {
 	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3; dims[3] = dim4; dims[4] = dim5; dims[5] = dim6; dims[6]=dim7;
-	data.resize(dim1*dim2*dim3, dim4*dim5*dim6*dim7);
+	data.assign(dim1*dim2*dim3, dim4*dim5*dim6*dim7, 0.0);
 }
 double& SevenIndex::operator()(int i, int j, int k, int l, int m, int n, int p) { return data(i*dims[1]*dims[2] + j*dims[2] + k, l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p); }
 double SevenIndex::operator()(int i, int j, int k, int l, int m, int n, int p) const { return data(i*dims[1]*dims[2] + j*dims[2] + k, l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p); }
@@ -226,7 +226,7 @@ FiveIndex AngularIntegral::makeU(std::vector<double> &fac) {
 		for (int mu = 0; mu <= lam; mu++) {
 			ThreeIndex Uij = uklm(lam, mu, fac);
 			for (int i = 0; i <= lam; i++) {
-				for (int j = 0; j <= lam; j++){
+				for (int j = 0; j <= lam - i; j++){
 					values(lam, mu, i, j, 0) = Uij(i, j, 0);
 					values(lam, mu, i, j, 1) = Uij(i, j, 1);
 				}
@@ -292,6 +292,7 @@ void AngularIntegral::makeOmega(FiveIndex &U) {
 	
 	double om_plus=0.0, om_minus=0.0;
 	double wval; 
+	bool test1, test2, test3;
 	for (int k = 0; k <= LB; k++) {
 		for (int l = 0; l <= LB; l++) {
 			for (int m = 0; m <= LB; m++) {
@@ -300,16 +301,24 @@ void AngularIntegral::makeOmega(FiveIndex &U) {
 					for (int sigma = -rho; sigma <= rho; sigma++) {
 						
 						for (int lam = 0; lam <= rho; lam++) {
+							test1 = (k+l+m+lam) % 2 == rho % 2;
+	
 							for (int mu = 0; mu <= lam; mu++) {
 								
 								om_plus = om_minus = 0.0;
 								for (int i = 0; i<= lam; i++ ) {
 									for (int j = 0; j <= lam - i; j++) {
+										test2 = (rho + m + lam - i - j) % 2 == sigma % 2;
+										test3 = (1 - 2*((l+j) % 2)) * sigma >= 0;
+										test3 = test3 && (sigma == 0 ? ((l+j)%2 == 0 ? true : false) : true);
 										
-										wval = W(k+i, l+j, m+lam-i-j, rho, rho+sigma);
-										om_plus += U(lam, mu, i, j, 0) * wval;
-										om_minus += U(lam, mu, i, j, 1) * wval;
-										
+										if (test1 && test2 && test3) {
+											wval = W(k+i, l+j, m+lam-i-j, rho, rho+sigma);
+											om_plus += U(lam, mu, i, j, 0) * wval;
+											om_minus += U(lam, mu, i, j, 1) * wval;
+										//	std::cout << "W: " << k+i << " " << l+j << " " << m + lam - i - j << " " << rho << " " << rho+sigma << " " << wval << "\n";
+										//	std::cout << "U: " << lam << " " << mu << " " << i << " " << j << " " << U(lam, mu, i, j, 0) << " " << U(lam, mu, i, j, 1) <<"\n";
+										}
 									}
 								}
 								if (mu == 0) om_minus = om_plus;
@@ -534,37 +543,37 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 }
 
 // F_a(lam, r) = sum_{i in a} d_i K_{lam}(2 zeta_a A r)*exp(-zeta_a(r - A)^2)
-void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int maxL, std::vector<double> &r, int nr, int start, int end, Matrix &F) {
+void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, Matrix &F) {
 	int np = shell.nprimitive();
 	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
 	A = sqrt(A); 
 		
 	double weight, zeta, c;
-	Matrix besselValues(maxL+1, nr, 0.0);
+	Matrix besselValues(lend+1, nr, 0.0);
 	
-	F.assign(maxL+1, nr, 0.0);
+	F.assign(lend + 1, nr, 0.0);
 	for (int a = 0; a < np; a++) {
 		zeta = shell.exp(a);
 		c = shell.coef(a);
 		weight = 2.0 * zeta * A;
 		
-		buildBessel(r, nr, maxL, besselValues, weight);
+		buildBessel(r, nr, lend, besselValues, weight);
 		
 		for (int i = start; i <= end; i++) {
 			weight = r[i] - A;
 			weight = c * exp(-zeta * weight * weight);
 			
-			for (int l = 0; l <= maxL; l++) 
+			for (int l = lstart; l <= lend; l+=2) 
 				F(l, i) += weight * besselValues(l, i); 
 		}
 	}
 }
 
-void RadialIntegral::type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
+void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, Matrix &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
-	buildParameters(shellA, shellB, Avec, Bvec);
+	//buildParameters(shellA, shellB, Avec, Bvec);
 	
 	// Start with the small grid
 	// Pretabulate U
@@ -581,23 +590,23 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianS
 	// Build the F matrices
 	Matrix Fa;
 	Matrix Fb;
-	buildF(shellA, Avec, maxL1, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fa);
-	buildF(shellB, Bvec, maxL2, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fb);
+	buildF(shellA, Avec, l1start, l1end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fa);
+	buildF(shellB, Bvec, l2start, l2end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fb);
 	
 	// Build the integrals
-	Matrix intValues(maxL2+1, gridSize, 0.0);
-	std::vector<int> tests(maxL1+1);
+	Matrix intValues(l2end +1, gridSize, 0.0);
+	std::vector<int> tests(l1end +1);
 	std::vector<double> tempValues;
 	bool failed = false;
-	values.assign(maxL1+1, maxL2+1, 0.0);
-	for (int l1 = 0; l1 <= maxL1; l1++) {
+	values.assign(l1end+1, l2end+1, 0.0);
+	for (int l1 = l1start; l1 <= l1end; l1+=2) {
 		for (int i = smallGrid.start; i <= smallGrid.end; i++) {
-			for (int l2 = 0; l2 <= maxL2; l2++) 
+			for (int l2 = l2start; l2 <= l2end; l2+=2) 
 				intValues(l2, i) = Utab[i] * Fa(l1, i) * Fb(l2, i);
 		}
-		tests[l1] = integrate(maxL2, gridSize, intValues, smallGrid, tempValues);
+		tests[l1] = integrate(l2end, gridSize, intValues, smallGrid, tempValues, l2start, 2);
 		failed = failed || (tests[l1] == 0);
-		for (int l2 = 0; l2 <= maxL2; l2++) values(l1, l2) = tempValues[l2];
+		for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = tempValues[l2];
 	}
 	
 	if (failed) {
@@ -608,9 +617,9 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianS
 		double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
 		A = sqrt(A); B = sqrt(B);
 		
-		for (int l1 = 0; l1 <= maxL1; l1++) {
+		for (int l1 = l1start; l1 <= l1end; l1+=2) {
 			if (tests[l1] == 0) { 
-				for (int l2 = 0; l2 <= maxL2; l2++) values(l1, l2) = 0.0;
+				for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = 0.0;
 			
 				for (int a = 0; a < npA; a++) {
 					zeta_a = shellA.exp(a);
@@ -618,11 +627,11 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianS
 				
 					// Build bessel function values
 					weight = 2.0 * zeta_a * A;
-					buildBessel(gridPoints, gridSize, maxL2, Fa, weight);
+					buildBessel(gridPoints, gridSize, l2end, Fa, weight);
 					for (int i = 0; i < gridSize; i++) {
 						XA = gridPoints[i] - A;
 						XA = exp(-zeta_a * XA * XA);
-						for (int l2 = 0; l2 <= maxL2; l2++) Fa(l2, i) *= XA;
+						for (int l2 = l2start; l2 <= l2end; l2+=2) Fa(l2, i) *= XA;
 					}
 				
 					// calculate exponential
@@ -644,22 +653,22 @@ void RadialIntegral::type2(int l, int maxL1, int maxL2, int N, ECP &U, GaussianS
 				
 						// Build the U tab
 						buildU(U, l, N, newGrid, Utab);				
-						intValues.assign(maxL2+1, gridSize, 0.0);
+						intValues.assign(l2end+1, gridSize, 0.0);
 					
 						// Build U and bessel
 					
-						buildBessel(gridPoints2, gridSize, maxL2, Fb, weight); 
+						buildBessel(gridPoints2, gridSize, l2end, Fb, weight); 
 						for (int i = 0; i < gridSize; i++) {
 							XB = gridPoints2[i] - B;
 							XB = exp(-zeta_b * XB * XB);
-							for (int l2 = 0; l2 <= maxL2; l2++) {
+							for (int l2 = l2start; l2 <= l2end; l2+=2) {
 								Fb(l2, i) *= XB;
 								intValues(l2, i) = Utab[i] * Fa(l2, i) * Fb(l2, i);
 							}		
 						}
 					
-						integrate(maxL2, gridSize, intValues, newGrid, tempValues);
-						for (int l2 = 0; l2 <= maxL2; l2++) values(l1, l2) += c_a*c_b*tempValues[l2];
+						integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2);
+						for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) += c_a*c_b*tempValues[l2];
 					}
 				}
 			}
@@ -687,7 +696,7 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	angInts.compute();
 	
 	// Build radial integrals
-	int L = LA + LB;
+	int L = LA + LB + U.getL();
 	radInts.init(L);
 	Matrix temp;
 	ThreeIndex radials(L+1, L+1, 2*L+1);
@@ -769,6 +778,120 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 		}
 	}
 	
+}
+
+void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex &values) {
+	double prefac = 16.0 * M_PI * M_PI;
+	int LA = shellA.am();
+	int LB = shellB.am();
+	int L = LA + LB;
+	
+	int maxLBasis = LA > LB ? LA : LB;
+	//angInts.init(maxLBasis, U.getL());
+	//angInts.compute();
+	//radInts.init(L);
+	
+	// Build radial integrals
+	int lparity = lam % 2;
+	int l1start,l2start;
+	ThreeIndex radials(L+1, lam + LA + 1, lam + LB + 1);
+	Matrix temp;
+	for (int N1 = 0; N1 <= LA; N1++) {
+		l1start = abs(lam - N1);
+		
+		for (int N2 = 0; N2 <= LB; N2++) {
+			l2start = abs(lam - N2);
+			
+			radInts.type2(lam, l1start, lam + N1, l2start, lam + N2, N1 + N2, U, shellA, shellB, A, B, temp);
+			for (int l1 = l1start; l1 <= lam+N1; l1+=2) {
+				for (int l2 = l2start; l2 <= lam+N2; l2+=2) radials(N1 + N2, l1, l2) = temp(l1, l2);
+			}
+		}
+	}
+	
+	// Loop over all basis functions in shell
+	std::vector<double> fac = facArray(2*(lam + maxLBasis) + 1);
+	std::vector<double> dfac = dfacArray(2*(lam + maxLBasis) + 1);
+	
+	// Unpack positions
+	double Ax = A[0]; double Ay = A[1]; double Az = A[2];
+	double Bx = B[0]; double By = B[1]; double Bz = B[2];
+	double A2 = Ax * Ax + Ay * Ay + Az * Az;
+	double B2 = Bx * Bx + By * By + Bz * Bz;
+	double Am = sqrt(A2); double Bm = sqrt(B2);
+	
+	// Build spherical harmonics
+	double xA = Am > 0 ? Az / Am : 0.0;
+	double xB = Bm > 0 ? Bz / Bm : 0.0;
+	double phiA = atan2(Ay, Ax);
+	double phiB = atan2(By, Bx);
+	Matrix SA = realSphericalHarmonics(lam+LA, xA, phiA, fac, dfac);
+	Matrix SB = realSphericalHarmonics(lam+LB, xB, phiB, fac, dfac);
+	
+	// Calculate chi_ab for all ab in shells
+	int z1, z2, ix, N1, N2;
+	double Ck1, Ck2, Cl1, Cl2, Cm1, Cm2, C, val;
+	int na = 0, nb = 0;
+	for (int x1 = 0; x1 <= LA; x1++) {
+		for (int y1 = 0; y1 <= LA - x1; y1++) {
+			z1 = LA - x1 - y1;
+			nb = 0;
+			
+			for (int x2 = 0; x2 <= LB; x2++) {
+				for (int y2 = 0; y2 <= LB - x2; y2++) {
+					z2 = LB - x2 - y2;
+					
+					for (int k1 = 0; k1 <= x1; k1++) {
+						Ck1 = calcC(x1, k1, Ax, fac);
+						
+						for (int k2 = 0; k2 <= x2; k2++) {
+							Ck2 = calcC(x2, k2, Bx, fac);
+							
+							for (int l1 = 0; l1 <= y1; l1++) {
+								Cl1 = calcC(y1, l1, Ay, fac);
+								
+								for (int l2 = 0; l2 <= y2; l2++) {
+									Cl2 = calcC(y2, l2, By, fac);
+									
+									for (int m1 = 0; m1 <= z1; m1++) {
+										Cm1 = calcC(z1, m1, Az, fac);
+										
+										for (int m2 = 0; m2 <= z2; m2++){
+											Cm2 = calcC(z2, m2, Bz, fac);
+											C = Ck1 * Cl1 * Cm1 * Ck2 * Cl2 * Cm2;
+											
+											N1 = k1 + l1 + m1;
+											N2 = k2 + l2 + m2;
+											l1start = abs(lam - N1);
+											l2start = abs(lam - N2);
+											ix = N1 + N2;
+											// Sum over rho/kappa/sigma/tau
+											for (int rho = l1start; rho <= lam + N1; rho+=2) {
+												for (int sigma = -rho; sigma <= rho; sigma++) {
+													for (int kappa = l2start; kappa <= lam + N2; kappa += 2) {
+														for (int tau = -kappa; tau <= kappa; tau++) {
+															val = C * SA(rho, rho+sigma) * SB(kappa, kappa+tau) * radials(ix, rho, kappa);
+															for (int mu = -lam; mu <= lam; mu++)
+																values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				
+					for (int mu = -lam; mu <= lam; mu++) values(na, nb, lam+mu) *= prefac;
+					nb++;
+				}
+			}
+			
+			na++;
+		}
+	}
 }
 
 
