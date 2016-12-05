@@ -138,10 +138,10 @@ double AngularIntegral::calcG(int l, int m, std::vector<double> &fac) const {
 
 double AngularIntegral::calcH1(int i, int j, int l, int m, std::vector<double> &fac) const {
 	double value = 0.0; 
-	if (j > - 1){ 
-		value = fac[l]/(fac[j]*fac[l - i]*fac[i-j]);
-		value *= (1 - 2*(i%2)) * fac[2*(l - i)] / (fac[l - m - 2*i]);
-	}
+
+	value = fac[l]/(fac[j]*fac[l - i]*fac[i-j]);
+	value *= (1 - 2*(i%2)) * fac[2*(l - i)] / (fac[l - m - 2*i]);
+
 	return value;
 }
 
@@ -171,7 +171,7 @@ ThreeIndex AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) cons
   	  for (int l = 0; l <= lam - k; l++) {
 		u = um = 0.0;
 	  	j = k + l - mu;
-		if (j % 2 == 0) { 
+		if (j % 2 == 0 && j > -1) { 
 			u1 = 0.0;
 			j/=2;
 			for (int i = j; i <= (lam - mu)/2; i++) u1 += calcH1(i, j, lam, mu, fac);
@@ -316,8 +316,6 @@ void AngularIntegral::makeOmega(FiveIndex &U) {
 											wval = W(k+i, l+j, m+lam-i-j, rho, rho+sigma);
 											om_plus += U(lam, mu, i, j, 0) * wval;
 											om_minus += U(lam, mu, i, j, 1) * wval;
-										//	std::cout << "W: " << k+i << " " << l+j << " " << m + lam - i - j << " " << rho << " " << rho+sigma << " " << wval << "\n";
-										//	std::cout << "U: " << lam << " " << mu << " " << i << " " << j << " " << U(lam, mu, i, j, 0) << " " << U(lam, mu, i, j, 1) <<"\n";
 										}
 									}
 								}
@@ -351,7 +349,7 @@ void AngularIntegral::init(int _LB, int _LE ) {
 }
 
 void AngularIntegral::compute() {
-	std::vector<double> fac = facArray(wDim);
+	std::vector<double> fac = facArray(2*wDim);
 	
 	FiveIndex U = makeU(fac);
 	makeW(fac, U);
@@ -871,6 +869,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 													for (int kappa = l2start; kappa <= lam + N2; kappa += 2) {
 														for (int tau = -kappa; tau <= kappa; tau++) {
 															val = C * SA(rho, rho+sigma) * SB(kappa, kappa+tau) * radials(ix, rho, kappa);
+															std::cout << C << " " << SA(0, 0) << " " << SB(0, 0) << " " << angInts.getIntegral(0, 0, 0, 0, 0, 0, 0) << "\n";
 															for (int mu = -lam; mu <= lam; mu++)
 																values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
 														}

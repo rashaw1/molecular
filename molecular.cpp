@@ -119,10 +119,10 @@ int main (int argc, char* argv[])
 	  U1.addPrimitive(3, 1, 1.1, 1.0, false);
 	  U1.addPrimitive(1 ,2, 0.8, 1.0);
 	  
-	  double centerA[3] = { 1.5, 0.1, 0.9 };
-	  double centerB[3] = { 0.8, 0.8, 0.8 };
-	  //double centerA[3] = {0.0, 0.0, 0.0};
-	  //double centerB[3] = {0.0, 0.0, 0.0};
+	  //double centerA[3] = { 1.5, 0.1, 0.9 };
+	  //double centerB[3] = { 0.8, 0.8, 0.8 };
+	  double centerA[3] = {0.0, 0.0, 0.0};
+	  double centerB[3] = {0.0, 0.0, 0.0};
 	  GaussianShell shellA(centerA, 0);
 	  shellA.addPrim(0.6, 1.0); // 0.6, 0.5
 	  //shellA.addPrim(1.1, 0.3); // 1.1, 0.3
@@ -139,7 +139,7 @@ int main (int argc, char* argv[])
 	  log.print(values);
 	  
 	  log.title("Type 2 test");
-	  int l = 2;
+	  int l = 0;
 	  ThreeIndex values2(shellA.ncartesian(), shellB.ncartesian(), 2*l + 1);
 	  log.localTime();
 	  ecpint.type2(l, U1, shellA, shellB, centerA, centerB, values2);
