@@ -603,6 +603,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 				intValues(l2, i) = Utab[i] * Fa(l1, i) * Fb(l2, i);
 		}
 		tests[l1] = integrate(l2end, gridSize, intValues, smallGrid, tempValues, l2start, 2);
+		std::cout << l << " " << N << " " << l1 << " " << tests[l1] << "\n";
 		failed = failed || (tests[l1] == 0);
 		for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = tempValues[l2];
 	}
@@ -626,11 +627,13 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 					// Build bessel function values
 					weight = 2.0 * zeta_a * A;
 					buildBessel(gridPoints, gridSize, l2end, Fa, weight);
+					std::cout << "Built bessel\n";
 					for (int i = 0; i < gridSize; i++) {
 						XA = gridPoints[i] - A;
 						XA = exp(-zeta_a * XA * XA);
 						for (int l2 = l2start; l2 <= l2end; l2+=2) Fa(l2, i) *= XA;
 					}
+					std::cout << "Built FA\n";
 				
 					// calculate exponential
 					
@@ -650,20 +653,25 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 						newGrid.transformRMinMax(p(a,b), (zeta_a * A + zeta_b * B)/p(a, b));
 				
 						// Build the U tab
-						buildU(U, l, N, newGrid, Utab);				
+						std::cout << "Building U\n";
+						double Utab2[gridSize];
+						buildU(U, l, N, newGrid, Utab2);	
+						std::cout<<"Built U\n";			
 						intValues.assign(l2end+1, gridSize, 0.0);
 					
 						// Build U and bessel
 					
 						buildBessel(gridPoints2, gridSize, l2end, Fb, weight); 
+						std::cout << "Built Bessel 2\n";
 						for (int i = 0; i < gridSize; i++) {
 							XB = gridPoints2[i] - B;
 							XB = exp(-zeta_b * XB * XB);
 							for (int l2 = l2start; l2 <= l2end; l2+=2) {
 								Fb(l2, i) *= XB;
-								intValues(l2, i) = Utab[i] * Fa(l2, i) * Fb(l2, i);
+								intValues(l2, i) = Utab2[i] * Fa(l2, i) * Fb(l2, i);
 							}		
 						}
+						std::cout << "Built intValues\n";
 					
 						integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2);
 						for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) += c_a*c_b*tempValues[l2];
@@ -690,12 +698,9 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	
 	int LA = shellA.am(); int LB = shellB.am();
 	int maxLBasis = LA > LB ? LA : LB;
-	angInts.init(maxLBasis, U.getL());
-	angInts.compute();
 	
 	// Build radial integrals
 	int L = LA + LB + U.getL();
-	radInts.init(L);
 	Matrix temp;
 	ThreeIndex radials(L+1, L+1, 2*L+1);
 	for (int ix = 0; ix <= L; ix++) {
@@ -782,13 +787,10 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	double prefac = 16.0 * M_PI * M_PI;
 	int LA = shellA.am();
 	int LB = shellB.am();
-	int L = LA + LB;
-	
+	int L = LA + LB;	
 	int maxLBasis = LA > LB ? LA : LB;
-	//angInts.init(maxLBasis, U.getL());
-	//angInts.compute();
-	//radInts.init(L);
 	
+	std::cout << "Starting type2 rads\n";
 	// Build radial integrals
 	int lparity = lam % 2;
 	int l1start,l2start;
@@ -806,6 +808,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 			}
 		}
 	}
+	std::cout << "Built radials\n";
 	
 	// Loop over all basis functions in shell
 	std::vector<double> fac = facArray(2*(lam + maxLBasis) + 1);
@@ -825,6 +828,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	double phiB = atan2(By, Bx);
 	Matrix SA = realSphericalHarmonics(lam+LA, xA, phiA, fac, dfac);
 	Matrix SB = realSphericalHarmonics(lam+LB, xB, phiB, fac, dfac);
+	std::cout << "Built spher harm\n";
 	
 	// Calculate chi_ab for all ab in shells
 	int z1, z2, ix, N1, N2;
@@ -870,7 +874,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 														for (int tau = -kappa; tau <= kappa; tau++) {
 															val = C * SA(rho, rho+sigma) * SB(kappa, kappa+tau) * radials(ix, rho, kappa);
 															for (int mu = -lam; mu <= lam; mu++)
-																values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
+															 	values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
 														}
 													}
 												}
@@ -890,6 +894,36 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 			na++;
 		}
 	}
+}
+
+void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, Matrix &values) {
+	
+	// Shift A and B to be relative to U
+	const double* C = U.center();
+	double A[3] = {shellA.center()[0] - C[0], shellA.center()[1] - C[1], shellA.center()[2] - C[2]};
+	double B[3] = {shellB.center()[0] - C[0], shellB.center()[1] - C[1], shellB.center()[2] - C[2]};
+	
+	// Initialise angular and radial integrators
+	angInts.init(shellA.am() > shellB.am() ? shellA.am() : shellB.am(), U.getL());
+	angInts.compute();
+	radInts.init(shellA.am() + shellB.am());
+	
+	// Calculate type1 integrals
+	type1(U, shellA, shellB, A, B, values);
+	std::cout << "Type 1 done\n";
+	
+	// Now all the type2 integrals
+	ThreeIndex t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() - 1);
+	for (int l = 0; l < U.getL(); l++) {
+		type2(l, U, shellA, shellB, A, B, t2vals);
+		std::cout << l << " done\n";
+		for (int m = -l; m <= l; m++) {
+			for(int na = 0; na < shellA.ncartesian(); na++) {
+				for (int nb = 0; nb < shellB.ncartesian(); nb++) values(na, nb) += t2vals(na, nb, l+m);
+			}
+		}
+	}
+	
 }
 
 

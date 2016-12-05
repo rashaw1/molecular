@@ -114,26 +114,27 @@ int main (int argc, char* argv[])
 	  
 	  // Radial integral test
 	  log.localTime();
-	  ECP U1;
+	  double C[3] = {0.0, 0.0, 0.0};
+	  ECP U1(C);
 	  U1.addPrimitive(2, 0, 1.4, 1.0, false);
 	  U1.addPrimitive(3, 1, 1.1, 1.0, false);
 	  U1.addPrimitive(1 ,2, 0.8, 1.0);
 	  
-	  //double centerA[3] = { 1.5, 0.1, 0.9 };
-	  //double centerB[3] = { 0.8, 0.8, 0.8 };
-	  double centerA[3] = {0.0, 0.0, 0.0};
-	  double centerB[3] = {0.0, 0.0, 0.0};
-	  GaussianShell shellA(centerA, 0);
-	  shellA.addPrim(0.6, 1.0); // 0.6, 0.5
-	  //shellA.addPrim(1.1, 0.3); // 1.1, 0.3
-	 // shellA.addPrim(1.5, 0.1);
-	  GaussianShell shellB(centerB, 0);
-	  shellB.addPrim(1.2, 1.0); // 1.2, 0.6
-	  //shellB.addPrim(0.9, 0.3); // 0.9, 0.3
+	  double centerA[3] = { 1.5, 0.1, 0.9 };
+	  double centerB[3] = { 0.8, 0.8, 0.8 };
+	  //double centerA[3] = {0.0, 0.0, 0.0};
+	  //double centerB[3] = {0.0, 0.0, 0.0};
+	  GaussianShell shellA(centerA, 3);
+	  shellA.addPrim(0.6, 0.5); // 0.6, 0.5
+	  shellA.addPrim(1.1, 0.3); // 1.1, 0.3
+	  shellA.addPrim(1.5, 0.1);
+	  GaussianShell shellB(centerB, 3);
+	  shellB.addPrim(1.2, 0.6); // 1.2, 0.6
+	  shellB.addPrim(0.9, 0.3); // 0.9, 0.3
 	 
 	  ECPIntegral ecpint;
 	  Matrix values;
-	  log.title("Type 1 test");
+	  /*log.title("Type 1 test");
 	  ecpint.type1(U1, shellA, shellB, centerA, centerB, values);
 	  log.localTime();
 	  log.print(values);
@@ -150,7 +151,13 @@ int main (int argc, char* argv[])
 				  std::cout << na << " " << nb << " " << mu << " " << values2(na, nb, l + mu) <<"\n";
 			  }
 		  }
-	  }
+	  }*/
+	  
+	  log.title("ECP Test");
+	  log.localTime();
+	  ecpint.compute_shell_pair(U1, shellA, shellB, values);
+	  log.localTime();
+	  log.print(values);
 	 
       // Close file streams
       input.close();

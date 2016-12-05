@@ -127,6 +127,7 @@ public:
 	
 	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
 	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex &values);
+	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, Matrix &values);
 };
 
 
