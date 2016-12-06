@@ -109,28 +109,51 @@ int main (int argc, char* argv[])
 	// Finalise the run
 	log.finalise();
       } catch (Error e){
-	log.error(e);
+		  log.error(e);
       }
 	  
 	  // Radial integral test
 	  log.localTime();
-	  double C[3] = {0.0, 0.0, 0.0};
+	  double C[3] = {1.5, 0.1, 0.9};
 	  ECP U1(C);
-	  U1.addPrimitive(2, 0, 1.4, 1.0, false);
-	  U1.addPrimitive(3, 1, 1.1, 1.0, false);
-	  U1.addPrimitive(1 ,2, 0.8, 1.0);
+	  U1.addPrimitive(2, 0, 70.03441, 49.953835, false);
+	  U1.addPrimitive(2, 0, 31.895971, 369.978238, false);
+	  U1.addPrimitive(2, 0, 7.353728, 10.054544, false);
+	  U1.addPrimitive(2, 1, 47.265183, 297.3055, false);
+	  U1.addPrimitive(2, 1, 23.008133, 84.614009, false);
+	  U1.addPrimitive(2, 1, 46.664268, 297.348786, false);
+	  U1.addPrimitive(2, 1, 22.100979, 84.775187, false);
+	  U1.addPrimitive(2, 2, 50.768165, -46.472192, false);
+	  U1.addPrimitive(2, 2, 15.479497, -0.733528, false);
+	  U1.addPrimitive(2, 2, 2.877154, 0.172203, false);
+	  U1.addPrimitive(2, 2, 50.782228, -46.458997, false);
+	  U1.addPrimitive(2, 2, 15.559383, -0.782332, false);
+	  U1.addPrimitive(2, 2, 1.991196, 0.220450, false);
+	  U1.addPrimitive(2, 3, 15.437567, -2.854575, false);
+	  U1.addPrimitive(2, 3, 22.055742, -5.234658);
 	  
 	  double centerA[3] = { 1.5, 0.1, 0.9 };
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  //double centerA[3] = {0.0, 0.0, 0.0};
 	  //double centerB[3] = {0.0, 0.0, 0.0};
-	  GaussianShell shellA(centerA, 4);
-	  shellA.addPrim(0.6, 0.5); // 0.6, 0.5
-	  shellA.addPrim(1.1, 0.3); // 1.1, 0.3
-	  shellA.addPrim(1.5, 0.1);
-	  GaussianShell shellB(centerB, 3);
-	  shellB.addPrim(1.2, 0.6); // 1.2, 0.6
-	  shellB.addPrim(0.9, 0.3); // 0.9, 0.3
+	  GaussianShell shellA(centerA, 0);
+	  shellA.addPrim(2808.6, 0.001606);
+	  shellA.addPrim(421.18, 0.008393);
+	  shellA.addPrim(50.3457, 0.069578);
+	  shellA.addPrim(17.9133, -0.389908);
+	  shellA.addPrim(3.80531, 0.694497);
+	  shellA.addPrim(1.74968, 0.491354);
+	  shellA.addPrim(0.448555, 0.022637);
+	  shellA.addPrim(0.164498, -0.003723);
+	  GaussianShell shellB(centerB, 0);
+	  shellB.addPrim(2808.6, 0.001606);
+	  shellB.addPrim(421.18, 0.008393);
+	  shellB.addPrim(50.3457, 0.069578);
+	  shellB.addPrim(17.9133, -0.389908);
+	  shellB.addPrim(3.80531, 0.694497);
+	  shellB.addPrim(1.74968, 0.491354);
+	  shellB.addPrim(0.448555, 0.022637);
+	  shellB.addPrim(0.164498, -0.003723);
 	 
 	  ECPIntegral ecpint;
 	  Matrix values;

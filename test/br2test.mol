@@ -1,0 +1,8 @@
+basis, cc-pvdz-pp
+rhf,
+uhf,
+geom,
+br, 1.5, 0.1, 0.9
+br, 0.8, 0.8, 0.8
+geomend
+nthreads, 2
