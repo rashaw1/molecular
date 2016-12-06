@@ -45,3 +45,13 @@ double ECP::evaluate(double r, int l) {
 	return value; 
 }
 
+ECPBasis::ECPBasis() : N(0), maxL(-1) {}
+
+void ECPBasis::addECP(ECP U) {
+	basis.push_back(U);
+	N++;
+	maxL = U.getL() > maxL ? U.getL() : maxL;
+}
+
+ECP& ECPBasis::getECP(int i) { return basis[i]; }
+

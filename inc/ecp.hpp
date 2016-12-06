@@ -1,5 +1,7 @@
 /* class ECP contains the contracted expansion of primitive GaussianECPs that define a particular ECP
    class GaussianECP is simply a data structure for the primitive gaussian parameters.  
+   class ECPBasis is just a glorified list of all ECPs being used
+   These are just skeletons to be replaced at a later date. 
 
 	Robert A. Shaw 2016
 
@@ -13,6 +15,7 @@
 
 #include <vector>
 
+namespace psi {
 // Object describing a Gaussian of angular momentum l of the form
 // d r^n e^{-ax^2}
 struct GaussianECP {
@@ -33,6 +36,7 @@ private:
 public:
 	ECP();
 	ECP(const double *_center);
+	ECP(const ECP &other);
 	
 	void addPrimitive(int n, int l, double a, double d, bool needSort = true);
 	const double* center() const { return center_; }
@@ -44,5 +48,21 @@ public:
  	int getL() const { return L; }
 	
 };
+
+class ECPBasis {
+private:
+	std::vector<ECP> basis;
+	int N, maxL;
+	
+public:
+	ECPBasis();
+	
+	void addECP(ECP U);
+	ECP& getECP(int i);
+	int getMaxL() const { return maxL; }
+	int getN() const { return N; }
+};
+
+}
 
 #endif

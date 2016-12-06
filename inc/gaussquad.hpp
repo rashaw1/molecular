@@ -13,6 +13,8 @@
 #ifndef GC_QUAD_HEAD
 #define GC_QUAD_HEAD
 
+namespace psi {
+
 #include <functional>
 #include <vector>
 
@@ -21,37 +23,83 @@ enum GCTYPE {
 	TWOPOINT // Described in Perez93
 };
 
+/** 
+  * \ingroup MINTS
+  * \class GCQuadrature
+  * \brief Performs adaptive Gauss-Chebyshev quadrature for any given function.
+  * 
+  * Stores the weights and abscissae for the quadrature, and provides two different methods to integrate on [-1, 1] 
+  * Also contains means to transform the region of integration to [0, infinity) and [rmin, rmax]
+  */
 class GCQuadrature {
 private:
-	int maxN; // Maximum number of points to use
-	int M; // index of midpoint
+	/// Maximum number of points to use in quadrature
+	int maxN;
+	/// Index of midpoint
+	int M;
 	
-	std::vector<double> x; // Abscissae
-	std::vector<double> w; // Weights
-	double I; // Integration value
+	/// Weights
+	std::vector<double> x;
+	/// Abscissae
+	std::vector<double> w;
+	/// Integration value
+	double I;
 	
+	/// Algorithm to be used
 	GCTYPE t;
 	
-  double sumTerms(std::function<double(double, double*, int)> &f, double *p, int limit, int shift, int skip);
+   /// Worker function for integration routines, should not be called directly.	
+   double sumTerms(std::function<double(double, double*, int)> &f, double *p, int limit, int shift, int skip);
 
 public:
-	int start, end; // For prescreening
+	/// Start and endpoints of integration, used for prescreening
+	int start, end;
 	
+	/// Default constructor, creates empty object
 	GCQuadrature();
+	/// Copy constructor, carbon copies all members
 	GCQuadrature(const GCQuadrature &other);
 	
+	/**
+ 	  * Intialises the integration grid to the given number of points, and integration type. 
+	  * ONEPOINT will choose N = 2^n - 1 closest to the given number of points, whilst
+	  * TWOPOINT will choose N= 3*2^n - 1 in the same way.
+	  *
+  	  * @param points - maximum number of quadrature points to be used
+  	  * @param t - the algorithm to be used (ONEPOINT / TWOPOINT)
+  	  */
 	void initGrid(int points, GCTYPE t);
 	
-	// Returns true if quadrature converged, false otherwise. 
+	/**
+  	  * Integrates the given function (over [-1, 1] by default) to within the given tolerance. 
+  	  * @param f - the function to be integrated
+	  * @param params - array of parameters for the function to be integrated
+	  * @param tolerance - change below which convergenced is considered to be achieved
+  	  * @return true if integration converged, false otherwise
+  	  */
 	bool integrate(std::function<double(double, double*, int)> &f, double *params, const double tolerance);
 	
-	void transformZeroInf(); // Transformation from [-1, 1] to [0, infty) from Krack98
+	/**
+	  * Transforms the region of integration to [0, inf) using the logarithmic transformation of Krack98
+	  */
+	void transformZeroInf();
+	/**
+	  * Transforms region of integration to [rmin, rmax] using the linear transformation from Flores06, assuming 
+	  * a Gaussian envelope. rmin/rmax are the distances from the centre of the envelope such that the integrand is effectively zero.
+	  * @param z - the exponent of the Gaussian envelope
+	  * @param p - the centre of the Gaussian envelope
+	  */
 	void transformRMinMax(double z, double p);  // Transfromation from [-1, 1] to [rmin, rmax] from Flores06
 	
+	/// Returns the calculated integral value - must have called integrate first
 	double getI() const { return I; }
 	
+	/// Returns the maximum number of quadrature points
 	int getN() const { return maxN; }
+	
+	/// Returns a reference to the abscissae
 	std::vector<double>& getX() { return x; }
 };
+}
 
 #endif

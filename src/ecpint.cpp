@@ -2,34 +2,10 @@
 
 #include "matrix.hpp"
 #include "ecpint.hpp"
-#include "ecp.hpp"
-#include "mathutil.hpp"
 #include "gshell.hpp"
 #include <iostream>
 #include <functional>
 #include <cmath>
-
-// Compute single and double factorials iteratively
-static std::vector<double> facArray(int l) {
-	std::vector<double> values(l+1, 0.0);
-	if (l > -1) {
-		values[0] = 1.0;
-		for (int i = 1; i < l + 1; i++) values[i] = values[i-1]*i;
-	}
-	return values; 
-}
-
-static std::vector<double> dfacArray(int l) {
-	std::vector<double> values(l+1, 0.0);
-	if (l > -1) {
-		values[0] = 1.0;
-		if (l > 0) {
-			values[1] = 1.0;
-			for (int i = 2; i <= l; i++) values[i] = values[i-2] * i;
-		}
-	}
-	return values;
-}
 
 // Compute all the real spherical harmonics Slm(theta, phi) for l,m up to lmax
 // x = cos (theta)
@@ -90,48 +66,42 @@ static Matrix realSphericalHarmonics(int lmax, double x, double phi, std::vector
 	return rshValues;
 }
 
-ThreeIndex::ThreeIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; }
-ThreeIndex::ThreeIndex(const ThreeIndex &other) { 
+ThreeIndex<double>::ThreeIndex<double>() { dims[0] = 0; dims[1] = 0; dims[2] = 0; }
+ThreeIndex<double>::ThreeIndex<double>(const ThreeIndex<double> &other) { 
 	data = other.data;
 	for (int n = 0; n < 3; n++) dims[n] = other.dims[n]; 
 }
-ThreeIndex::ThreeIndex(int dim1, int dim2, int dim3) {
+ThreeIndex<double>::ThreeIndex<double>(int dim1, int dim2, int dim3) {
 	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3;
-	data.assign(dim1, dim2*dim3, 0.0);
+	data.resize(dims[0] * dims[1] * dims[2]);
 }
-double& ThreeIndex::operator()(int i, int j, int k) { return data(i, j*dims[2]+k); }
-double ThreeIndex::operator()(int i, int j, int k) const { return data(i, j*dims[2]+k); }
-void ThreeIndex::zero() {
-	for (int i = 0; i < dims[0]; i++) {
-		for (int j = 0; j < dims[1]; j++) {
-			for (int k = 0; k < dims[2]; k++) data(i, j*dims[2]+k) = 0.0;
-		}
-	}
-}
+double& ThreeIndex<double>::operator()(int i, int j, int k) { return data[i*dims[1]*dims[2] + j*dims[2] + k]; }
+double ThreeIndex<double>::operator()(int i, int j, int k) const { return data[i*dims[1]*dims[2] + j*dims[2] + k]; }
+void ThreeIndex<double>::zero() { std::fill(data.begin(), data.end(), 0.0); }
 
-FiveIndex::FiveIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; }
-FiveIndex::FiveIndex(const FiveIndex &other) { 
+FiveIndex<double>::FiveIndex<double>() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; }
+FiveIndex<double>::FiveIndex<double>(const FiveIndex<double> &other) { 
 	data = other.data;
 	for (int n = 0; n < 5; n++) dims[n] = other.dims[n]; 
 }
-FiveIndex::FiveIndex(int dim1, int dim2, int dim3, int dim4, int dim5) {
+FiveIndex<double>::FiveIndex<double>(int dim1, int dim2, int dim3, int dim4, int dim5) {
 	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3; dims[3] = dim4; dims[4] = dim5;
-	data.assign(dim1*dim2, dim3*dim4*dim5, 0.0);
+	data.resize(dims[0] * dims[1] * dims[2] * dims[3] * dims[4]);
 }
-double& FiveIndex::operator()(int i, int j, int k, int l, int m) { return data(i*dims[1] + j, k*dims[3]*dims[4] + l*dims[4] + m); }
-double FiveIndex::operator()(int i, int j, int k, int l, int m) const { return data(i*dims[1] + j, k*dims[3]*dims[4] + l*dims[4] + m); }
+double& FiveIndex<double>::operator()(int i, int j, int k, int l, int m) { return data[i*dims[1]*dims[2]*dims[3]*dims[4] + j*dims[2]*dims[3]*dims[4] + k*dims[3]*dims[4] + l*dims[4] + m]; }
+double FiveIndex<double>::operator()(int i, int j, int k, int l, int m) const { return data[i*dims[1]*dims[2]*dims[3]*dims[4] + j*dims[2]*dims[3]*dims[4] + k*dims[3]*dims[4] + l*dims[4] + m]; }
 
-SevenIndex::SevenIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; dims[5] = 0; dims[6] = 0; }
-SevenIndex::SevenIndex(const SevenIndex &other) { 
+SevenIndex<double>::SevenIndex<double>() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; dims[5] = 0; dims[6] = 0; }
+SevenIndex<double>::SevenIndex<double>(const SevenIndex<double> &other) { 
 	data = other.data;
 	for (int n = 0; n < 7; n++) dims[n] = other.dims[n]; 
 }
-SevenIndex::SevenIndex(int dim1, int dim2, int dim3, int dim4, int dim5, int dim6, int dim7) {
+SevenIndex<double>::SevenIndex<double>(int dim1, int dim2, int dim3, int dim4, int dim5, int dim6, int dim7) {
 	dims[0] = dim1; dims[1] = dim2; dims[2] = dim3; dims[3] = dim4; dims[4] = dim5; dims[5] = dim6; dims[6]=dim7;
-	data.assign(dim1*dim2*dim3, dim4*dim5*dim6*dim7, 0.0);
+	data.resize(dims[0] * dims[1] * dims[2] * dims[3] * dims[4] * dims[5] * dims[6]);
 }
-double& SevenIndex::operator()(int i, int j, int k, int l, int m, int n, int p) { return data(i*dims[1]*dims[2] + j*dims[2] + k, l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p); }
-double SevenIndex::operator()(int i, int j, int k, int l, int m, int n, int p) const { return data(i*dims[1]*dims[2] + j*dims[2] + k, l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p); }
+double& SevenIndex<double>::operator()(int i, int j, int k, int l, int m, int n, int p) { return data[i*dims[1]*dims[2]*dims[3]*dims[4]*dims[5]*dims[6] + j*dims[2]*dims[3]*dims[4]*dims[5]*dims[6] + k*dims[3]*dims[4]*dims[5]*dims[6] + l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p]; }
+double SevenIndex<double>::operator()(int i, int j, int k, int l, int m, int n, int p) const { return data[i*dims[1]*dims[2]*dims[3]*dims[4]*dims[5]*dims[6] + j*dims[2]*dims[3]*dims[4]*dims[5]*dims[6] + k*dims[3]*dims[4]*dims[5]*dims[6] + l*dims[4]*dims[5]*dims[6] + m*dims[5]*dims[6] + n*dims[6] + p]; }
 
 double AngularIntegral::calcG(int l, int m, std::vector<double> &fac) const {
 	double value = 0.0;
@@ -164,8 +134,8 @@ double AngularIntegral::calcH2(int i, int j, int k, int m, std::vector<double> &
 }
 
 
-ThreeIndex AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) const {
-	ThreeIndex values(lam+1, lam+1, 2);
+ThreeIndex<double> AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) const {
+	ThreeIndex<double> values(lam+1, lam+1, 2);
 	 
   	double or2 = 1.0/sqrt(2.0);
   	double u = 0.0;
@@ -205,9 +175,9 @@ ThreeIndex AngularIntegral::uklm(int lam, int mu, std::vector<double> &fac) cons
 }
 
 
-ThreeIndex AngularIntegral::Pijk(int maxI) const {
+ThreeIndex<double> AngularIntegral::Pijk(int maxI) const {
 	int dim = maxI+1;
-	ThreeIndex values(dim, dim, dim);
+	ThreeIndex<double> values(dim, dim, dim);
 	double pi4 = 4.0*M_PI;
 	
 	values(0, 0, 0) = pi4;
@@ -225,13 +195,13 @@ ThreeIndex AngularIntegral::Pijk(int maxI) const {
 	return values;
 }
 
-FiveIndex AngularIntegral::makeU(std::vector<double> &fac) {
+FiveIndex<double> AngularIntegral::makeU(std::vector<double> &fac) {
 	int dim = maxL + 1;
 
-	FiveIndex values(dim, dim, dim, dim, 2);
+	FiveIndex<double> values(dim, dim, dim, dim, 2);
 	for (int lam = 0; lam <= maxL; lam++) {
 		for (int mu = 0; mu <= lam; mu++) {
-			ThreeIndex Uij = uklm(lam, mu, fac);
+			ThreeIndex<double> Uij = uklm(lam, mu, fac);
 			for (int i = 0; i <= lam; i++) {
 				for (int j = 0; j <= lam - i; j++){
 					values(lam, mu, i, j, 0) = Uij(i, j, 0);
@@ -244,14 +214,14 @@ FiveIndex AngularIntegral::makeU(std::vector<double> &fac) {
 	return values;
 }
 
-void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex &U) {
+void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex<double> &U) {
 	int LB2 = 2*LB;
 	int dim = wDim;
 	int maxI = (maxL + dim)/2;
 	int maxLam = maxL;
 	
-	FiveIndex values{dim+1, dim+1, dim+1, maxLam+1, 2*(maxLam + 1)};
-	ThreeIndex pijk = Pijk(maxI);
+	FiveIndex<double> values{dim+1, dim+1, dim+1, maxLam+1, 2*(maxLam + 1)};
+	ThreeIndex<double> pijk = Pijk(maxI);
 	
 	int plam, pmu;
 	double smu, w;
@@ -291,11 +261,11 @@ void AngularIntegral::makeW(std::vector<double> &fac, FiveIndex &U) {
 	W = values;
 }
 
-void AngularIntegral::makeOmega(FiveIndex &U) {
+void AngularIntegral::makeOmega(FiveIndex<double> &U) {
 	
 	int lamDim = LE + LB; 
 	int muDim = 2*lamDim + 1;
-	SevenIndex values{LB+1, LB+1, LB+1, lamDim+1, muDim+1, lamDim+1, muDim+1};
+	SevenIndex<double> values{LB+1, LB+1, LB+1, lamDim+1, muDim+1, lamDim+1, muDim+1};
 	
 	double om_plus=0.0, om_minus=0.0;
 	double wval; 
@@ -358,7 +328,7 @@ void AngularIntegral::init(int _LB, int _LE ) {
 void AngularIntegral::compute() {
 	std::vector<double> fac = facArray(2*wDim);
 	
-	FiveIndex U = makeU(fac);
+	FiveIndex<double> U = makeU(fac);
 	makeW(fac, U);
 	makeOmega(U);
 }
@@ -676,7 +646,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 
 //***************************************** ECP INTEGRAL ***********************************************
 
-ECPIntegral::ECPIntegral() { };
+ECPIntegral::ECPIntegral(ECPBasis &_basis) : basis(_basis) { };
 
 double ECPIntegral::calcC(int a, int m, double A, std::vector<double> &fac) const {
 	double value = 1.0 - 2*((a-m) % 2);
@@ -693,7 +663,7 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	// Build radial integrals
 	int L = LA + LB + U.getL();
 	Matrix temp;
-	ThreeIndex radials(L+1, L+1, 2*L+1);
+	ThreeIndex<double> radials(L+1, L+1, 2*L+1);
 	for (int ix = 0; ix <= L; ix++) {
 		radInts.type1(ix, ix, ix % 2, U, shellA, shellB, A, B, temp);
 		for(int l = 0; l <= ix; l++) {
@@ -774,7 +744,7 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	
 }
 
-void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex &values) {
+void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex<double> &values) {
 	double prefac = 16.0 * M_PI * M_PI;
 	int LA = shellA.am();
 	int LB = shellB.am();
@@ -784,7 +754,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	// Build radial integrals
 	int lparity = lam % 2;
 	int l1start,l2start;
-	ThreeIndex radials(L+1, lam + LA + 1, lam + LB + 1);
+	ThreeIndex<double> radials(L+1, lam + LA + 1, lam + LB + 1);
 	Matrix temp;
 	for (int N1 = 0; N1 <= LA; N1++) {
 		l1start = abs(lam - N1);
@@ -901,7 +871,7 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 	type1(U, shellA, shellB, A, B, values);
 	
 	// Now all the type2 integrals
-	ThreeIndex t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() + 1);
+	ThreeIndex<double> t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() + 1);
 	for (int l = 0; l < U.getL(); l++) {
 		type2(l, U, shellA, shellB, A, B, t2vals);
 		for (int m = -l; m <= l; m++) {
@@ -912,6 +882,14 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 		t2vals.zero();
 	}
 	
+}
+
+void ECPIntegral::compute_pair(GaussianShell &shellA, GaussianShell &shellB) {
+	Matrix values, tempValues;
+	for (int i = 0; i <= basis.getN(); i++) {
+		 compute_shell_pair(basis.getECP(i), shellA, shellB, tempValues);
+		 values += tempValues;
+	}
 }
 
 

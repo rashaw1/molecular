@@ -4,9 +4,30 @@
  */
 
 #include "bessel.hpp"
-#include "mathutil.hpp"
 #include <cmath>
 #include <iostream>
+
+// Compute single and double factorials iteratively
+std::vector<double> facArray(int l) {
+	std::vector<double> values(l+1, 0.0);
+	if (l > -1) {
+		values[0] = 1.0;
+		for (int i = 1; i < l + 1; i++) values[i] = values[i-1]*i;
+	}
+	return values; 
+}
+
+std::vector<double> dfacArray(int l) {
+	std::vector<double> values(l+1, 0.0);
+	if (l > -1) {
+		values[0] = 1.0;
+		if (l > 0) {
+			values[1] = 1.0;
+			for (int i = 2; i <= l; i++) values[i] = values[i-2] * i;
+		}
+	}
+	return values;
+}
 
 // Constructor
 BesselFunction::BesselFunction() {}
@@ -44,9 +65,8 @@ int BesselFunction::tabulate(const double accuracy) {
 	int lmax = lMax + TAYLOR_CUT;
 	
 	double F[order + 1]; // F_j above
-	double dfac[2*order + 2*lmax + 2]; // Double factorials
 	// Calculate all needed double factorials
-	fact2Array(2*order + 2*lmax + 1, dfac);
+	std::vector<double> dfac = dfacArray(2*order + 2*lmax + 1);
 	
 	K[0][0] = 1.0;
 	double z, z2; // z and z^2 / 2
