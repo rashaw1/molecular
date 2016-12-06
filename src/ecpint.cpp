@@ -481,7 +481,7 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 	// Now pretabulate integrand
 	Matrix intValues(maxL+1, gridSize, 0.0);
 	// and bessel function
-	Matrix besselValues(maxL+1, gridSize);
+	Matrix besselValues(maxL+1, gridSize, 0.0);
 	// Calculate type1 integrals
 	double da, db, za, zb, val;
 	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
@@ -523,8 +523,8 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 			}
 
 			int test = integrate(maxL, gridSize, intValues, newGrid, tempValues, offset, 2);
-			if (test == 0) std::cout << "Failed to converge\n";
-			
+			if (test == 0) std::cout << "Failed to converge: \n";
+				
 			// Calculate real spherical harmonic
 			x = fabs(P(a, b)) < 1e-12 ? 0.0 : (za * Avec[2] + zb * Bvec[2]) / (p(a, b) * P(a, b));
 			Py = (za * Avec[1] + zb * Bvec[1]) / p(a, b);
@@ -603,7 +603,6 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 				intValues(l2, i) = Utab[i] * Fa(l1, i) * Fb(l2, i);
 		}
 		tests[l1] = integrate(l2end, gridSize, intValues, smallGrid, tempValues, l2start, 2);
-		std::cout << l << " " << N << " " << l1 << " " << tests[l1] << "\n";
 		failed = failed || (tests[l1] == 0);
 		for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = tempValues[l2];
 	}
@@ -616,6 +615,11 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 		double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
 		A = sqrt(A); B = sqrt(B);
 		
+		gridSize = bigGrid.getN();
+		intValues.assign(l2end+1, gridSize, 0.0);
+		Fa.assign(l2end+1, gridSize, 0.0);
+		Fb.assign(l2end+1, gridSize, 0.0);
+		
 		for (int l1 = l1start; l1 <= l1end; l1+=2) {
 			if (tests[l1] == 0) { 
 				for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = 0.0;
@@ -623,57 +627,37 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 				for (int a = 0; a < npA; a++) {
 					zeta_a = shellA.exp(a);
 					c_a = shellA.coef(a);
-				
-					// Build bessel function values
-					weight = 2.0 * zeta_a * A;
-					buildBessel(gridPoints, gridSize, l2end, Fa, weight);
-					std::cout << "Built bessel\n";
-					for (int i = 0; i < gridSize; i++) {
-						XA = gridPoints[i] - A;
-						XA = exp(-zeta_a * XA * XA);
-						for (int l2 = l2start; l2 <= l2end; l2+=2) Fa(l2, i) *= XA;
-					}
-					std::cout << "Built FA\n";
-				
-					// calculate exponential
 					
 					for (int b = 0; b < npB; b++) {
 						zeta_b = shellB.exp(b);
 						c_b = shellB.coef(b); 
 					
-						// Build bessel function values
-						weight = 2.0 * zeta_b * B;
-					
 						// Set up grid
 						GCQuadrature newGrid = bigGrid;
-						gridSize = newGrid.getN();
 						std::vector<double> &gridPoints2 = newGrid.getX();
 						newGrid.start = 0;
 						newGrid.end = gridSize;
 						newGrid.transformRMinMax(p(a,b), (zeta_a * A + zeta_b * B)/p(a, b));
 				
 						// Build the U tab
-						std::cout << "Building U\n";
 						double Utab2[gridSize];
 						buildU(U, l, N, newGrid, Utab2);	
-						std::cout<<"Built U\n";			
-						intValues.assign(l2end+1, gridSize, 0.0);
 					
-						// Build U and bessel
-					
-						buildBessel(gridPoints2, gridSize, l2end, Fb, weight); 
-						std::cout << "Built Bessel 2\n";
-						for (int i = 0; i < gridSize; i++) {
+						// Build bessel function values
+						weight = 2.0 * zeta_a * A;
+						buildBessel(gridPoints2, gridSize, l2end, Fa, weight);
+						weight = 2.0 * zeta_b * B;
+						buildBessel(gridPoints2, gridSize, l2end, Fb, weight);
+						for (int i = newGrid.start; i <= newGrid.end; i++) {
+							XA = gridPoints2[i] - A;
+							XA = exp(-zeta_a * XA * XA);
 							XB = gridPoints2[i] - B;
 							XB = exp(-zeta_b * XB * XB);
-							for (int l2 = l2start; l2 <= l2end; l2+=2) {
-								Fb(l2, i) *= XB;
-								intValues(l2, i) = Utab2[i] * Fa(l2, i) * Fb(l2, i);
-							}		
+							for (int l2 = l2start; l2 <= l2end; l2+=2)
+								intValues(l2, i) = Utab2[i] * XA * XB * Fa(l2, i) * Fb(l2, i);
 						}
-						std::cout << "Built intValues\n";
 					
-						integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2);
+						if(integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2) == 0) std::cout << "Failed at second attempt!\n";
 						for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) += c_a*c_b*tempValues[l2];
 					}
 				}
@@ -790,7 +774,6 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	int L = LA + LB;	
 	int maxLBasis = LA > LB ? LA : LB;
 	
-	std::cout << "Starting type2 rads\n";
 	// Build radial integrals
 	int lparity = lam % 2;
 	int l1start,l2start;
@@ -808,7 +791,6 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 			}
 		}
 	}
-	std::cout << "Built radials\n";
 	
 	// Loop over all basis functions in shell
 	std::vector<double> fac = facArray(2*(lam + maxLBasis) + 1);
@@ -828,7 +810,6 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	double phiB = atan2(By, Bx);
 	Matrix SA = realSphericalHarmonics(lam+LA, xA, phiA, fac, dfac);
 	Matrix SB = realSphericalHarmonics(lam+LB, xB, phiB, fac, dfac);
-	std::cout << "Built spher harm\n";
 	
 	// Calculate chi_ab for all ab in shells
 	int z1, z2, ix, N1, N2;
@@ -906,17 +887,15 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 	// Initialise angular and radial integrators
 	angInts.init(shellA.am() > shellB.am() ? shellA.am() : shellB.am(), U.getL());
 	angInts.compute();
-	radInts.init(shellA.am() + shellB.am());
+	radInts.init(shellA.am() + shellB.am() + U.getL());
 	
 	// Calculate type1 integrals
 	type1(U, shellA, shellB, A, B, values);
-	std::cout << "Type 1 done\n";
 	
 	// Now all the type2 integrals
 	ThreeIndex t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() - 1);
 	for (int l = 0; l < U.getL(); l++) {
 		type2(l, U, shellA, shellB, A, B, t2vals);
-		std::cout << l << " done\n";
 		for (int m = -l; m <= l; m++) {
 			for(int na = 0; na < shellA.ncartesian(); na++) {
 				for (int nb = 0; nb < shellB.ncartesian(); nb++) values(na, nb) += t2vals(na, nb, l+m);

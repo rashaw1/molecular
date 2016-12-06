@@ -96,7 +96,10 @@ int BesselFunction::tabulate(const double accuracy) {
 // Calculate modified spherical Bessel function K_l(z), weighted with an exponential factor e^(-z)
 // for l = 0 to lMax. This restricts K(z) to the interval [0,1].
 void BesselFunction::calculate(const double z, int maxL, std::vector<double> &values) {
-	maxL = maxL <= lMax ? maxL : lMax;
+	if (lMax < maxL) {
+		std::cout << "Asked for " << maxL << " but only initialised to maximum L = " << lMax << "\n";
+		maxL = lMax;
+	}
 	values.assign(maxL + 1, 0.0);
 	
 	// Set K_0(z) = 1.0, and K_l(z) = 0.0 (for l != 0) if z <= 0

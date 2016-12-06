@@ -124,7 +124,7 @@ int main (int argc, char* argv[])
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  //double centerA[3] = {0.0, 0.0, 0.0};
 	  //double centerB[3] = {0.0, 0.0, 0.0};
-	  GaussianShell shellA(centerA, 3);
+	  GaussianShell shellA(centerA, 4);
 	  shellA.addPrim(0.6, 0.5); // 0.6, 0.5
 	  shellA.addPrim(1.1, 0.3); // 1.1, 0.3
 	  shellA.addPrim(1.5, 0.1);
