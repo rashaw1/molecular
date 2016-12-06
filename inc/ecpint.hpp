@@ -26,6 +26,7 @@ struct ThreeIndex {
 	ThreeIndex();
 	ThreeIndex(int dim1, int dim2, int dim3);
 	ThreeIndex(const ThreeIndex &other);
+	void zero();
 };
 
 struct FiveIndex {

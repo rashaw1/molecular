@@ -114,23 +114,23 @@ int main (int argc, char* argv[])
 	  
 	  // Radial integral test
 	  log.localTime();
-	  double C[3] = {1.5, 0.1, 0.9};
+	  double C[3] = {0.8, 0.8, 0.8};
 	  ECP U1(C);
-	  U1.addPrimitive(2, 0, 70.03441, 49.953835, false);
-	  U1.addPrimitive(2, 0, 31.895971, 369.978238, false);
-	  U1.addPrimitive(2, 0, 7.353728, 10.054544, false);
-	  U1.addPrimitive(2, 1, 47.265183, 297.3055, false);
-	  U1.addPrimitive(2, 1, 23.008133, 84.614009, false);
-	  U1.addPrimitive(2, 1, 46.664268, 297.348786, false);
-	  U1.addPrimitive(2, 1, 22.100979, 84.775187, false);
-	  U1.addPrimitive(2, 2, 50.768165, -46.472192, false);
-	  U1.addPrimitive(2, 2, 15.479497, -0.733528, false);
-	  U1.addPrimitive(2, 2, 2.877154, 0.172203, false);
-	  U1.addPrimitive(2, 2, 50.782228, -46.458997, false);
-	  U1.addPrimitive(2, 2, 15.559383, -0.782332, false);
-	  U1.addPrimitive(2, 2, 1.991196, 0.220450, false);
-	  U1.addPrimitive(2, 3, 15.437567, -2.854575, false);
-	  U1.addPrimitive(2, 3, 22.055742, -5.234658);
+	  U1.addPrimitive(0, 0, 70.03441, 49.953835, false);
+	  U1.addPrimitive(0, 0, 31.895971, 369.978238, false);
+	  U1.addPrimitive(0, 0, 7.353728, 10.054544, false);
+	  U1.addPrimitive(0, 1, 47.265183, 297.3055, false);
+	  U1.addPrimitive(0, 1, 23.008133, 84.614009, false);
+	  U1.addPrimitive(0, 1, 46.664268, 297.348786, false);
+	  U1.addPrimitive(0, 1, 22.100979, 84.775187, false);
+	  U1.addPrimitive(0, 2, 50.768165, -46.472192, false);
+	  U1.addPrimitive(0, 2, 15.479497, -0.733528, false);
+	  U1.addPrimitive(0, 2, 2.877154, 0.172203, false);
+	  U1.addPrimitive(0, 2, 50.782228, -46.458997, false);
+	  U1.addPrimitive(0, 2, 15.559383, -0.782332, false);
+	  U1.addPrimitive(0, 2, 1.991196, 0.220450, false);
+	  U1.addPrimitive(0, 3, 15.437567, -2.854575, false);
+	  U1.addPrimitive(0, 3, 22.055742, -5.234658);
 	  
 	  double centerA[3] = { 1.5, 0.1, 0.9 };
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
@@ -178,7 +178,7 @@ int main (int argc, char* argv[])
 	  
 	  log.title("ECP Test");
 	  log.localTime();
-	  ecpint.compute_shell_pair(U1, shellA, shellB, values);
+	  ecpint.compute_shell_pair(U1, shellA, shellA, values);
 	  log.localTime();
 	  log.print(values);
 	 

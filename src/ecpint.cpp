@@ -101,6 +101,13 @@ ThreeIndex::ThreeIndex(int dim1, int dim2, int dim3) {
 }
 double& ThreeIndex::operator()(int i, int j, int k) { return data(i, j*dims[2]+k); }
 double ThreeIndex::operator()(int i, int j, int k) const { return data(i, j*dims[2]+k); }
+void ThreeIndex::zero() {
+	for (int i = 0; i < dims[0]; i++) {
+		for (int j = 0; j < dims[1]; j++) {
+			for (int k = 0; k < dims[2]; k++) data(i, j*dims[2]+k) = 0.0;
+		}
+	}
+}
 
 FiveIndex::FiveIndex() { dims[0] = 0; dims[1] = 0; dims[2] = 0; dims[3] = 0; dims[4] = 0; }
 FiveIndex::FiveIndex(const FiveIndex &other) { 
@@ -854,7 +861,8 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 													for (int kappa = l2start; kappa <= lam + N2; kappa += 2) {
 														for (int tau = -kappa; tau <= kappa; tau++) {
 															val = C * SA(rho, rho+sigma) * SB(kappa, kappa+tau) * radials(ix, rho, kappa);
-															for (int mu = -lam; mu <= lam; mu++)
+								
+															for (int mu = -lam; mu <= lam; mu++) 
 															 	values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
 														}
 													}
@@ -893,14 +901,15 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 	type1(U, shellA, shellB, A, B, values);
 	
 	// Now all the type2 integrals
-	ThreeIndex t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() - 1);
+	ThreeIndex t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() + 1);
 	for (int l = 0; l < U.getL(); l++) {
 		type2(l, U, shellA, shellB, A, B, t2vals);
 		for (int m = -l; m <= l; m++) {
 			for(int na = 0; na < shellA.ncartesian(); na++) {
-				for (int nb = 0; nb < shellB.ncartesian(); nb++) values(na, nb) += t2vals(na, nb, l+m);
+				for (int nb = 0; nb < shellB.ncartesian(); nb++) values(na, nb) += t2vals(na, nb, l+m); 
 			}
 		}
+		t2vals.zero();
 	}
 	
 }

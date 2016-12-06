@@ -65,8 +65,7 @@ IntegralEngine::IntegralEngine(Molecule& m) : molecule(m)
     molecule.getLog().print("Forming the one electron integrals\n");
   formOverlapKinetic();
   formNucAttract();
-  naints.print();
-
+  
   molecule.getLog().print("One electron integrals complete\n");
     molecule.getLog().localTime();
     
