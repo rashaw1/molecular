@@ -14,13 +14,13 @@
 #define ECPINT_HEAD
 
 #include <vector>
+#include "multiarr.hpp"
 #include "gaussquad.hpp"
 #include "ecp.hpp"
 #include "bessel.hpp"
 
 //namespace psi {
 
-class Matrix;
 class GaussianShell;
 
 /** 
@@ -32,44 +32,7 @@ class GaussianShell;
   * @param dfac - a vector of double factorials up to 2*lmax
   * @return a matrix S(l, l+m) of the spherical harmonic values
   */
-static Matrix realSphericalHarmonics(int lmax, double x, double phi, std::vector<double> &fac, std::vector<double> &dfac);  
-
-/// Templated skeleton three index array for convenience
-template<typename T>
-struct ThreeIndex {
-	int dims[3];
-	std::vector<T> data;
-	double& operator()(int i, int j, int k);
-	double operator()(int i, int j, int k) const;
-	ThreeIndex();
-	ThreeIndex(int dim1, int dim2, int dim3);
-	ThreeIndex(const ThreeIndex &other);
-	void zero();
-};
-
-/// Templated skeleton five index array for convenience
-template<typename T>
-struct FiveIndex {
-	int dims[5];
-	std::vector<T> data;
-	double & operator()(int i, int j, int k, int l, int m);
-	double operator()(int i, int j, int k, int l, int m) const;
-	FiveIndex();
-	FiveIndex(int dim1, int dim2, int dim3, int dim4, int dim5);
-	FiveIndex(const FiveIndex &other);
-};
-
-/// Templated skeleton seven index array for convenience
-template<typename T>
-struct SevenIndex {
-	int dims[7];
-	std::vector<T> data;
-	double & operator()(int i, int j, int k, int l, int m, int n, int p);
-	double operator()(int i, int j, int k, int l, int m, int n, int p) const;
-	SevenIndex();
-	SevenIndex(int dim1, int dim2, int dim3, int dim4, int dim5, int dim6, int dim7);
-	SevenIndex(const SevenIndex &other);
-};
+static TwoIndex<double> realSphericalHarmonics(int lmax, double x, double phi, std::vector<double> &fac, std::vector<double> &dfac);  
 
 /** 
   * \ingroup MINTS
@@ -199,7 +162,7 @@ private:
 	BesselFunction bessie;
 	
 	/// Matrices of parameters needed in both type 1 and 2 integrations
-	Matrix p, P, P2, K;
+	TwoIndex<double> p, P, P2, K;
 	
 	/// Tolerance for change below which an integral is considered converged
 	double tolerance;
@@ -212,10 +175,10 @@ private:
 	  * @param r - vector of points to evaluate at
 	  * @param nr - number of points in r (for convenience)
 	  * @param maxL - the maximum angular momentum needed
-	  * @param values - Matrix to store the values in
+	  * @param values - TwoIndex<double> to store the values in
 	  * @param weight - factor to weight r by (defaults to 1)
 	  */
-	void buildBessel(std::vector<double> &r, int nr, int maxL, Matrix &values, double weight = 1.0);
+	void buildBessel(std::vector<double> &r, int nr, int maxL, TwoIndex<double> &values, double weight = 1.0);
 	
 	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const;
 	
@@ -240,19 +203,19 @@ private:
 	  * @param end - the grid point to stop at
 	  * @param F - the matrix to put the values in
 	  */
-	void buildF(GaussianShell &shell, double *A, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, Matrix &F);
+	void buildF(GaussianShell &shell, double *A, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, TwoIndex<double> &F);
 	
 	/**
 	  * Performs the integration given the pretabulated integrand values. 
 	  * @param maxL - the maximum angular momentum needed
 	  * @param gridSize - the number of quadrature points
-	  * @param intValues - the Matrix of pretabulated integrand values for each angular momentum needed
+	  * @param intValues - the TwoIndex<double> of pretabulated integrand values for each angular momentum needed
 	  * @param grid - the quadrature grid
 	  * @param values - the vector to put the resulting integrals into
 	  * @param offset - the angular momentum to start at (defaults to 0)
 	  * @param skip - the steps of angular momentum to go up in (defaults to 1)
 	  */
-	int integrate(int maxL, int gridSize, Matrix &intValues, GCQuadrature &grid, std::vector<double> &values, int offset = 0, int skip = 1);
+	int integrate(int maxL, int gridSize, TwoIndex<double> &intValues, GCQuadrature &grid, std::vector<double> &values, int offset = 0, int skip = 1);
 
 public:
 	/// Default constructor creates an empty object
@@ -288,7 +251,7 @@ public:
 	  * @param B - position vector (relative to the ECP center) of shell B
 	  * @param values - the matrix to return the integrals in
 	  */
-	void type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
+	void type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, TwoIndex<double> &values);
 	
     /**
       * Calculates all type 2 radial integrals over two Gaussian shells for the given ECP angular momentum l
@@ -305,7 +268,7 @@ public:
       * @param B - position vector (relative to the ECP center) of shell B
       * @param values - the matrix to return the integrals in
       */
-	void type2(int lam, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);	
+	void type2(int lam, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, TwoIndex<double> &values);	
 };
 
 
@@ -327,8 +290,9 @@ private:
 	/// The ECP basis
 	ECPBasis &basis;
 	
-	/// Worker function for calculating binomial expansion coefficients
+	/// Worker functions for calculating binomial expansion coefficients
 	double calcC(int a, int m, double A, std::vector<double> &fac) const;
+	void makeC(ThreeIndex<double> &C, int L, double *A, std::vector<double> &fac);
 public:
 	/// Constructor declares reference to the ECP basis
 	ECPIntegral(ECPBasis &basis);
@@ -337,11 +301,11 @@ public:
 	void compute_pair(GaussianShell &shellA, GaussianShell &shellB);
 	
 	/// Calculates the type 1 integrals for the given ECP center over the given shell pair
-	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, Matrix &values);
+	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex<double> &CA, ThreeIndex<double> &CB, TwoIndex<double> &values);
 	/// Calculates the type 2 integrals for the given ECP center over the given shell pair
-	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex<double> &values);
+	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex<double> &CA, ThreeIndex<double> &CB, ThreeIndex<double> &values);
 	/// Computes the overall ECP integrals over the given ECP center and shell pair
-	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, Matrix &values);
+	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, TwoIndex<double> &values);
 };
 
 //}

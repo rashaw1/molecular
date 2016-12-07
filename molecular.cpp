@@ -25,6 +25,7 @@
 #include <functional>
 #include <cmath>
 #include "ecpint.hpp"
+#include "multiarr.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -130,8 +131,8 @@ int main (int argc, char* argv[])
 	  U1.addPrimitive(0, 2, 15.50026, -0.7805830, false);
 	  U1.addPrimitive(0, 2, 2.800391, 0.035968, false);
 	  U1.addPrimitive(0, 3, 14.46561, -1.091269, false);
-	  U1.addPrimitive(0, 3, 21.23407, -2.887691);
-	  //	  U1.addPrimitive(2, 4, 1.0, 0.0);
+	  U1.addPrimitive(0, 3, 21.23407, -2.887691, false);
+	  //U1.addPrimitive(2, 4, 1.0, 0.0);
 
 	  ECPBasis ebas;
 	  ebas.addECP(U1);
@@ -140,7 +141,7 @@ int main (int argc, char* argv[])
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  //double centerA[3] = {0.0, 0.0, 0.0};
 	  //double centerB[3] = {0.0, 0.0, 0.0};
-	  GaussianShell shellA(centerA, 0);
+	  GaussianShell shellA(centerA, 4);
        	  shellA.addPrim(2808.6, 0.001606);
 	  shellA.addPrim(421.18, 0.008393);
 	  shellA.addPrim(50.3457, 0.069578);
@@ -151,7 +152,7 @@ int main (int argc, char* argv[])
 	  shellA.addPrim(0.164498, -0.003723);
 	  
 	  //shellA.addPrim(0.448555, 1.0);
-	  GaussianShell shellB(centerB, 0);
+	  GaussianShell shellB(centerB, 4);
 	  shellB.addPrim(2808.6, 0.001606);
 	  shellB.addPrim(421.18, 0.008393);
 	  shellB.addPrim(50.3457, 0.069578);
@@ -162,7 +163,7 @@ int main (int argc, char* argv[])
 	  shellB.addPrim(0.164498, -0.003723);
 	 
 	  ECPIntegral ecpint(ebas);
-	  Matrix values;
+	  TwoIndex<double> values;
 	  /*log.title("Type 1 test");
 	  ecpint.type1(U1, shellA, shellB, centerA, centerB, values);
 	  log.localTime();
@@ -184,9 +185,10 @@ int main (int argc, char* argv[])
 	  
 	  log.title("ECP Test");
 	  log.localTime();
-	  ecpint.compute_shell_pair(U1, shellA, shellA, values);
+	  ecpint.compute_shell_pair(U1, shellB, shellB, values);
 	  log.localTime();
-	  log.print(values);
+	  //log.print(values);
+	  log.print(std::to_string(values(2, 1)));
 	 
       // Close file streams
       input.close();
