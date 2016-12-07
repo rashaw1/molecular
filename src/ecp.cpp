@@ -45,8 +45,8 @@ double ECP::evaluate(double r, int l) {
 	int am = 0;
 	double r2 = r*r;
 	for (int i = 0; i < N; i++) {
-		if (gaussians[i].l > l) break;
-		value += pow(r, gaussians[i].n) * gaussians[i].d * exp(-gaussians[i].a * r2);
+		if (gaussians[i].l == l) 
+		  value += pow(r, gaussians[i].n) * gaussians[i].d * exp(-gaussians[i].a * r2);
 	} 
 	return value; 
 }
