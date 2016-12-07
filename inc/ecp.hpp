@@ -15,7 +15,7 @@
 
 #include <vector>
 
-namespace psi {
+//namespace psi {
 // Object describing a Gaussian of angular momentum l of the form
 // d r^n e^{-ax^2}
 struct GaussianECP {
@@ -57,12 +57,12 @@ private:
 public:
 	ECPBasis();
 	
-	void addECP(ECP U);
+	void addECP(ECP &U);
 	ECP& getECP(int i);
 	int getMaxL() const { return maxL; }
 	int getN() const { return N; }
 };
 
-}
+//}
 
 #endif

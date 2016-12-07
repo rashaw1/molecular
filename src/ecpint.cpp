@@ -888,7 +888,7 @@ void ECPIntegral::compute_pair(GaussianShell &shellA, GaussianShell &shellB) {
 	Matrix values, tempValues;
 	for (int i = 0; i <= basis.getN(); i++) {
 		 compute_shell_pair(basis.getECP(i), shellA, shellB, tempValues);
-		 values += tempValues;
+		 values = values + tempValues;
 	}
 }
 

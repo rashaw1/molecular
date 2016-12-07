@@ -19,6 +19,12 @@ GaussianECP::GaussianECP(const GaussianECP& other) : n(other.n), l(other.l), a(o
 
 ECP::ECP() : N(0), L(-1) {}
 ECP::ECP(const double *_center) : N(0), L(-1), center_(_center) {}
+ECP::ECP(const ECP &other) {
+	gaussians = other.gaussians;
+	N = other.N;
+	L = other.L;
+	center_ = other.center_;
+}
 
 void ECP::addPrimitive(int n, int l, double a, double d, bool needSort) {
 	GaussianECP newEcp(n, l, a, d);
@@ -47,7 +53,7 @@ double ECP::evaluate(double r, int l) {
 
 ECPBasis::ECPBasis() : N(0), maxL(-1) {}
 
-void ECPBasis::addECP(ECP U) {
+void ECPBasis::addECP(ECP &U) {
 	basis.push_back(U);
 	N++;
 	maxL = U.getL() > maxL ? U.getL() : maxL;

@@ -132,11 +132,14 @@ int main (int argc, char* argv[])
 	  U1.addPrimitive(0, 3, 15.437567, -2.854575, false);
 	  U1.addPrimitive(0, 3, 22.055742, -5.234658);
 	  
+	  ECPBasis ebas;
+	  ebas.addECP(U1);
+	  
 	  double centerA[3] = { 1.5, 0.1, 0.9 };
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  //double centerA[3] = {0.0, 0.0, 0.0};
 	  //double centerB[3] = {0.0, 0.0, 0.0};
-	  GaussianShell shellA(centerA, 0);
+	  GaussianShell shellA(centerA, 3);
 	  shellA.addPrim(2808.6, 0.001606);
 	  shellA.addPrim(421.18, 0.008393);
 	  shellA.addPrim(50.3457, 0.069578);
@@ -145,7 +148,7 @@ int main (int argc, char* argv[])
 	  shellA.addPrim(1.74968, 0.491354);
 	  shellA.addPrim(0.448555, 0.022637);
 	  shellA.addPrim(0.164498, -0.003723);
-	  GaussianShell shellB(centerB, 0);
+	  GaussianShell shellB(centerB, 2);
 	  shellB.addPrim(2808.6, 0.001606);
 	  shellB.addPrim(421.18, 0.008393);
 	  shellB.addPrim(50.3457, 0.069578);
@@ -155,7 +158,7 @@ int main (int argc, char* argv[])
 	  shellB.addPrim(0.448555, 0.022637);
 	  shellB.addPrim(0.164498, -0.003723);
 	 
-	  ECPIntegral ecpint;
+	  ECPIntegral ecpint(ebas);
 	  Matrix values;
 	  /*log.title("Type 1 test");
 	  ecpint.type1(U1, shellA, shellB, centerA, centerB, values);

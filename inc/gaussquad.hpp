@@ -13,7 +13,7 @@
 #ifndef GC_QUAD_HEAD
 #define GC_QUAD_HEAD
 
-namespace psi {
+//namespace psi {
 
 #include <functional>
 #include <vector>
@@ -100,6 +100,6 @@ public:
 	/// Returns a reference to the abscissae
 	std::vector<double>& getX() { return x; }
 };
-}
+//}
 
 #endif

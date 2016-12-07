@@ -14,7 +14,7 @@
 
 #include <vector>
 
-namespace psi {
+//namespace psi {
 
 /** 
   * Computes a vector of factorials up to a given maximum
@@ -88,5 +88,5 @@ public:
 	void calculate(const double z, int maxL, std::vector<double> &values);
 };
 
-}
+//}
 #endif

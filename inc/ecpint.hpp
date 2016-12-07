@@ -18,7 +18,7 @@
 #include "ecp.hpp"
 #include "bessel.hpp"
 
-namespace psi {
+//namespace psi {
 
 class Matrix;
 class GaussianShell;
@@ -344,5 +344,5 @@ public:
 	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, Matrix &values);
 };
 
-}
+//}
 #endif
