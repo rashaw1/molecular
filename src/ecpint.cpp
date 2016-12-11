@@ -378,19 +378,9 @@ void RadialIntegral::buildU(ECP &U, int l, int N, GCQuadrature &grid, double *Ut
 	
 	// Tabulate weighted ECP values
 	double r;
-	bool foundStart = false;
-	double startTolerance = tolerance / 1000.0; // Distributions are left-skewed
 	for (int i = 0; i < gridSize; i++) {
 		r = gridPoints[i];
 		Utab[i] = pow(r, N+2) * U.evaluate(r, l);
-		if(Utab[i] > startTolerance && !foundStart) {
-			 grid.start = i;
-			 foundStart = true;
-		}
-		if(Utab[i] < tolerance && foundStart) {
-			grid.end = i-1;
-			foundStart = false;
-		}
 	}
 }
 
@@ -448,18 +438,35 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 			newGrid.transformRMinMax(p(a, b), (za * A + zb * B)/p(a, b));
 			std::vector<double> &gridPoints = newGrid.getX();
 			newGrid.start = 0;
-			newGrid.end = gridSize;
+			newGrid.end = gridSize - 1;
 			
 			// Build U and bessel tabs
 			double Utab[gridSize];
 			buildU(U, U.getL(), N, newGrid, Utab);
 			buildBessel(gridPoints, gridSize, maxL, besselValues, 2.0*p(a,b)*P(a,b));
 			
+			// Start building intvalues, and prescreen
+			bool foundStart = false, tooSmall = false;
+			for (int i = 0; i < gridSize; i++) {
+				for (int l = offset; l <= maxL; l+=2) {
+					intValues(l, i) = Utab[i] * besselValues(l, i); 
+					tooSmall = intValues(l, i) < tolerance;
+				}
+				if (!tooSmall && !foundStart) {
+					foundStart = true; 
+					newGrid.start = i;
+				}
+				if (tooSmall && foundStart) {
+					newGrid.end = i-1;
+					break;
+				}
+			}
+			
 			for (int i = newGrid.start; i <= newGrid.end; i++) {
 				val = -p(a, b) * (gridPoints[i]*(gridPoints[i] - 2*P(a, b)) + P2(a, b));
 				val = exp(val);
 				for (int l = offset; l <= maxL; l+=2)
-					intValues(l, i) = Utab[i] * val * besselValues(l, i);
+					intValues(l, i) *= val;
 			}
 
 			int test = integrate(maxL, gridSize, intValues, newGrid, tempValues, offset, 2);
@@ -521,7 +528,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 	
 	// Reset grid starting points
 	smallGrid.start = 0;
-	smallGrid.end = gridSize;
+	smallGrid.end = gridSize-1;
 	
 	double Utab[gridSize];
 	buildU(U, l, N, smallGrid, Utab);
@@ -533,15 +540,27 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 	buildF(shellB, Bvec, l2start, l2end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fb);
 	
 	// Build the integrals
+	bool foundStart, tooSmall;
 	TwoIndex<double> intValues(l2end +1, gridSize, 0.0);
 	std::vector<int> tests(l1end +1);
 	std::vector<double> tempValues;
 	bool failed = false;
 	values.assign(l1end+1, l2end+1, 0.0);
 	for (int l1 = l1start; l1 <= l1end; l1+=2) {
-		for (int i = smallGrid.start; i <= smallGrid.end; i++) {
-			for (int l2 = l2start; l2 <= l2end; l2+=2) 
+		foundStart = false;
+		for (int i = 0; i < gridSize; i++) {
+			for (int l2 = l2start; l2 <= l2end; l2+=2) {
 				intValues(l2, i) = Utab[i] * Fa(l1, i) * Fb(l2, i);
+				tooSmall = fabs(intValues(l2, i)) < tolerance;
+			}
+			if (!tooSmall && !foundStart) {
+				smallGrid.start = i;
+				foundStart = true;
+			}
+			if (tooSmall && foundStart) {
+				smallGrid.end = i-1;
+				break;
+			}
 		}
 		tests[l1] = integrate(l2end, gridSize, intValues, smallGrid, tempValues, l2start, 2);
 		failed = failed || (tests[l1] == 0);
@@ -551,7 +570,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 	if (failed) {
 		std::cerr << "Failed at first attempt\n";
 		// Not converged, switch to big grid
-		double zeta_a, zeta_b, c_a, c_b, weight, XA, XB;
+		double zeta_a, zeta_b, c_a, c_b, weight, XA, XB, X;
 		double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
 		double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
 		A = sqrt(A); B = sqrt(B);
@@ -577,7 +596,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 						GCQuadrature newGrid = bigGrid;
 						std::vector<double> &gridPoints2 = newGrid.getX();
 						newGrid.start = 0;
-						newGrid.end = gridSize;
+						newGrid.end = gridSize-1;
 						newGrid.transformRMinMax(p(a,b), (zeta_a * A + zeta_b * B)/p(a, b));
 				
 						// Build the U tab
@@ -589,24 +608,36 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 						buildBessel(gridPoints2, gridSize, l2end, Fa, weight);
 						weight = 2.0 * zeta_b * B;
 						buildBessel(gridPoints2, gridSize, l2end, Fb, weight);
+						
+						// Start building intvalues, and prescreen
+						bool foundStart = false, tooSmall = true;
+						for (int i = 0; i < gridSize; i++) {
+							for (int l2 = l2start; l2 <= l2end; l2+=2) {
+								intValues(l2, i) = Utab2[i] * Fa(l2, i) * Fb(l2, i);
+								tooSmall = intValues(l2, i) < tolerance;
+							}
+							if (!tooSmall && !foundStart) {
+								foundStart = true; 
+								newGrid.start = i;
+							}
+							if (tooSmall && foundStart) {
+								newGrid.end = i-1;
+								break;
+							}
+						}
+											
 						for (int i = newGrid.start; i <= newGrid.end; i++) {
 							XA = gridPoints2[i] - A;
 							XA = exp(-zeta_a * XA * XA);
 							XB = gridPoints2[i] - B;
 							XB = exp(-zeta_b * XB * XB);
-							for (int l2 = l2start; l2 <= l2end; l2+=2)
-								intValues(l2, i) = Utab2[i] * XA * XB * Fa(l2, i) * Fb(l2, i);
+							X = XA * XB;
+							for (int l2 = l2start; l2 <= l2end; l2+=2) 
+								intValues(l2, i) *=  X;
 						}
 					
-						if(integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2) == 0) {
+						if(integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2) == 0)
 							std::cerr << " Failed at second attempt!\n";
-							if (l1 == 3 && a == 7 && b == 3) {
-							for (int i = newGrid.start; i <= newGrid.end; i++) {
-								std::cout << gridPoints2[i] << " " << intValues(l2start, i) << "\n";
-							}
-							std::cout << "\n\n";
-							}
-						}
 						for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) += c_a*c_b*tempValues[l2];
 					}
 				}
@@ -801,8 +832,8 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 													for (int kappa = l2start; kappa <= lam + N2; kappa += 2) {
 														for (int tau = -kappa; tau <= kappa; tau++) {
 															val = C * SA(rho, rho+sigma) * SB(kappa, kappa+tau) * radials(ix, rho, kappa);
-								
-															for (int mu = -lam; mu <= lam; mu++) 
+															
+															for (int mu = -lam; mu <= lam; mu++)
 															 	values(na, nb, lam+mu) += val * angInts.getIntegral(k1, l1, m1, lam, mu, rho, sigma) * angInts.getIntegral(k2, l2, m2, lam, mu, kappa, tau);
 														}
 													}
@@ -857,7 +888,7 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 		type2(l, U, shellA, shellB, A, B, CA, CB, t2vals);
 		for (int m = -l; m <= l; m++) {
 			for(int na = 0; na < shellA.ncartesian(); na++) {
-				for (int nb = 0; nb < shellB.ncartesian(); nb++) { 
+				for (int nb = 0; nb < shellB.ncartesian(); nb++) {
 					values(na, nb) += t2vals(na, nb, l+m); 
 					std::cout << na << " " << nb << " " << l << " " << m << " " << t2vals(na, nb, l+m) << "\n";
 				}
@@ -865,7 +896,6 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 		}
 		t2vals.fill(0.0);
 	}
-	
 }
 
 void ECPIntegral::compute_pair(GaussianShell &shellA, GaussianShell &shellB) {
