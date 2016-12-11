@@ -292,7 +292,7 @@ private:
 	
 	/// Worker functions for calculating binomial expansion coefficients
 	double calcC(int a, int m, double A, std::vector<double> &fac) const;
-	void makeC(ThreeIndex<double> &C, int L, double *A, std::vector<double> &fac);
+	void makeC(FiveIndex<double> &C, int L, double *A, std::vector<double> &fac);
 public:
 	/// Constructor declares reference to the ECP basis
 	ECPIntegral(ECPBasis &basis);
@@ -301,9 +301,9 @@ public:
 	void compute_pair(GaussianShell &shellA, GaussianShell &shellB);
 	
 	/// Calculates the type 1 integrals for the given ECP center over the given shell pair
-	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex<double> &CA, ThreeIndex<double> &CB, TwoIndex<double> &values);
+	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, FiveIndex<double> &CA, FiveIndex<double> &CB, TwoIndex<double> &values);
 	/// Calculates the type 2 integrals for the given ECP center over the given shell pair
-	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, ThreeIndex<double> &CA, ThreeIndex<double> &CB, ThreeIndex<double> &values);
+	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, FiveIndex<double> &CA, FiveIndex<double> &CB, ThreeIndex<double> &values);
 	/// Computes the overall ECP integrals over the given ECP center and shell pair
 	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, TwoIndex<double> &values);
 };
