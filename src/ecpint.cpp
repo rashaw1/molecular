@@ -425,6 +425,7 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 	
 	// Tabulate integrand
 	double x, phi, Px, Py;
+	double weightedTolerance = tolerance / gridSize;
 	for (int a = 0; a < npA; a++) {
 		da = shellA.coef(a);
 		za = shellA.exp(a);
@@ -546,12 +547,13 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 	std::vector<double> tempValues;
 	bool failed = false;
 	values.assign(l1end+1, l2end+1, 0.0);
+	double weightedTolerance = tolerance / gridSize;
 	for (int l1 = l1start; l1 <= l1end; l1+=2) {
 		foundStart = false;
 		for (int i = 0; i < gridSize; i++) {
 			for (int l2 = l2start; l2 <= l2end; l2+=2) {
 				intValues(l2, i) = Utab[i] * Fa(l1, i) * Fb(l2, i);
-				tooSmall = fabs(intValues(l2, i)) < tolerance;
+				tooSmall = fabs(intValues(l2, i)) < weightedTolerance;
 			}
 			if (!tooSmall && !foundStart) {
 				smallGrid.start = i;
@@ -608,23 +610,6 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 						buildBessel(gridPoints2, gridSize, l2end, Fa, weight);
 						weight = 2.0 * zeta_b * B;
 						buildBessel(gridPoints2, gridSize, l2end, Fb, weight);
-						
-						// Start building intvalues, and prescreen
-						bool foundStart = false, tooSmall = true;
-						for (int i = 0; i < gridSize; i++) {
-							for (int l2 = l2start; l2 <= l2end; l2+=2) {
-								intValues(l2, i) = Utab2[i] * Fa(l2, i) * Fb(l2, i);
-								tooSmall = intValues(l2, i) < tolerance;
-							}
-							if (!tooSmall && !foundStart) {
-								foundStart = true; 
-								newGrid.start = i;
-							}
-							if (tooSmall && foundStart) {
-								newGrid.end = i-1;
-								break;
-							}
-						}
 											
 						for (int i = newGrid.start; i <= newGrid.end; i++) {
 							XA = gridPoints2[i] - A;
@@ -633,7 +618,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 							XB = exp(-zeta_b * XB * XB);
 							X = XA * XB;
 							for (int l2 = l2start; l2 <= l2end; l2+=2) 
-								intValues(l2, i) *=  X;
+								intValues(l2, i) =  Utab2[i] * Fa(l2, i) * Fb(l2, i) *  X;
 						}
 					
 						if(integrate(l2end, gridSize, intValues, newGrid, tempValues, l2start, 2) == 0)
@@ -888,10 +873,8 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 		type2(l, U, shellA, shellB, A, B, CA, CB, t2vals);
 		for (int m = -l; m <= l; m++) {
 			for(int na = 0; na < shellA.ncartesian(); na++) {
-				for (int nb = 0; nb < shellB.ncartesian(); nb++) {
+				for (int nb = 0; nb < shellB.ncartesian(); nb++)
 					values(na, nb) += t2vals(na, nb, l+m); 
-					std::cout << na << " " << nb << " " << l << " " << m << " " << t2vals(na, nb, l+m) << "\n";
-				}
 			}
 		}
 		t2vals.fill(0.0);
@@ -899,9 +882,16 @@ void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShel
 }
 
 void ECPIntegral::compute_pair(GaussianShell &shellA, GaussianShell &shellB) {
-	TwoIndex<double> values, tempValues;
-	for (int i = 0; i <= basis.getN(); i++) {
+	TwoIndex<double> tempValues;
+	TwoIndex<double> values(shellA.ncartesian(), shellB.ncartesian(), 0.0);
+	for (int i = 0; i < basis.getN(); i++) {
 		 compute_shell_pair(basis.getECP(i), shellA, shellB, tempValues);
+		 for (int na = 0; na < shellA.ncartesian(); na++) {
+			 for (int nb = 0; nb < shellB.ncartesian(); nb++) values(na, nb) += tempValues(na, nb);
+		 }
+	}
+	for (int na = 0; na < shellA.ncartesian(); na++) {
+		 for (int nb = 0; nb < shellB.ncartesian(); nb++) std::cout << na << " " << nb << " " << values(na, nb) << "\n";
 	}
 }
 

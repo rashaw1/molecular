@@ -115,7 +115,7 @@ int main (int argc, char* argv[])
 	  
 	  // Radial integral test
 	  log.localTime();
-	  double C[3] = {1.5, 0.1, 0.9};
+	  double C[3] = {0.8, 0.8, 0.8};
 	  ECP U1(C);
 	  U1.addPrimitive(0, 0, 70.02426, 49.96283, false);
 	  U1.addPrimitive(0, 0, 31.17841, 370.0142, false);
@@ -133,34 +133,54 @@ int main (int argc, char* argv[])
 	  U1.addPrimitive(0, 3, 14.46561, -1.091269, false);
 	  U1.addPrimitive(0, 3, 21.23407, -2.887691, false);
 	  U1.addPrimitive(0, 4, 1.0, 0.0);
+	  
+	  double C2[3] = {1.5, 0.1, 0.9};
+	  ECP U2(C2);
+	  U2.addPrimitive(0, 0, 70.02426, 49.96283, false);
+	  U2.addPrimitive(0, 0, 31.17841, 370.0142, false);
+	  U2.addPrimitive(0, 0, 7.156593, 10.24144, false);
+	  U2.addPrimitive(0, 1, 46.77347, 99.11224, false);
+	  U2.addPrimitive(0, 1, 21.71386, 28.26174, false);
+	  U2.addPrimitive(0, 1, 46.18412, 198.2530, false);
+	  U2.addPrimitive(0, 1, 20.94179, 56.62337, false);
+	  U2.addPrimitive(0, 2, 50.69884, -18.60585, false);
+	  U2.addPrimitive(0, 2, 15.44751, -0.3796930, false);
+	  U2.addPrimitive(0, 2, 2.800391, 0.035968, false);
+	  U2.addPrimitive(0, 2, 50.64476, -27.92328, false);
+	  U2.addPrimitive(0, 2, 15.50026, -0.7805830, false);
+	  U2.addPrimitive(0, 2, 2.800391, 0.035968, false);
+	  U2.addPrimitive(0, 3, 14.46561, -1.091269, false);
+	  U2.addPrimitive(0, 3, 21.23407, -2.887691, false);
+	  U2.addPrimitive(0, 4, 1.0, 0.0);
 
 	  ECPBasis ebas;
 	  ebas.addECP(U1);
+	  ebas.addECP(U2);
 	  
 	  double centerA[3] = { 1.5, 0.1, 0.9 };
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  //double centerA[3] = {0.0, 0.0, 0.0};
 	  //double centerB[3] = {0.0, 0.0, 0.0};
 	  GaussianShell shellA(centerA, 0);
-      shellA.addPrim(2808.6, 0.001606);
-	  shellA.addPrim(421.18, 0.008393);
-	  shellA.addPrim(50.3457, 0.069578);
-	  shellA.addPrim(17.9133, -0.389908);
-	  shellA.addPrim(3.80531, 0.694497);
-	  shellA.addPrim(1.74968, 0.491354);
-	  shellA.addPrim(0.448555, 0.022637);
-	  shellA.addPrim(0.164498, -0.003723);
+      shellA.addPrim(2808.6, 0.441593886); //0.001606
+	  shellA.addPrim(421.18, 0.5561323013); //0.008393
+	  shellA.addPrim(50.3457, 0.9372464858); //0.069578
+	  shellA.addPrim(17.9133, -2.41965773);//-0.389908
+	  shellA.addPrim(3.80531, 1.34856846); //0.694497
+	  shellA.addPrim(1.74968, 0.5327501229); //0.491354
+	  shellA.addPrim(0.448555, 0.008842745152); //0.022637
+	  shellA.addPrim(0.164498, -0.0006853676396); //-0.003723
 	  
 	  //shellA.addPrim(0.448555, 1.0);
 	  GaussianShell shellB(centerB, 0);
-	  shellB.addPrim(2808.6, 0.001606);
-	  shellB.addPrim(421.18, 0.008393);
-	  shellB.addPrim(50.3457, 0.069578);
-	  shellB.addPrim(17.9133, -0.389908);
-	  shellB.addPrim(3.80531, 0.694497);
-	  shellB.addPrim(1.74968, 0.491354);
-	  shellB.addPrim(0.448555, 0.022637);
-	  shellB.addPrim(0.164498, -0.003723);
+      shellB.addPrim(2808.6, 0.441593886); //0.001606
+	  shellB.addPrim(421.18, 0.5561323013); //0.008393
+	  shellB.addPrim(50.3457, 0.9372464858); //0.069578
+	  shellB.addPrim(17.9133, -2.41965773);//-0.389908
+	  shellB.addPrim(3.80531, 1.34856846); //0.694497
+	  shellB.addPrim(1.74968, 0.5327501229); //0.491354
+	  shellB.addPrim(0.448555, 0.008842745152); //0.022637
+	  shellB.addPrim(0.164498, -0.0006853676396); //-0.003723
 	 
 	  ECPIntegral ecpint(ebas);
 	  TwoIndex<double> values;
@@ -185,7 +205,8 @@ int main (int argc, char* argv[])
 	  
 	  log.title("ECP Test");
 	  log.localTime();
-	  ecpint.compute_shell_pair(U1, shellA, shellA, values);
+	  //ecpint.compute_shell_pair(U1, shellA, shellA, values);
+	  ecpint.compute_pair(shellB, shellB);
 	  log.localTime();
 	 
 	 
