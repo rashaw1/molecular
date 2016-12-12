@@ -34,6 +34,18 @@ class GaussianShell;
   */
 static TwoIndex<double> realSphericalHarmonics(int lmax, double x, double phi, std::vector<double> &fac, std::vector<double> &dfac);  
 
+/**
+  * \ingroup MINTS
+  * \class ShellPairData
+  * \brief Stores the (shifted) angular momenta, number of cartesians in a shell pair, and shifted centers
+  */
+struct ShellPairData {
+	int LA, LB, maxLBasis;
+	int ncartA, ncartB;
+	double A[3], B[3];
+	double A2, Am, B2, Bm, RAB2, RABm;
+};
+
 /** 
   * \ingroup MINTS
   * \class AngularIntegral
@@ -180,7 +192,7 @@ private:
 	  */
 	void buildBessel(std::vector<double> &r, int nr, int maxL, TwoIndex<double> &values, double weight = 1.0);
 	
-	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const;
+	double calcKij(double Na, double Nb, double zeta_a, double zeta_b, double R2) const;
 	
 	/**
 	  * Tabulate r^{N+2} times the ECP for all quadrature points. 
@@ -203,7 +215,7 @@ private:
 	  * @param end - the grid point to stop at
 	  * @param F - the matrix to put the values in
 	  */
-	void buildF(GaussianShell &shell, double *A, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, TwoIndex<double> &F);
+	void buildF(GaussianShell &shell, double A, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, TwoIndex<double> &F);
 	
 	/**
 	  * Performs the integration given the pretabulated integrand values. 
@@ -234,10 +246,9 @@ public:
 	  * Given two GaussianShells, builds the parameters needed by both kind of integral. 
 	  * @param shellA - the first GaussianShell
 	  * @param shellB - the second GaussianShell
-	  * @param A - position vector (relative to the ECP center) of shell A
-	  * @param B - position vector (relative to the ECP center) of shell B
+	  * @param data - the data container for the shell pair
 	  */
-	void buildParameters(GaussianShell &shellA, GaussianShell &shellB, double *A, double *B);
+	void buildParameters(GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data);
 	
 	/**
 	  * Calculates all type 1 radial integrals over two Gaussian shells up to the given maximum angular momentum.
@@ -247,11 +258,10 @@ public:
 	  * @param U - the ECP to be integrated over
 	  * @param shellA - the first GaussianShell
 	  * @param shellB - the second GaussianShell
-	  * @param A - position vector (relative to the ECP center) of shell A
-	  * @param B - position vector (relative to the ECP center) of shell B
+	  * @param data - the data container for the shell pair
 	  * @param values - the matrix to return the integrals in
 	  */
-	void type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, TwoIndex<double> &values);
+	void type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, TwoIndex<double> &values);
 	
     /**
       * Calculates all type 2 radial integrals over two Gaussian shells for the given ECP angular momentum l
@@ -264,13 +274,11 @@ public:
       * @param U - the ECP to be integrated over
       * @param shellA - the first GaussianShell
       * @param shellB - the second GaussianShell
-      * @param A - position vector (relative to the ECP center) of shell A
-      * @param B - position vector (relative to the ECP center) of shell B
+	  * @param data - the data container for the shell pair
       * @param values - the matrix to return the integrals in
       */
-	void type2(int lam, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, TwoIndex<double> &values);	
+	void type2(int lam, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, TwoIndex<double> &values);	
 };
-
 
 /** 
   * \ingroup MINTS
@@ -296,17 +304,17 @@ private:
 public:
 	void makeC(FiveIndex<double> &C, int L, double *A, std::vector<double> &fac);
 	/// Constructor declares reference to the ECP basis
-	ECPIntegral(ECPBasis &basis);
+	ECPIntegral(ECPBasis &basis, int maxLB, int maxLU, int deriv=0);
 	
 	/// Overridden shell-pair integral calculation over all ECP centers
 	void compute_pair(GaussianShell &shellA, GaussianShell &shellB);
 	
 	/// Calculates the type 1 integrals for the given ECP center over the given shell pair
-	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, FiveIndex<double> &CA, FiveIndex<double> &CB, TwoIndex<double> &values);
+	void type1(ECP& U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, FiveIndex<double> &CA, FiveIndex<double> &CB, TwoIndex<double> &values);
 	/// Calculates the type 2 integrals for the given ECP center over the given shell pair
-	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, FiveIndex<double> &CA, FiveIndex<double> &CB, ThreeIndex<double> &values);
+	void type2(int l, ECP& U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, FiveIndex<double> &CA, FiveIndex<double> &CB, ThreeIndex<double> &values);
 	/// Computes the overall ECP integrals over the given ECP center and shell pair
-	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, TwoIndex<double> &values);
+	void compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, TwoIndex<double> &values, int shiftA = 0, int shiftB = 0);
 };
 
 //}

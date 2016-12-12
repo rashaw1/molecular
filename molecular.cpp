@@ -184,7 +184,7 @@ int main (int argc, char* argv[])
 	  shellB.addPrim(0.164498, -0.0006853676396); //-0.003723*/
 	  shellB.addPrim(0.127469, 0.1085664935);
 	 
-	  ECPIntegral ecpint(ebas);
+	  ECPIntegral ecpint(ebas, 1, 4);
 	  TwoIndex<double> values;
 	  /*log.title("Type 1 test");
 	  ecpint.type1(U1, shellA, shellB, centerA, centerB, values);

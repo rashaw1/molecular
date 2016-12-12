@@ -325,10 +325,8 @@ void RadialIntegral::buildBessel(std::vector<double> &r, int nr, int maxL, TwoIn
 	}
 }
 
-double RadialIntegral::calcKij(double Na, double Nb, double zeta_a, double zeta_b, double *A, double *B) const {
+double RadialIntegral::calcKij(double Na, double Nb, double zeta_a, double zeta_b, double R2) const {
 	double muij = zeta_a * zeta_b / (zeta_a + zeta_b);
-	double R[3] = {A[0] - B[0], A[1] - B[1], A[2] - B[2]};
-	double R2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2];
 	return Na * Nb * exp(-muij * R2);
 }
 
@@ -337,7 +335,7 @@ double RadialIntegral::integrand(double r, double *p, int ix) {
 	return p[ix];
 }
 
-void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shellB, double *A, double *B) {
+void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 
@@ -356,11 +354,11 @@ void RadialIntegral::buildParameters(GaussianShell &shellA, GaussianShell &shell
 			
 			p(a, b) = zetaA + zetaB;
 			for (int n = 0; n < 3; n++) 
-				Pvec[n] = (zetaA * A[n] + zetaB * B[n])/p(a, b);
+				Pvec[n] = (zetaA * data.A[n] + zetaB * data.B[n])/p(a, b);
 			
 			P2(a, b) = Pvec[0]*Pvec[0] + Pvec[1]*Pvec[1] + Pvec[2]*Pvec[2];
 			P(a, b) = sqrt(P2(a, b));
-			K(a, b) = calcKij(1.0, 1.0, zetaA, zetaB, A, B);
+			K(a, b) = calcKij(1.0, 1.0, zetaA, zetaB, data.RAB2);
 			
 		}
 	}
@@ -394,11 +392,11 @@ int RadialIntegral::integrate(int maxL, int gridSize, TwoIndex<double> &intValue
 	return test;
 }
 
-void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, TwoIndex<double> &values) {
+void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, TwoIndex<double> &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
-	buildParameters(shellA, shellB, Avec, Bvec);
+	buildParameters(shellA, shellB, data);
 	
 	int gridSize = bigGrid.getN();
 
@@ -408,9 +406,8 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 	TwoIndex<double> besselValues(maxL+1, gridSize, 0.0);
 	// Calculate type1 integrals
 	double da, db, za, zb, val;
-	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
-	double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
-	A = sqrt(A); B = sqrt(B);
+	double A = data.Am;
+	double B = data.Bm;
 	std::vector<double> tempValues;
 	values.assign(maxL+1, 2*maxL + 1, 0.0);
 	
@@ -468,9 +465,9 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 			if (test == 0) std::cout << "Failed to converge: \n";
 				
 			// Calculate real spherical harmonic
-			x = fabs(P(a, b)) < 1e-12 ? 0.0 : (za * Avec[2] + zb * Bvec[2]) / (p(a, b) * P(a, b));
-			Py = (za * Avec[1] + zb * Bvec[1]) / p(a, b);
-			Px = (za * Avec[0] + zb * Bvec[0]) / p(a, b);
+			x = fabs(P(a, b)) < 1e-12 ? 0.0 : (za * data.A[2] + zb * data.B[2]) / (p(a, b) * P(a, b));
+			Py = (za * data.A[1] + zb * data.B[1]) / p(a, b);
+			Px = (za * data.A[0] + zb * data.B[0]) / p(a, b);
 			phi = atan2(Py, Px);
 
 			TwoIndex<double> harmonics = realSphericalHarmonics(maxL, x, phi, fac, dfac);
@@ -484,10 +481,8 @@ void RadialIntegral::type1(int maxL, int N, int offset, ECP &U, GaussianShell &s
 }
 
 // F_a(lam, r) = sum_{i in a} d_i K_{lam}(2 zeta_a A r)*exp(-zeta_a(r - A)^2)
-void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, TwoIndex<double> &F) {
+void RadialIntegral::buildF(GaussianShell &shell, double A, int lstart, int lend, std::vector<double> &r, int nr, int start, int end, TwoIndex<double> &F) {
 	int np = shell.nprimitive();
-	double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
-	A = sqrt(A); 
 		
 	double weight, zeta, c;
 	TwoIndex<double> besselValues(lend+1, nr, 0.0);
@@ -510,7 +505,7 @@ void RadialIntegral::buildF(GaussianShell &shell, double *Avec, int lstart, int 
 	}
 }
 
-void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *Avec, double *Bvec, TwoIndex<double> &values) {
+void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end, int N, ECP &U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, TwoIndex<double> &values) {
 	int npA = shellA.nprimitive();
 	int npB = shellB.nprimitive();
 	
@@ -531,8 +526,8 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 	// Build the F matrices
 	TwoIndex<double> Fa;
 	TwoIndex<double> Fb;
-	buildF(shellA, Avec, l1start, l1end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fa);
-	buildF(shellB, Bvec, l2start, l2end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fb);
+	buildF(shellA, data.Am, l1start, l1end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fa);
+	buildF(shellB, data.Bm, l2start, l2end, gridPoints, gridSize, smallGrid.start, smallGrid.end, Fb);
 	
 	// Build the integrals
 	bool foundStart, tooSmall;
@@ -567,10 +562,9 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 		std::cerr << "Failed at first attempt\n";
 		// Not converged, switch to big grid
 		double zeta_a, zeta_b, c_a, c_b, weight, XA, XB, X;
-		double A = Avec[0]*Avec[0] + Avec[1]*Avec[1] + Avec[2]*Avec[2];
-		double B = Bvec[0]*Bvec[0] + Bvec[1]*Bvec[1] + Bvec[2]*Bvec[2];
-		A = sqrt(A); B = sqrt(B);
-		
+		double A = data.Am;
+		double B = data.Bm;
+				
 		gridSize = bigGrid.getN();
 		intValues.assign(l2end+1, gridSize, 0.0);
 		Fa.assign(l2end+1, gridSize, 0.0);
@@ -628,7 +622,12 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 
 //***************************************** ECP INTEGRAL ***********************************************
 
-ECPIntegral::ECPIntegral(ECPBasis &_basis) : basis(_basis) { };
+ECPIntegral::ECPIntegral(ECPBasis &_basis, int maxLB, int maxLU, int deriv) : basis(_basis) { 
+	// Initialise angular and radial integrators
+	angInts.init(maxLB + deriv, maxLU);
+	angInts.compute();
+	radInts.init(2*(maxLB+deriv) + maxLU);
+};
 
 double ECPIntegral::calcC(int a, int m, double A, std::vector<double> &fac) const {
 	double value = 1.0 - 2*((a-m) % 2);
@@ -656,27 +655,27 @@ void ECPIntegral::makeC(FiveIndex<double> &C, int L, double *A, std::vector<doub
 	}
 }
 
-void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, FiveIndex<double> &CA, FiveIndex<double> &CB, TwoIndex<double> &values) { 
+void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, FiveIndex<double> &CA, FiveIndex<double> &CB, TwoIndex<double> &values) { 
 	
-	int LA = shellA.am(); int LB = shellB.am();
-	int maxLBasis = LA > LB ? LA : LB;
+	int LA = data.LA; int LB = data.LB;
+	int maxLBasis = data.maxLBasis;
 	
 	// Build radial integrals
 	int L = LA + LB;
 	TwoIndex<double> temp;
 	ThreeIndex<double> radials(L+1, L+1, 2*L+1);
 	for (int ix = 0; ix <= L; ix++) {
-		radInts.type1(ix, ix, ix % 2, U, shellA, shellB, A, B, temp);
+		radInts.type1(ix, ix, ix % 2, U, shellA, shellB, data, temp);
 		for(int l = 0; l <= ix; l++) {
 			for (int m = -l; m <= l; m++) radials(ix, l, l+m) = temp(l, l+m);
 		}
 	}
 	
-	values.assign(shellA.ncartesian(), shellB.ncartesian(), 0.0);
+	values.assign(data.ncartA, data.ncartB, 0.0);
 	
 	// Unpack positions
-	double Ax = A[0]; double Ay = A[1]; double Az = A[2];
-	double Bx = B[0]; double By = B[1]; double Bz = B[2];
+	double Ax = data.A[0]; double Ay = data.A[1]; double Az = data.A[2];
+	double Bx = data.B[0]; double By = data.B[1]; double Bz = data.B[2];
 	
 	// Calculate chi_ab for all ab in shells
 	int z1, z2, lparity, mparity, msign, ix, k, l, m;
@@ -734,12 +733,12 @@ void ECPIntegral::type1(ECP &U, GaussianShell &shellA, GaussianShell &shellB, do
 	
 }
 
-void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &shellB, double *A, double *B, FiveIndex<double> &CA, FiveIndex<double> &CB, ThreeIndex<double> &values) {
+void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &shellB, ShellPairData &data, FiveIndex<double> &CA, FiveIndex<double> &CB, ThreeIndex<double> &values) {
 	double prefac = 16.0 * M_PI * M_PI;
-	int LA = shellA.am();
-	int LB = shellB.am();
+	int LA = data.LA;
+	int LB = data.LB;
 	int L = LA + LB;	
-	int maxLBasis = LA > LB ? LA : LB;
+	int maxLBasis = data.maxLBasis;
 	
 	// Build radial integrals
 	int lparity = lam % 2;
@@ -752,7 +751,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 		for (int N2 = 0; N2 <= LB; N2++) {
 			l2start = abs(lam - N2);
 			
-			radInts.type2(lam, l1start, lam + N1, l2start, lam + N2, N1 + N2, U, shellA, shellB, A, B, temp);
+			radInts.type2(lam, l1start, lam + N1, l2start, lam + N2, N1 + N2, U, shellA, shellB, data, temp);
 			for (int l1 = l1start; l1 <= lam+N1; l1+=2) {
 				for (int l2 = l2start; l2 <= lam+N2; l2+=2) radials(N1 + N2, l1, l2) = temp(l1, l2);
 			}
@@ -764,11 +763,9 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	std::vector<double> dfac = dfacArray(2*(lam + maxLBasis) + 1);
 	
 	// Unpack positions
-	double Ax = A[0]; double Ay = A[1]; double Az = A[2];
-	double Bx = B[0]; double By = B[1]; double Bz = B[2];
-	double A2 = Ax * Ax + Ay * Ay + Az * Az;
-	double B2 = Bx * Bx + By * By + Bz * Bz;
-	double Am = sqrt(A2); double Bm = sqrt(B2);
+	double Ax = data.A[0]; double Ay = data.A[1]; double Az = data.A[2];
+	double Bx = data.B[0]; double By = data.B[1]; double Bz = data.B[2];
+	double Am = data.Am; double Bm = data.Bm;
 	
 	// Build spherical harmonics
 	double xA = Am > 0 ? Az / Am : 0.0;
@@ -835,39 +832,50 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	}
 }
 
-void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, TwoIndex<double> &values) {
+void ECPIntegral::compute_shell_pair(ECP &U, GaussianShell &shellA, GaussianShell &shellB, TwoIndex<double> &values, int shiftA, int shiftB) {
 	
+	ShellPairData data;
 	// Shift A and B to be relative to U
 	const double* C = U.center();
-	double A[3] = {shellA.center()[0] - C[0], shellA.center()[1] - C[1], shellA.center()[2] - C[2]};
-	double B[3] = {shellB.center()[0] - C[0], shellB.center()[1] - C[1], shellB.center()[2] - C[2]};
+	data.A[0] = shellA.center()[0] - C[0]; 
+	data.A[1] = shellA.center()[1] - C[1];
+	data.A[2] = shellA.center()[2] - C[2]; 
+	data.B[0] = shellB.center()[0] - C[0]; 
+	data.B[1] = shellB.center()[1] - C[1];
+	data.B[2] = shellB.center()[2] - C[2]; 
 	
-	int LA = shellA.am(); int LB = shellB.am();
-	int maxLBasis = LA > LB ? LA : LB;
+	data.LA = shellA.am() + shiftA; 
+	data.LB = shellB.am() + shiftB;
+	data.maxLBasis = data.LA > data.LB ? data.LA : data.LB;
+	data.ncartA = (data.LA+1)*(data.LA+2)/2;
+	data.ncartB = (data.LB+1)*(data.LB+2)/2;
 	
-	// Initialise angular and radial integrators
-	angInts.init(maxLBasis, U.getL());
-	angInts.compute();
-	radInts.init(LA + LB + U.getL());
+	data.A2 = data.A[0]*data.A[0] + data.A[1]*data.A[1] + data.A[2]*data.A[2];
+	data.Am = sqrt(data.A2);
+	data.B2 = data.B[0]*data.B[0] + data.B[1]*data.B[1] + data.B[2]*data.B[2];
+	data.Bm = sqrt(data.B2);
+	double RAB[3] = {data.A[0] - data.B[0], data.A[1] - data.B[1], data.A[2] - data.B[2]};
+	data.RAB2 = RAB[0]*RAB[0] + RAB[1]*RAB[1] + RAB[2]*RAB[2];
+	data.RABm = sqrt(data.RAB2);
 	
-	std::vector<double> fac = facArray(maxLBasis);
+	std::vector<double> fac = facArray(data.maxLBasis);
 	
 	// Construct coefficients 
-	FiveIndex<double> CA(1, shellA.ncartesian(), LA+1, LA+1, LA+1);
-	FiveIndex<double> CB(1, shellB.ncartesian(), LB+1, LB+1, LB+1);
-	makeC(CA, LA, A, fac);
-	makeC(CB, LB, B, fac);
+	FiveIndex<double> CA(1, data.ncartA, data.LA+1, data.LA+1, data.LA+1);
+	FiveIndex<double> CB(1, data.ncartB, data.LB+1, data.LB+1, data.LB+1);
+	makeC(CA, data.LA, data.A, fac);
+	makeC(CB, data.LB, data.B, fac);
 	
 	// Calculate type1 integrals
-	type1(U, shellA, shellB, A, B, CA, CB, values);
+	type1(U, shellA, shellB, data, CA, CB, values);
 
 	// Now all the type2 integrals
-	ThreeIndex<double> t2vals(shellA.ncartesian(), shellB.ncartesian(), 2*U.getL() + 1);
+	ThreeIndex<double> t2vals(data.ncartA, data.ncartB, 2*U.getL() + 1);
 	for (int l = 0; l < U.getL(); l++) {
-		type2(l, U, shellA, shellB, A, B, CA, CB, t2vals);
+		type2(l, U, shellA, shellB, data, CA, CB, t2vals);
 		for (int m = -l; m <= l; m++) {
-			for(int na = 0; na < shellA.ncartesian(); na++) {
-				for (int nb = 0; nb < shellB.ncartesian(); nb++)
+			for(int na = 0; na < data.ncartA; na++) {
+				for (int nb = 0; nb < data.ncartB; nb++)
 					values(na, nb) += t2vals(na, nb, l+m); 
 			}
 		}
