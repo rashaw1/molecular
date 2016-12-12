@@ -246,16 +246,10 @@ void AngularIntegral::makeOmega(FiveIndex<double> &U) {
 								
 								om_plus = om_minus = 0.0;
 								for (int i = 0; i<= lam; i++ ) {
-									for (int j = 0; j <= lam - i; j++) {
-										test2 = (rho + m + lam - i - j) % 2 == sigma % 2;
-										test3 = (1 - 2*((l+j) % 2)) * sigma >= 0;
-										test3 = test3 && (sigma == 0 ? ((l+j)%2 == 0 ? true : false) : true);
-										
-										if (test1 && test2 && test3) {
-											wval = W(k+i, l+j, m+lam-i-j, rho, rho+sigma);
-											om_plus += U(lam, mu, i, j, 0) * wval;
-											om_minus += U(lam, mu, i, j, 1) * wval;
-										}
+									for (int j = 0; j <= lam - i; j++) {												
+										wval = W(k+i, l+j, m+lam-i-j, rho, rho+sigma);
+										om_plus += U(lam, mu, i, j, 0) * wval;
+										om_minus += U(lam, mu, i, j, 1) * wval;
 									}
 								}
 								if (mu == 0) om_minus = om_plus;
@@ -566,7 +560,7 @@ void RadialIntegral::type2(int l, int l1start, int l1end, int l2start, int l2end
 		}
 		tests[l1] = integrate(l2end, gridSize, intValues, smallGrid, tempValues, l2start, 2);
 		failed = failed || (tests[l1] == 0);
-		for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = tempValues[l2];
+		for (int l2 = l2start; l2 <= l2end; l2+=2) values(l1, l2) = tempValues[l2]; 
 	}
 	
 	if (failed) {
@@ -783,7 +777,7 @@ void ECPIntegral::type2(int lam, ECP& U, GaussianShell &shellA, GaussianShell &s
 	double phiB = atan2(By, Bx);
 	TwoIndex<double> SA = realSphericalHarmonics(lam+LA, xA, phiA, fac, dfac);
 	TwoIndex<double> SB = realSphericalHarmonics(lam+LB, xB, phiB, fac, dfac);
-	
+
 	// Calculate chi_ab for all ab in shells
 	int z1, z2, ix, N1, N2;
 	double val, C;

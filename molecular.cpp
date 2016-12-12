@@ -129,7 +129,7 @@ int main (int argc, char* argv[])
 	  U1.addPrimitive(0, 2, 2.800391, 0.035968, false);
 	  U1.addPrimitive(0, 2, 50.64476, -27.92328, false);
 	  U1.addPrimitive(0, 2, 15.50026, -0.7805830, false);
-	  U1.addPrimitive(0, 2, 2.800391, 0.035968, false);
+	  U1.addPrimitive(0, 2, 1.07748, 0.094397, false);
 	  U1.addPrimitive(0, 3, 14.46561, -1.091269, false);
 	  U1.addPrimitive(0, 3, 21.23407, -2.887691, false);
 	  U1.addPrimitive(0, 4, 1.0, 0.0);
@@ -148,7 +148,7 @@ int main (int argc, char* argv[])
 	  U2.addPrimitive(0, 2, 2.800391, 0.035968, false);
 	  U2.addPrimitive(0, 2, 50.64476, -27.92328, false);
 	  U2.addPrimitive(0, 2, 15.50026, -0.7805830, false);
-	  U2.addPrimitive(0, 2, 2.800391, 0.035968, false);
+	  U2.addPrimitive(0, 2, 1.07748, 0.094397, false);
 	  U2.addPrimitive(0, 3, 14.46561, -1.091269, false);
 	  U2.addPrimitive(0, 3, 21.23407, -2.887691, false);
 	  U2.addPrimitive(0, 4, 1.0, 0.0);
@@ -161,16 +161,16 @@ int main (int argc, char* argv[])
 	  double centerB[3] = { 0.8, 0.8, 0.8 };
 	  //double centerA[3] = {0.0, 0.0, 0.0};
 	  //double centerB[3] = {0.0, 0.0, 0.0};
-	  GaussianShell shellA(centerA, 1);
-      /*shellA.addPrim(2808.6, 0.441593886); //0.001606
+	  GaussianShell shellA(centerA, 0);
+      shellA.addPrim(2808.6, 0.441593886); //0.001606
 	  shellA.addPrim(421.18, 0.5561323013); //0.008393
 	  shellA.addPrim(50.3457, 0.9372464858); //0.069578
 	  shellA.addPrim(17.9133, -2.41965773);//-0.389908
 	  shellA.addPrim(3.80531, 1.34856846); //0.694497
 	  shellA.addPrim(1.74968, 0.5327501229); //0.491354
 	  shellA.addPrim(0.448555, 0.008842745152); //0.022637
-	  shellA.addPrim(0.164498, -0.0006853676396); //-0.003723*/
-	  shellA.addPrim(0.127469, 0.1085664935);
+	  shellA.addPrim(0.164498, -0.0006853676396); //-0.003723
+	  //shellA.addPrim(0.127469, 0.1085664935);
 	  
 	  //shellA.addPrim(0.448555, 1.0);
 	  GaussianShell shellB(centerB, 1);
@@ -208,7 +208,7 @@ int main (int argc, char* argv[])
 	  log.title("ECP Test");
 	  log.localTime();
 	  //ecpint.compute_shell_pair(U1, shellA, shellA, values);
-	  ecpint.compute_pair(shellA, shellA);
+	  ecpint.compute_pair(shellA, shellB);
 	  log.localTime();
 	 
 	 

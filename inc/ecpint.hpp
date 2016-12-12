@@ -292,8 +292,9 @@ private:
 	
 	/// Worker functions for calculating binomial expansion coefficients
 	double calcC(int a, int m, double A, std::vector<double> &fac) const;
-	void makeC(FiveIndex<double> &C, int L, double *A, std::vector<double> &fac);
+
 public:
+	void makeC(FiveIndex<double> &C, int L, double *A, std::vector<double> &fac);
 	/// Constructor declares reference to the ECP basis
 	ECPIntegral(ECPBasis &basis);
 	
