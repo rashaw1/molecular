@@ -17,6 +17,7 @@
 // Constructor
 SCF::SCF(Molecule& m, Fock& f) : molecule(m), focker(f), energy(0.0), last_energy(0.0), one_E(0.0), two_E(0.0), error(0.0), last_err(0.0)
 {
+	diis.init(8, molecule.getLog().diis());
 }
 
 // Routines
@@ -37,16 +38,17 @@ void SCF::calcE()
 // Do the same but as an external function, where matrices are given as arguments
 double SCF::calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock) 
 {
-  one_E = (dens*hcore).trace();
-  two_E = (dens*fock).trace();
-  return 0.5*(one_E+two_E);
+  one_E = 0.5*(dens*hcore).trace();
+  two_E = 0.5*(dens*fock).trace();
+  return (one_E+two_E);
 }
 
 // Calculate the error vector from the difference between
 // the diagonalised MO fock matrix and the previous one
-Vector SCF::calcErr(const Matrix& F, const Matrix& D, Matrix S)
+Vector SCF::calcErr(const Matrix& F, const Matrix& D, Matrix S, const Matrix& orthog)
 {
   Matrix temp = (F*(D*S) - S*(D*F));
+  temp = orthog.transpose() * temp * orthog;
   error = fnorm(temp);
   Vector err(temp.nrows()*temp.nrows(), 0.0);
   for (int u = 0; u < temp.nrows(); u++){
@@ -62,16 +64,17 @@ Vector SCF::calcErr()
   Matrix& F = focker.getFockAO();
   Matrix& D = focker.getDens();
   Matrix S = focker.getIntegrals().getOverlap();
+  Matrix& orthog = focker.getOrthog();
 
-  Vector err = calcErr(F, D, S);
+  Vector err = calcErr(F, D, S, orthog);
   return err;
 }
 
 // Determine the distance between the current and previous density
 // matrices for convergence testing
-bool SCF::testConvergence()
+bool SCF::testConvergence(double val)
 {
-  bool result = (fabs(error-last_err) < molecule.getLog().converge() ? true : false);
+  bool result = (val < molecule.getLog().converge() ? true : false);
   last_err = error;
   return result;
 }
@@ -109,9 +112,15 @@ void SCF::rhf()
     Matrix old_dens = focker.getDens();
     focker.makeJK();
     focker.makeFock();
-    focker.addErr(calcErr());
+	
+	std::vector<Vector> errs;
+	errs.push_back(calcErr());
+   	Vector weights = diis.compute(errs);
+	errs.clear();
+	
     calcE();
     molecule.getLog().iteration(0, energy, 0.0, 0.0);
+	focker.average(weights);
     focker.transform(false);
     int iter = 1;
     double delta, dd;
@@ -124,14 +133,19 @@ void SCF::rhf()
       old_dens = focker.getDens();
       focker.makeJK();
       focker.makeFock();
-      focker.addErr(calcErr());
+      
+	  errs.push_back(calcErr());
+	  weights = diis.compute(errs);
+	  errs.clear();
+	  
       calcE();
       delta = fabs(energy-last_energy);
       molecule.getLog().iteration(iter, energy, delta, dd);
+	  focker.average(weights);
       focker.transform(false);
-      converged = testConvergence();
+      converged = testConvergence(dd);
       if ( delta > molecule.getLog().converge()/100.0 ) { converged = false; }
-      iter++;
+      iter++; 
     }
 	focker.diagonalise();
 	
@@ -173,7 +187,8 @@ void SCF::uhf()
   Matrix DA(focker.getFockMO().nrows(), focker.getFockMO().nrows(), 0.0); 
   Matrix DB(focker2.getFockMO().nrows(), focker2.getFockMO().nrows(), 0.0);
   //bool average = molecule.getLog().diis();
-  Vector err; double err1 = 0.0, err2 = 0.0, err1_last = 0.0, err2_last = 0.0;
+  double err1 = 0.0, err2 = 0.0, err1_last = 0.0, err2_last = 0.0;
+  std::vector<Vector> errs;
   while (!converged && iter < molecule.getLog().maxiter()) {
     if (iter!= 1) {
       DA = focker.getDens(); DB = focker2.getDens();
@@ -186,15 +201,19 @@ void SCF::uhf()
     focker.makeJK(); focker2.makeJK();
     focker.makeFock(focker2.getJ()); focker2.makeFock(focker.getJ());    
 
-    err = calcErr(focker.getFockAO(), focker.getDens(), focker.getIntegrals().getOverlap());
+    errs.push_back(calcErr(focker.getFockAO(), focker.getDens(), focker.getIntegrals().getOverlap(), focker.getOrthog()));
     err1_last = err1;
     err1 = error;
-    focker.addErr(err);
-    err = calcErr(focker2.getFockAO(), focker2.getDens(), focker2.getIntegrals().getOverlap());
+
+    errs.push_back(calcErr(focker2.getFockAO(), focker2.getDens(), focker2.getIntegrals().getOverlap(), focker.getOrthog()));
     err2_last = err2;
     err2 = error;
-    focker2.addErr(err);
-
+    
+	Vector weights = diis.compute(errs);
+	errs.clear();
+	focker.average(weights);
+	focker2.average(weights);
+	
     ea = calcE(focker.getHCore(), focker.getDens(), focker.getFockAO());
     eb = calcE(focker2.getHCore(), focker2.getDens(), focker2.getFockAO());
 

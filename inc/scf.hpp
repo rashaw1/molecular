@@ -25,6 +25,7 @@
 #include "fock.hpp"
 #include "matrix.hpp"
 #include "molecule.hpp"
+#include "diis.hpp"
 
 // Declare forward dependencies
 class IntegralEngine;
@@ -35,6 +36,7 @@ class SCF
 {
 private:
   Molecule& molecule;
+  DIISEngine diis;
   Fock& focker;
   double energy, last_energy, one_E, two_E, error, last_err;
 public:
@@ -44,9 +46,9 @@ public:
   void calcE();
 	double getEnergy() const { return energy; } 
   double calcE(const Matrix& hcore, const Matrix& dens, const Matrix& fock); 
-  Vector calcErr(const Matrix& F, const Matrix& D, Matrix S);
+  Vector calcErr(const Matrix& F, const Matrix& D, Matrix S, const Matrix& orthog);
   Vector calcErr();
-  bool testConvergence();
+  bool testConvergence(double val);
   void rhf();
   void uhf();
 };

@@ -9,9 +9,9 @@
  * 
  */
 
-#ifndef EIGEN_USE_MKL_ALL
-#define EIGEN_USE_MKL_ALL
-#endif
+//#ifndef EIGEN_USE_MKL_ALL
+//#define EIGEN_USE_MKL_ALL
+//#endif
 
 #include "fock.hpp"
 #include "error.hpp"
@@ -43,7 +43,7 @@ Fock::Fock(IntegralEngine& ints, Molecule& m) : integrals(ints), molecule(m)
   direct = molecule.getLog().direct();
   diis = molecule.getLog().diis();
   iter = 0;
-  MAX = 10;
+  MAX = 8;
   twoints = false;
   if (!direct){
     Vector ests = integrals.getEstimates();
@@ -100,7 +100,16 @@ void Fock::formOrthog()
   orthog = U * orthog * U.transpose();
 }
   
-
+void Fock::average(Vector &w) {
+	if (diis && iter > 2) {
+	    // Average the fock matrices according to the weights
+	    focka.assign(nbfs, nbfs, 0.0);
+		int offset = focks.size() - w.size();
+	    for (int i = offset; i < focks.size(); i++) {
+	      focka = focka + w[i-offset]*focks[i]; 
+	    } 
+	}
+}
 
 // Transform the AO fock matrix to the MO basis 
 void Fock::transform(bool first)
@@ -110,8 +119,7 @@ void Fock::transform(bool first)
     fockm = (orthog.transpose()) * ( hcore * orthog);
   } else {
     // Form the orthogonalised fock matrix
-    if (diis) DIIS();
-   fockm = orthog.transpose() * (focka * orthog);
+    fockm = orthog.transpose() * (focka * orthog);
   }
 }
 
@@ -214,25 +222,17 @@ void Fock::formJKdirect()
 void Fock::formJKfile()
 {
 }
-
-// Add an error vector
-void Fock::addErr(Vector e)
-{
-  if (iter > MAX) {
-    errs.erase(errs.begin()); // Remove first element
-  }
-  errs.push_back(e); // Push e onto the end of errs
-}	
 		
 
 void Fock::makeFock()
 {
   focka = hcore + jkints;
   if (diis) { // Archive for averaging
-    if (iter > MAX) {
+    if (iter >= MAX) {
       focks.erase(focks.begin());
     }
     focks.push_back(focka);
+	iter++;
   }		
 }
 
@@ -244,61 +244,8 @@ void Fock::makeFock(Matrix& jbints)
       focks.erase(focks.begin());
     }
     focks.push_back(focka);
+	iter++;
   }
-}
-
-// Perform DIIS averaging
-// Direct inversion of the iterative subspace
-// Greatly improves convergence and numerical behaviour
-// of the scf iterations.
-void Fock::DIIS()
-{
-  if (iter > 1) {
-    int lim = (iter < MAX ? iter : MAX);
-    Matrix B(lim+1, lim+1, -1.0); // Error norm matrix
-    B(lim, lim) = 0.0;
-    
-    // The elements of B are <e_i | e_j >
-    for (int i = 0; i < lim; i++){
-      for (int j = i; j < lim; j++){
-	B(i, j) = inner(errs[i], errs[j]);
-	B(j, i) = B(i, j);
-      }
-    }
-
-    // Solve the linear system of equations for the weights
-    Vector w(lim+1, 0.0); w[lim] = -1.0;
-    
-    Eigen::MatrixXd temp(lim+1, lim+1);
-    for (int i = 0; i < lim+1; i++){
-      for (int j = 0; j < lim+1; j++){
-	temp(i, j) = B(i, j);
-      }
-    }
-
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(temp, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    temp = svd.singularValues().asDiagonal();
-    for (int i = 0; i < lim+1; i++){
-      if (fabs(temp(i, i)) > molecule.getLog().precision())
-	temp(i, i) = 1.0/temp(i, i);
-    }
-    temp = svd.matrixV() * temp * svd.matrixU().transpose();
-    
-    for (int i = 0; i < lim+1; i++){
-      for (int j = 0; j < lim+1; j++){
-	B(i, j) = temp(i, j);
-      }
-    }
-
-    w = B*w;
-    
-    // Average the fock matrices according to the weights
-    focka.assign(nbfs, nbfs, 0.0);
-    for (int i = 0; i < lim; i++) {
-      focka = focka + w(i)*focks[i];   
-    } 
-  }
-  iter++;
 }
 
 void Fock::simpleAverage(Matrix& D0, double weight)

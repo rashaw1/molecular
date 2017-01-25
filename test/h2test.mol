@@ -1,5 +1,6 @@
 basis, cc-pvdz
-rhf,
+!rhf,
+scf,nodiis
 uhf,
 geom,
 h, 0.0, 0.0, 0.0

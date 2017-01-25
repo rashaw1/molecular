@@ -1,6 +1,7 @@
-basis, cc-pvdz
+basis, 6-311gdp
 geom,
 o, 0.0, 0.0, 0.0
 geomend
 multiplicity, 3
+scf,nodiis
 uhf,

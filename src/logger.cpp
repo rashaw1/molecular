@@ -601,21 +601,21 @@ void Logger::initIteration()
 {
   outfile << "\n";
   outfile << std::setw(12) << "Iteration";
-  outfile << std::setw(15) << "Energy";
-  outfile << std::setw(15) << "Delta E";
-  outfile << std::setw(15) << "Delta D";
+  outfile << std::setw(24) << "Energy";
+  outfile << std::setw(24) << "Delta E";
+  outfile << std::setw(24) << "Delta D";
   outfile << std::setw(20) << "Time elapsed\n";
-  outfile << std::string(77, '-') << "\n";
+  outfile << std::string(110, '-') << "\n";
 }
 
 // Print a single iteration
 void Logger::iteration(int iter, double energy, double delta, double dd)
 {
   outfile << std::setw(12) << iter;
-  outfile << std::setw(15) << std::setprecision(9) << energy;
-  outfile << std::setw(15) << std::setprecision(6) << delta;
-  outfile << std::setw(15) << dd;
-  outfile << std::setw(20) << getLocalTime();
+  outfile << std::setw(24) << std::setprecision(12) << energy;
+  outfile << std::setw(24) << delta;
+  outfile << std::setw(24) << dd;
+  outfile << std::setw(20) << std::setprecision(6) << getLocalTime();
   outfile << "\n";
 }
 

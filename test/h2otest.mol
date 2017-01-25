@@ -5,4 +5,7 @@ H, 1.63803684, 1.1365488, 0.0
 H, -1.63803684, 1.1365488, 0.0
 geomend
 nthreads, 2
+precision,1e-15
+scf,converge,1e-12
+!scf,nodiis
 rhf,
